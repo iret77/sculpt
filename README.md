@@ -1,8 +1,12 @@
 # SCULPT
 
+**SCULPT — a convergent programming language.**
+
 SCULPT is a research compiler for a converging, AI-first programming language.
 You write structured, non-deterministic code; the compiler turns it into a compact IR
 and asks an LLM to produce target IR, which is then built deterministically by a target provider.
+
+**AI‑first, but human‑centered:** build *by* AI, build *with* AI, build *for* humans.
 
 This repo contains the MVP compiler in Rust and a small set of example programs.
 
