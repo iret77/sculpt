@@ -51,7 +51,7 @@ pub enum Command {
     target: Option<String>,
     #[arg(long)]
     provider: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Override model (defaults to provider config)")]
     model: Option<String>,
     #[arg(long)]
     strict_provider: bool,
@@ -62,7 +62,7 @@ pub enum Command {
     input: PathBuf,
     #[arg(long)]
     provider: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Override model (defaults to provider config)")]
     model: Option<String>,
     #[arg(long)]
     strict_provider: bool,
