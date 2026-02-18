@@ -13,7 +13,7 @@ This repo contains the MVP compiler in Rust and a small set of example programs.
 
 ## Status
 - MVP research compiler (CLI) with LLM-backed build pipeline.
-- Built-in targets: `cli`, `web`, `cpp`.
+- Built-in targets: `cli`, `gui`, `web`.
 
 ## Install
 ```bash
@@ -34,7 +34,7 @@ sculpt run examples/hello_world.sculpt --target cli
 
 ## Commands
 - `sculpt examples` — write example programs into `examples/`
-- `sculpt build <file.sculpt> --target <cli|web|cpp> --provider <openai|stub>`
+- `sculpt build <file.sculpt> --target <cli|gui|web> --provider <openai|stub>`
 - `sculpt freeze <file.sculpt> --target <...> --provider <...>`
 - `sculpt replay <file.sculpt> --target <...>`
 - `sculpt run <file.sculpt> --target <...>`
