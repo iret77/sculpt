@@ -66,7 +66,8 @@ export ANTHROPIC_API_KEY=...
 export GEMINI_API_KEY=...
 ```
 
-Optional config file (overridden by env var). `provider` acts as the default, so you can omit `--provider`:
+Optional config file (overridden by env var). `provider` acts as the default, so you can omit `--provider`.
+If `--model` is omitted, the per‑provider model below is used (otherwise the built‑in fallback applies).
 ```json
 {
   "provider": "gemini",
