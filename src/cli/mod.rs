@@ -13,13 +13,13 @@ use crate::report::generate_report;
 use crate::target_ir::{from_json_value, TargetIr};
 use crate::targets::{
   emit_cli,
-  emit_cpp,
+  emit_gui,
   emit_web,
   list_targets,
   describe_target,
   resolve_target,
   run_cli,
-  run_cpp,
+  run_gui,
   run_external_target,
   run_web,
   TargetKind,
@@ -501,7 +501,7 @@ fn run_cmd(input: &Path, target: &str) -> Result<()> {
   match resolve_target(target) {
     TargetKind::Cli => run_cli(Path::new("dist")),
     TargetKind::Web => run_web(Path::new("dist")),
-    TargetKind::Cpp => run_cpp(Path::new("dist")),
+    TargetKind::Gui => run_gui(Path::new("dist")),
     TargetKind::External(name) => {
       run_external_target(&name, &load_ir(input)?, None, None, Path::new("dist"), input, None, "run")?;
       Ok(())
@@ -612,8 +612,8 @@ fn deterministic_build(target: &str, target_ir: &TargetIr, target_ir_value: &Val
     TargetKind::Web => {
       emit_web(target_ir, Path::new("dist"))?;
     }
-    TargetKind::Cpp => {
-      emit_cpp(target_ir, Path::new("dist"))?;
+    TargetKind::Gui => {
+      emit_gui(target_ir, Path::new("dist"))?;
     }
     TargetKind::External(name) => {
       run_external_target(&name, &load_ir(input)?, None, Some(target_ir_value), Path::new("dist"), input, None, "build")?;
