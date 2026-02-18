@@ -75,8 +75,9 @@ fn openai_generate(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
 ) -> Result<(Value, DebugCapture)> {
-  let compact_schema = compact_schema_for(&target_spec.standard_ir);
-  let input = build_prompt(sculpt_ir, target_spec, compact_schema.as_ref(), nondet_report, previous_target_ir)?;
+  let compact_schema = compact_schema_for(&target_spec.standard_ir)
+    .ok_or_else(|| anyhow::anyhow!("No compact LLM schema for {}", target_spec.standard_ir))?;
+  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir)?;
 
   let body = json!({
     "model": model,
@@ -85,7 +86,7 @@ fn openai_generate(
       "format": {
         "type": "json_schema",
         "name": "target_ir",
-        "schema": compact_schema.as_ref().unwrap_or(&target_spec.schema),
+        "schema": compact_schema,
         "strict": false
       }
     }
@@ -112,11 +113,7 @@ fn openai_generate(
   }
 
   let parsed = parse_json_response(&text)?;
-  let normalized = if compact_schema.is_some() {
-    normalize_llm_ir(&target_spec.standard_ir, &parsed)
-  } else {
-    parsed
-  };
+  let normalized = normalize_llm_ir(&target_spec.standard_ir, &parsed);
   Ok((
     normalized,
     DebugCapture {
@@ -152,8 +149,9 @@ fn anthropic_generate(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
 ) -> Result<(Value, DebugCapture)> {
-  let compact_schema = compact_schema_for(&target_spec.standard_ir);
-  let input = build_prompt(sculpt_ir, target_spec, compact_schema.as_ref(), nondet_report, previous_target_ir)?;
+  let compact_schema = compact_schema_for(&target_spec.standard_ir)
+    .ok_or_else(|| anyhow::anyhow!("No compact LLM schema for {}", target_spec.standard_ir))?;
+  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir)?;
   let body = json!({
     "model": model,
     "max_tokens": 2048,
@@ -185,11 +183,7 @@ fn anthropic_generate(
     bail!("Anthropic returned empty output");
   }
   let parsed = parse_json_response(&text)?;
-  let normalized = if compact_schema.is_some() {
-    normalize_llm_ir(&target_spec.standard_ir, &parsed)
-  } else {
-    parsed
-  };
+  let normalized = normalize_llm_ir(&target_spec.standard_ir, &parsed);
   Ok((
     normalized,
     DebugCapture {
@@ -208,8 +202,9 @@ fn gemini_generate(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
 ) -> Result<(Value, DebugCapture)> {
-  let compact_schema = compact_schema_for(&target_spec.standard_ir);
-  let input = build_prompt(sculpt_ir, target_spec, compact_schema.as_ref(), nondet_report, previous_target_ir)?;
+  let compact_schema = compact_schema_for(&target_spec.standard_ir)
+    .ok_or_else(|| anyhow::anyhow!("No compact LLM schema for {}", target_spec.standard_ir))?;
+  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir)?;
   let body = json!({
     "contents": [
       { "role": "user", "parts": [ { "text": input } ] }
@@ -241,11 +236,7 @@ fn gemini_generate(
     bail!("Gemini returned empty output");
   }
   let parsed = parse_json_response(&text)?;
-  let normalized = if compact_schema.is_some() {
-    normalize_llm_ir(&target_spec.standard_ir, &parsed)
-  } else {
-    parsed
-  };
+  let normalized = normalize_llm_ir(&target_spec.standard_ir, &parsed);
   Ok((
     normalized,
     DebugCapture {
@@ -259,7 +250,7 @@ fn gemini_generate(
 fn build_prompt(
   sculpt_ir: &Value,
   target_spec: &TargetSpec,
-  compact_schema: Option<&Value>,
+  compact_schema: &Value,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
 ) -> Result<String> {
@@ -270,8 +261,7 @@ fn build_prompt(
   input.push_str("STANDARD_IR:\n");
   input.push_str(&target_spec.standard_ir);
   input.push_str("\n\nLLM_IR_SCHEMA_JSON:\n");
-  let schema = compact_schema.unwrap_or(&target_spec.schema);
-  input.push_str(&serde_json::to_string_pretty(schema)?);
+  input.push_str(&serde_json::to_string_pretty(compact_schema)?);
   input.push_str("\n\nSCULPT_IR_JSON:\n");
   input.push_str(&serde_json::to_string_pretty(sculpt_ir)?);
   input.push_str("\n\nNONDET_REPORT:\n");

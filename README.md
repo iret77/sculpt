@@ -8,8 +8,8 @@ and asks an LLM to produce target IR, which is then built deterministically by a
 
 **AI‑first, but human‑centered:** build *by* AI, build *with* AI, build *for* humans.
 
-The LLM does **not** see verbose JSON. We use a compact, short‑key IR for the model,
-then normalize into standard IR for deterministic build and validation.
+The LLM sees **only** a compact, short‑key IR. We then normalize into standard IR
+for deterministic build and validation.
 
 This repo contains the MVP compiler in Rust and a small set of example programs.
 
