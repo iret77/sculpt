@@ -262,7 +262,9 @@ fn build_prompt(
   input.push_str("  u = [ [viewName, [ [kind,text,color,x,y,action,style], ... ] ], ... ]\n");
   input.push_str("  f = [ start, [ [from, [ [event,target], ... ] ], ... ] ]\n");
   input.push_str("  w = [title,width,height]\n\n");
-  input.push_str("  l = [ [viewName, [padding,spacing,align,background] ], ... ]\n\n");
+  input.push_str("  l = [ [viewName, [padding,spacing,align,background] ], ... ]\n");
+  input.push_str("Action semantics:\n");
+  input.push_str("  action=\"modal.ok\" means show a simple OK modal when the button is clicked.\n\n");
   input.push_str("STANDARD_IR:\n");
   input.push_str(&target_spec.standard_ir);
   input.push_str("\n\nLLM_IR_SCHEMA_JSON:\n");

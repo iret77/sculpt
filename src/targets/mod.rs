@@ -115,6 +115,7 @@ let package = Package(
   let items = target.views.get(&view_name).cloned().unwrap_or_default();
   let mut text_views: Vec<(String, String, Option<String>)> = Vec::new();
   let mut button_label = None;
+  let mut button_action = None;
 
   for item in items {
     match item.kind.as_str() {
@@ -126,6 +127,9 @@ let package = Package(
       }
       "button" => {
         button_label = item.text.or(Some("OK".to_string()));
+        if let Some(action) = item.action {
+          button_action = Some(action);
+        }
       }
       _ => {}
     }
@@ -157,7 +161,10 @@ let package = Package(
   swift.push_str("  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }\n");
   swift.push_str("}\n\n");
   swift.push_str("struct ContentView: View {\n");
-  swift.push_str("  @State private var showAlert = false\n\n");
+  let show_alert = matches!(button_action.as_deref(), Some("modal.ok"));
+  if show_alert {
+    swift.push_str("  @State private var showAlert = false\n\n");
+  }
   swift.push_str("  var body: some View {\n");
   swift.push_str(&format!("    VStack(alignment: {}, spacing: {}) {{\n", map_alignment(align), spacing));
   for (idx, (text, color, style)) in text_views.iter().enumerate() {
@@ -169,9 +176,11 @@ let package = Package(
       mapped
     ));
   }
+  let button_action_code = if show_alert { "{ showAlert = true }" } else { "{}" };
   swift.push_str(&format!(
-    "      Button(\"{}\") {{ showAlert = true }}\n",
-    escape_swift(button_label.as_deref().unwrap_or("OK"))
+    "      Button(\"{}\") {}\n",
+    escape_swift(button_label.as_deref().unwrap_or("OK")),
+    button_action_code
   ));
   swift.push_str("        .buttonStyle(.borderedProminent)\n");
   swift.push_str("        .controlSize(.large)\n");
@@ -181,7 +190,9 @@ let package = Package(
   swift.push_str("    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)\n");
   swift.push_str(&format!("    .frame(width: {}, height: {})\n", width, height));
   swift.push_str(&format!("    .background({})\n", map_background(background)));
-  swift.push_str("    .alert(\"OK\", isPresented: $showAlert) { Button(\"OK\", role: .cancel) { } }\n");
+  if show_alert {
+    swift.push_str("    .alert(\"OK\", isPresented: $showAlert) { Button(\"OK\", role: .cancel) { } }\n");
+  }
   swift.push_str("  }\n");
   swift.push_str("}\n\n");
   swift.push_str("@main struct SculptGuiApp: App {\n");

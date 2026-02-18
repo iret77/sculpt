@@ -20,6 +20,10 @@ Whitespace dient nur der Lesbarkeit und ist **niemals** Syntax.
 @meta author="team"
 ```
 
+**Hinweis (GUI‑Action‑Semantik):**
+Für einfache OK‑Modals nutzt der Compiler die Action‑Kennung:
+`action="modal.ok"`
+
 ```
 <blockType>(<name, params...>)
   ...
