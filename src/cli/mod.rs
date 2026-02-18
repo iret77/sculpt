@@ -48,7 +48,7 @@ pub enum Command {
   Build {
     input: PathBuf,
     #[arg(long)]
-    target: String,
+    target: Option<String>,
     #[arg(long)]
     provider: Option<String>,
     #[arg(long)]
@@ -67,19 +67,19 @@ pub enum Command {
     #[arg(long)]
     strict_provider: bool,
     #[arg(long)]
-    target: String,
+    target: Option<String>,
     #[arg(long, value_name = "level", num_args = 0..=1, default_missing_value = "compact", value_parser = ["compact", "raw", "all", "json"])]
     debug: Option<String>,
   },
   Replay {
     input: PathBuf,
     #[arg(long)]
-    target: String,
+    target: Option<String>,
   },
   Run {
     input: PathBuf,
     #[arg(long)]
-    target: String,
+    target: Option<String>,
   },
 }
 
@@ -140,13 +140,13 @@ pub fn run() -> Result<()> {
       TargetCommand::Describe { target } => target_describe(&target),
     },
     Command::Build { input, target, provider, model, strict_provider, debug } => {
-      build(&input, &target, provider, model, strict_provider, debug)
+      build(&input, target.as_deref(), provider, model, strict_provider, debug)
     }
     Command::Freeze { input, provider, model, strict_provider, target, debug } => {
-      freeze(&input, provider, model, strict_provider, &target, debug)
+      freeze(&input, provider, model, strict_provider, target.as_deref(), debug)
     }
-    Command::Replay { input, target } => replay(&input, &target),
-    Command::Run { input, target } => run_cmd(&input, &target),
+    Command::Replay { input, target } => replay(&input, target.as_deref()),
+    Command::Run { input, target } => run_cmd(&input, target.as_deref()),
   }
 }
 
@@ -460,7 +460,7 @@ fn parse_debug(level: Option<String>) -> Option<DebugLevel> {
 
 fn build(
   input: &Path,
-  target: &str,
+  target: Option<&str>,
   provider: Option<String>,
   model: Option<String>,
   strict: bool,
@@ -469,7 +469,8 @@ fn build(
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
-  let layout_required = enforce_meta(&ir, target)?;
+  let target = resolve_target_from_meta(target, &ir)?;
+  let layout_required = enforce_meta(&ir, &target)?;
   let ir_json = to_pretty_json(&ir)?;
   let nondet = generate_report(&ir);
 
@@ -477,7 +478,7 @@ fn build(
   fs::write("ir.json", ir_json)?;
   fs::write("nondet.report", &nondet)?;
 
-  let spec = build_target_spec(target)?;
+  let spec = build_target_spec(&target)?;
   let debug_level = parse_debug(debug);
   let (ai_provider, provider_info) = select_ai_provider(provider, model, strict)?;
   let sculpt_ir_value = serde_json::to_value(&ir)?;
@@ -523,13 +524,13 @@ fn build(
 
   fs::write("dist/target.ir.json", serde_json::to_string_pretty(&target_ir_value)?)?;
   let build_started = Instant::now();
-  deterministic_build(target, &target_ir, &target_ir_value, input)?;
+  deterministic_build(&target, &target_ir, &target_ir_value, input)?;
   let build_ms = build_started.elapsed().as_millis();
 
   if let Some(level) = debug_level {
     emit_debug(
       level,
-      target,
+      &target,
       input,
       &provider_info,
       &spec,
@@ -552,16 +553,17 @@ fn freeze(
   provider: Option<String>,
   model: Option<String>,
   strict: bool,
-  target: &str,
+  target: Option<&str>,
   debug: Option<String>,
 ) -> Result<()> {
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
-  let layout_required = enforce_meta(&ir, target)?;
+  let target = resolve_target_from_meta(target, &ir)?;
+  let layout_required = enforce_meta(&ir, &target)?;
   let nondet = generate_report(&ir);
 
-  let spec = build_target_spec(target)?;
+  let spec = build_target_spec(&target)?;
   let debug_level = parse_debug(debug);
   let (ai_provider, provider_info) = select_ai_provider(provider.clone(), model.clone(), strict)?;
   let sculpt_ir_value = serde_json::to_value(&ir)?;
@@ -605,7 +607,7 @@ fn freeze(
     bail!("layout=explicit requires layout data in target IR");
   }
 
-  let lock = create_lock(&ir, &provider_info.name, target, &target_ir_value, &provider_info.model)?;
+  let lock = create_lock(&ir, &provider_info.name, &target, &target_ir_value, &provider_info.model)?;
   write_lock(Path::new("sculpt.lock"), &lock)?;
 
   fs::create_dir_all("dist")?;
@@ -614,13 +616,13 @@ fn freeze(
   fs::write("nondet.report", &nondet)?;
 
   let build_started = Instant::now();
-  deterministic_build(target, &target_ir, &target_ir_value, input)?;
+  deterministic_build(&target, &target_ir, &target_ir_value, input)?;
   let build_ms = build_started.elapsed().as_millis();
 
   if let Some(level) = debug_level {
     emit_debug(
       level,
-      target,
+      &target,
       input,
       &provider_info,
       &spec,
@@ -639,11 +641,12 @@ fn freeze(
   Ok(())
 }
 
-fn replay(input: &Path, target: &str) -> Result<()> {
+fn replay(input: &Path, target: Option<&str>) -> Result<()> {
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
-  let layout_required = enforce_meta(&ir, target)?;
+  let target = resolve_target_from_meta(target, &ir)?;
+  let layout_required = enforce_meta(&ir, &target)?;
   let lock = read_lock(Path::new("sculpt.lock"))?;
   verify_lock(&ir, &lock)?;
 
@@ -656,7 +659,7 @@ fn replay(input: &Path, target: &str) -> Result<()> {
 
   fs::create_dir_all("dist")?;
   fs::write("dist/target.ir.json", serde_json::to_string_pretty(&target_ir_value)?)?;
-  deterministic_build(target, &target_ir, &target_ir_value, input)?;
+  deterministic_build(&target, &target_ir, &target_ir_value, input)?;
   fs::write("ir.json", to_pretty_json(&ir)?)?;
   fs::write("nondet.report", generate_report(&ir))?;
 
@@ -753,13 +756,15 @@ fn emit_debug(
   }
 }
 
-fn run_cmd(input: &Path, target: &str) -> Result<()> {
-  match resolve_target(target) {
+fn run_cmd(input: &Path, target: Option<&str>) -> Result<()> {
+  let ir = load_ir(input)?;
+  let target = resolve_target_from_meta(target, &ir)?;
+  match resolve_target(&target) {
     TargetKind::Cli => run_cli(Path::new("dist")),
     TargetKind::Web => run_web(Path::new("dist")),
     TargetKind::Gui => run_gui(Path::new("dist")),
     TargetKind::External(name) => {
-      run_external_target(&name, &load_ir(input)?, None, None, Path::new("dist"), input, None, "run")?;
+      run_external_target(&name, &ir, None, None, Path::new("dist"), input, None, "run")?;
       Ok(())
     }
   }
@@ -780,6 +785,16 @@ fn enforce_meta(ir: &IrModule, target: &str) -> Result<bool> {
     bail!("layout=explicit is only valid for gui target");
   }
   Ok(layout_required)
+}
+
+fn resolve_target_from_meta(target: Option<&str>, ir: &IrModule) -> Result<String> {
+  if let Some(t) = target {
+    return Ok(t.to_string());
+  }
+  if let Some(meta) = ir.meta.get("target") {
+    return Ok(meta.to_string());
+  }
+  bail!("Target required. Use --target or set @meta target=...")
 }
 
 struct ProviderInfo {
