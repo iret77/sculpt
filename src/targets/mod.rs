@@ -281,7 +281,7 @@ pub fn emit_cli(target: &TargetIr, out_dir: &Path) -> Result<()> {
 pub fn run_web(out_dir: &Path) -> Result<()> {
   let index = out_dir.join("index.html");
   if !index.exists() {
-    bail!("dist/index.html not found. Run `sculpt build --target web <file>` first.");
+    bail!("{} not found. Run `sculpt build --target web <file>` first.", index.display());
   }
   if Command::new("open").arg(&index).status().is_ok() {
     return Ok(());
@@ -292,13 +292,13 @@ pub fn run_web(out_dir: &Path) -> Result<()> {
   if Command::new("cmd").args(["/c", "start"]).arg(&index).status().is_ok() {
     return Ok(());
   }
-  bail!("Could not auto-open browser. Open dist/index.html manually.");
+  bail!("Could not auto-open browser. Open {} manually.", index.display());
 }
 
 pub fn run_gui(out_dir: &Path) -> Result<()> {
   let exe = out_dir.join("gui").join(".build").join("release").join("SculptGui");
   if !exe.exists() {
-    bail!("dist/gui/.build/release/SculptGui not found. Run `sculpt build --target gui <file>` first.");
+    bail!("{} not found. Run `sculpt build --target gui <file>` first.", exe.display());
   }
   let status = Command::new(exe).status()?;
   if !status.success() {
@@ -310,12 +310,12 @@ pub fn run_gui(out_dir: &Path) -> Result<()> {
 pub fn run_cli(out_dir: &Path) -> Result<()> {
   let entry = out_dir.join("main.js");
   if !entry.exists() {
-    bail!("dist/main.js not found. Run `sculpt build --target cli <file>` first.");
+    bail!("{} not found. Run `sculpt build --target cli <file>` first.", entry.display());
   }
   let status = Command::new("node")
-    .arg(entry)
+    .arg(&entry)
     .status()
-    .with_context(|| "Failed to run cli target (node dist/main.js)")?;
+    .with_context(|| format!("Failed to run cli target (node {})", entry.display()))?;
   if !status.success() {
     bail!("cli run failed with status {:?}", status.code());
   }

@@ -1,7 +1,10 @@
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Duration, Instant};
+use std::io::{self, Write};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::thread;
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
@@ -479,24 +482,35 @@ fn build(
   let ir_json = to_pretty_json(&ir)?;
   let nondet = generate_report(&ir);
 
-  fs::create_dir_all("dist")?;
-  fs::write("ir.json", ir_json)?;
-  fs::write("nondet.report", &nondet)?;
+  let dist_dir = dist_dir(input);
+  fs::create_dir_all(&dist_dir)?;
+  fs::write(dist_dir.join("ir.json"), ir_json)?;
+  fs::write(dist_dir.join("nondet.report"), &nondet)?;
 
   let spec = build_target_spec(&target)?;
   let debug_level = parse_debug(debug);
   let (ai_provider, provider_info) = select_ai_provider(provider, model, strict)?;
+  print_unified_header("Build", &target, input, Some(&provider_info));
+  print_step("1", "Parse & Validate", "ok");
   let sculpt_ir_value = serde_json::to_value(&ir)?;
-  let previous_target_ir = read_previous_target_ir();
+  let previous_target_ir = read_previous_target_ir(input);
 
-  let (target_ir_value, debug_capture) = generate_target_ir(
+  let spinner = start_spinner("2", "LLM Compile");
+  let target_ir_result = generate_target_ir(
     ai_provider,
     &sculpt_ir_value,
     &spec,
     &nondet,
     previous_target_ir.as_ref(),
     layout_required,
-  )?;
+  );
+  stop_spinner(spinner);
+  if target_ir_result.is_ok() {
+    finish_step("2", "LLM Compile", "ok");
+  } else {
+    finish_step("2", "LLM Compile", "failed");
+  }
+  let (target_ir_value, debug_capture) = target_ir_result?;
   let target_ir = match from_json_value(target_ir_value.clone()) {
     Ok(ir) => ir,
     Err(e) => {
@@ -527,10 +541,17 @@ fn build(
     bail!("layout=explicit requires layout data in target IR");
   }
 
-  fs::write("dist/target.ir.json", serde_json::to_string_pretty(&target_ir_value)?)?;
+  fs::write(dist_dir.join("target.ir.json"), serde_json::to_string_pretty(&target_ir_value)?)?;
+  let spinner = start_spinner("3", "Build Target");
   let build_started = Instant::now();
-  deterministic_build(&target, &target_ir, &target_ir_value, input)?;
+  let build_result = deterministic_build(&target, &target_ir, &target_ir_value, input, &dist_dir);
   let build_ms = build_started.elapsed().as_millis();
+  stop_spinner(spinner);
+  if let Err(e) = build_result {
+    finish_step("3", "Build Target", "failed");
+    return Err(e);
+  }
+  finish_step("3", "Build Target", "ok");
 
   if let Some(level) = debug_level {
     emit_debug(
@@ -545,13 +566,11 @@ fn build(
     );
   }
 
-  print_unified_summary(
-    "Build",
-    &target,
-    input,
-    &provider_info,
-    &["dist/target.ir.json", "ir.json", "nondet.report"],
-  );
+  print_unified_footer(&[
+    &format!("{}/target.ir.json", dist_dir.display()),
+    &format!("{}/ir.json", dist_dir.display()),
+    &format!("{}/nondet.report", dist_dir.display()),
+  ]);
   Ok(())
 }
 
@@ -573,17 +592,27 @@ fn freeze(
   let spec = build_target_spec(&target)?;
   let debug_level = parse_debug(debug);
   let (ai_provider, provider_info) = select_ai_provider(provider.clone(), model.clone(), strict)?;
+  print_unified_header("Freeze", &target, input, Some(&provider_info));
+  print_step("1", "Parse & Validate", "ok");
   let sculpt_ir_value = serde_json::to_value(&ir)?;
-  let previous_target_ir = read_previous_target_ir();
+  let previous_target_ir = read_previous_target_ir(input);
 
-  let (target_ir_value, debug_capture) = generate_target_ir(
+  let spinner = start_spinner("2", "LLM Compile");
+  let target_ir_result = generate_target_ir(
     ai_provider,
     &sculpt_ir_value,
     &spec,
     &nondet,
     previous_target_ir.as_ref(),
     layout_required,
-  )?;
+  );
+  stop_spinner(spinner);
+  if target_ir_result.is_ok() {
+    finish_step("2", "LLM Compile", "ok");
+  } else {
+    finish_step("2", "LLM Compile", "failed");
+  }
+  let (target_ir_value, debug_capture) = target_ir_result?;
   let target_ir = match from_json_value(target_ir_value.clone()) {
     Ok(ir) => ir,
     Err(e) => {
@@ -617,14 +646,22 @@ fn freeze(
   let lock = create_lock(&ir, &provider_info.name, &target, &target_ir_value, &provider_info.model)?;
   write_lock(Path::new("sculpt.lock"), &lock)?;
 
-  fs::create_dir_all("dist")?;
-  fs::write("dist/target.ir.json", serde_json::to_string_pretty(&target_ir_value)?)?;
-  fs::write("ir.json", to_pretty_json(&ir)?)?;
-  fs::write("nondet.report", &nondet)?;
+  let dist_dir = dist_dir(input);
+  fs::create_dir_all(&dist_dir)?;
+  fs::write(dist_dir.join("target.ir.json"), serde_json::to_string_pretty(&target_ir_value)?)?;
+  fs::write(dist_dir.join("ir.json"), to_pretty_json(&ir)?)?;
+  fs::write(dist_dir.join("nondet.report"), &nondet)?;
 
+  let spinner = start_spinner("3", "Build Target");
   let build_started = Instant::now();
-  deterministic_build(&target, &target_ir, &target_ir_value, input)?;
+  let build_result = deterministic_build(&target, &target_ir, &target_ir_value, input, &dist_dir);
   let build_ms = build_started.elapsed().as_millis();
+  stop_spinner(spinner);
+  if let Err(e) = build_result {
+    finish_step("3", "Build Target", "failed");
+    return Err(e);
+  }
+  finish_step("3", "Build Target", "ok");
 
   if let Some(level) = debug_level {
     emit_debug(
@@ -639,13 +676,12 @@ fn freeze(
     );
   }
 
-  print_unified_summary(
-    "Freeze",
-    &target,
-    input,
-    &provider_info,
-    &["sculpt.lock", "dist/target.ir.json", "ir.json", "nondet.report"],
-  );
+  print_unified_footer(&[
+    "sculpt.lock",
+    &format!("{}/target.ir.json", dist_dir.display()),
+    &format!("{}/ir.json", dist_dir.display()),
+    &format!("{}/nondet.report", dist_dir.display()),
+  ]);
   Ok(())
 }
 
@@ -655,9 +691,12 @@ fn replay(input: &Path, target: Option<&str>) -> Result<()> {
   let ir = from_ast(module);
   let target = resolve_target_from_meta(target, &ir)?;
   let layout_required = enforce_meta(&ir, &target)?;
+  print_unified_header("Replay", &target, input, None);
+  print_step("1", "Parse & Validate", "ok");
   let lock = read_lock(Path::new("sculpt.lock"))?;
   verify_lock(&ir, &lock)?;
 
+  print_step("2", "Load Lock", "ok");
   let target_ir_value = lock.target_ir.clone();
   let target_ir = from_json_value(target_ir_value.clone())
     .map_err(|e| anyhow::anyhow!("Target IR parse error: {}", e))?;
@@ -665,19 +704,25 @@ fn replay(input: &Path, target: Option<&str>) -> Result<()> {
     bail!("layout=explicit requires layout data in target IR");
   }
 
-  fs::create_dir_all("dist")?;
-  fs::write("dist/target.ir.json", serde_json::to_string_pretty(&target_ir_value)?)?;
-  deterministic_build(&target, &target_ir, &target_ir_value, input)?;
-  fs::write("ir.json", to_pretty_json(&ir)?)?;
-  fs::write("nondet.report", generate_report(&ir))?;
+  let dist_dir = dist_dir(input);
+  fs::create_dir_all(&dist_dir)?;
+  fs::write(dist_dir.join("target.ir.json"), serde_json::to_string_pretty(&target_ir_value)?)?;
+  let spinner = start_spinner("3", "Build Target");
+  let build_result = deterministic_build(&target, &target_ir, &target_ir_value, input, &dist_dir);
+  stop_spinner(spinner);
+  if let Err(e) = build_result {
+    finish_step("3", "Build Target", "failed");
+    return Err(e);
+  }
+  finish_step("3", "Build Target", "ok");
+  fs::write(dist_dir.join("ir.json"), to_pretty_json(&ir)?)?;
+  fs::write(dist_dir.join("nondet.report"), generate_report(&ir))?;
 
-  print_unified_summary(
-    "Replay",
-    &target,
-    input,
-    &ProviderInfo { name: "replay".to_string(), model: "locked".to_string() },
-    &["dist/target.ir.json", "ir.json", "nondet.report"],
-  );
+  print_unified_footer(&[
+    &format!("{}/target.ir.json", dist_dir.display()),
+    &format!("{}/ir.json", dist_dir.display()),
+    &format!("{}/nondet.report", dist_dir.display()),
+  ]);
   Ok(())
 }
 
@@ -716,9 +761,9 @@ fn emit_debug(
       "build": build_ms
     },
     "outputs": [
-      "dist/target.ir.json",
-      "ir.json",
-      "nondet.report"
+      &format!("{}/target.ir.json", dist_dir(input).display()),
+      &format!("{}/ir.json", dist_dir(input).display()),
+      &format!("{}/nondet.report", dist_dir(input).display())
     ]
   });
 
@@ -750,7 +795,12 @@ fn emit_debug(
     transition_count
   );
   eprintln!("  timing_ms: llm={} build={}", llm_ms, build_ms);
-  eprintln!("  outputs: dist/target.ir.json ir.json nondet.report");
+  eprintln!(
+    "  outputs: {}/target.ir.json {}/ir.json {}/nondet.report",
+    dist_dir(input).display(),
+    dist_dir(input).display(),
+    dist_dir(input).display()
+  );
 
   if matches!(level, DebugLevel::Raw | DebugLevel::All) {
     if let Some(c) = capture {
@@ -770,12 +820,13 @@ fn run_cmd(input: &Path, target: Option<&str>) -> Result<()> {
   let ir = load_ir(input)?;
   let target = resolve_target_from_meta(target, &ir)?;
   print_unified_header("Run", &target, input, None);
+  let dist_dir = dist_dir(input);
   match resolve_target(&target) {
-    TargetKind::Cli => run_cli(Path::new("dist")),
-    TargetKind::Web => run_web(Path::new("dist")),
-    TargetKind::Gui => run_gui(Path::new("dist")),
+    TargetKind::Cli => run_cli(&dist_dir),
+    TargetKind::Web => run_web(&dist_dir),
+    TargetKind::Gui => run_gui(&dist_dir),
     TargetKind::External(name) => {
-      run_external_target(&name, &ir, None, None, Path::new("dist"), input, None, "run")?;
+      run_external_target(&name, &ir, None, None, &dist_dir, input, None, "run")?;
       Ok(())
     }
   }
@@ -814,45 +865,99 @@ struct ProviderInfo {
 }
 
 fn print_unified_header(action: &str, target: &str, input: &Path, provider: Option<&ProviderInfo>) {
+  println!();
   let title = style_title("SCULPT");
+  let rest = style_title(&format!("Compiler {}", env!("CARGO_PKG_VERSION")));
+  let copyright = style_dim("(C) 2026 byte5 GmbH");
+  println!("{title} {rest} - {copyright}");
   let action_s = style_accent(action);
-  let target_s = style_dim(&format!("target={}", target));
-  let input_s = style_dim(&format!("input={}", input.display()));
-  println!("{title}  {action_s}  {target_s}  {input_s}");
+  println!("{} {}", style_dim("Action:"), action_s);
+  println!("{} {}", style_dim("Target:"), style_dim(target));
+  println!("{} {}", style_dim("Input: "), style_dim(&input.display().to_string()));
   if let Some(p) = provider {
-    let prov = style_dim(&format!("provider={}", p.name));
-    let model = style_dim(&format!("model={}", p.model));
-    println!("{prov}  {model}");
+    println!("{} {}", style_dim("Provider:"), style_dim(&p.name));
+    println!("{} {}", style_dim("Model:   "), style_dim(&p.model));
   }
   println!("{}", style_divider());
 }
 
-fn print_unified_summary(
-  action: &str,
-  target: &str,
-  input: &Path,
-  provider: &ProviderInfo,
-  artifacts: &[&str],
-) {
-  print_unified_header(action, target, input, Some(provider));
-  println!("{}", style_step("1", "Parse & Validate", "ok"));
-  println!("{}", style_step("2", "LLM Compile", "ok"));
-  println!("{}", style_step("3", "Build Target", "ok"));
+fn print_unified_footer(artifacts: &[&str]) {
   println!();
   println!("{}", style_accent("Artifacts"));
   for a in artifacts {
     println!("  {}", style_dim(a));
   }
   println!("{}", style_divider());
-  println!("{}", style_dim("(C) 2026 byte5 GmbH"));
 }
 
-fn style_title(s: &str) -> String { format!("\x1b[1;36m{}\x1b[0m", s) }
-fn style_accent(s: &str) -> String { format!("\x1b[1;34m{}\x1b[0m", s) }
-fn style_dim(s: &str) -> String { format!("\x1b[2;37m{}\x1b[0m", s) }
+fn style_title(s: &str) -> String { color_24(s, 0, 255, 255, true) } // byte5 cyan
+fn style_accent(s: &str) -> String { color_24(s, 234, 81, 114, true) } // byte5 pink
+fn style_dim(s: &str) -> String { color_24(s, 150, 160, 170, false) }
 fn style_divider() -> String { style_dim("────────────────────────────────────────────────────") }
 fn style_step(idx: &str, label: &str, status: &str) -> String {
   format!("  {} {} {}", style_dim(&format!("{idx}.")), label, style_accent(status))
+}
+
+fn print_step(idx: &str, label: &str, status: &str) {
+  println!("{}", style_step(idx, label, status));
+  flush_now();
+}
+
+fn finish_step(idx: &str, label: &str, status: &str) {
+  replace_last_line(&style_step(idx, label, status));
+}
+
+fn flush_now() {
+  let _ = io::stdout().flush();
+}
+
+fn replace_last_line(line: &str) {
+  print!("\x1b[1A\r\x1b[2K{}\n", line);
+  flush_now();
+}
+
+fn update_last_line(line: &str) {
+  print!("\x1b[1A\r\x1b[2K{}\x1b[1B", line);
+  flush_now();
+}
+
+struct SpinnerHandle {
+  stop: Arc<AtomicBool>,
+  handle: Option<thread::JoinHandle<()>>,
+}
+
+fn start_spinner(idx: &str, label: &str) -> SpinnerHandle {
+  let stop = Arc::new(AtomicBool::new(false));
+  let stop_thread = stop.clone();
+  let idx_s = idx.to_string();
+  let label_s = label.to_string();
+  let frames = ["|", "/", "-", "\\"];
+  print_step(&idx_s, &label_s, &format!("running {}", frames[0]));
+  let handle = thread::spawn(move || {
+    let mut i = 0usize;
+    while !stop_thread.load(Ordering::Relaxed) {
+      let status = format!("running {}", frames[i % frames.len()]);
+      update_last_line(&style_step(&idx_s, &label_s, &status));
+      i = i.wrapping_add(1);
+      thread::sleep(Duration::from_millis(120));
+    }
+  });
+  SpinnerHandle { stop, handle: Some(handle) }
+}
+
+fn stop_spinner(mut spinner: SpinnerHandle) {
+  spinner.stop.store(true, Ordering::Relaxed);
+  if let Some(handle) = spinner.handle.take() {
+    let _ = handle.join();
+  }
+}
+
+fn color_24(s: &str, r: u8, g: u8, b: u8, bold: bool) -> String {
+  if bold {
+    format!("\x1b[1;38;2;{r};{g};{b}m{s}\x1b[0m")
+  } else {
+    format!("\x1b[38;2;{r};{g};{b}m{s}\x1b[0m")
+  }
 }
 
 fn target_list() -> Result<()> {
@@ -1079,28 +1184,39 @@ fn build_target_spec(target: &str) -> Result<TargetSpec> {
   Ok(TargetSpec { standard_ir, schema, extensions })
 }
 
-fn deterministic_build(target: &str, target_ir: &TargetIr, target_ir_value: &Value, input: &Path) -> Result<()> {
+fn deterministic_build(
+  target: &str,
+  target_ir: &TargetIr,
+  target_ir_value: &Value,
+  input: &Path,
+  dist_dir: &Path,
+) -> Result<()> {
   match resolve_target(target) {
     TargetKind::Cli => {
-      emit_cli(target_ir, Path::new("dist"))?;
+      emit_cli(target_ir, dist_dir)?;
     }
     TargetKind::Web => {
-      emit_web(target_ir, Path::new("dist"))?;
+      emit_web(target_ir, dist_dir)?;
     }
     TargetKind::Gui => {
-      emit_gui(target_ir, Path::new("dist"))?;
+      emit_gui(target_ir, dist_dir)?;
     }
     TargetKind::External(name) => {
-      run_external_target(&name, &load_ir(input)?, None, Some(target_ir_value), Path::new("dist"), input, None, "build")?;
+      run_external_target(&name, &load_ir(input)?, None, Some(target_ir_value), dist_dir, input, None, "build")?;
     }
   }
   Ok(())
 }
 
-fn read_previous_target_ir() -> Option<Value> {
-  let path = Path::new("dist/target.ir.json");
+fn read_previous_target_ir(input: &Path) -> Option<Value> {
+  let path = dist_dir(input).join("target.ir.json");
   let data = fs::read_to_string(path).ok()?;
   serde_json::from_str(&data).ok()
+}
+
+fn dist_dir(input: &Path) -> PathBuf {
+  let stem = input.file_stem().and_then(|s| s.to_str()).unwrap_or("sculpt");
+  Path::new("dist").join(stem)
 }
 
 fn load_config() -> Config {
