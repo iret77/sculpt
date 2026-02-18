@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gui-ir",
+  "type": "object",
+  "required": ["type", "version", "views", "flow"],
+  "properties": {
+    "type": { "const": "gui-ir" },
+    "version": { "type": "integer", "minimum": 1 },
+    "window": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "width": { "type": "integer" },
+        "height": { "type": "integer" }
+      }
+    },
+    "state": { "type": "object" },
+    "views": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/definitions/renderItem" }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "required": ["start", "transitions"],
+      "properties": {
+        "start": { "type": "string" },
+        "transitions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+    "extensions": { "type": "object" }
+  },
+  "definitions": {
+    "renderItem": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["text"] },
+        "text": { "type": "string" },
+        "color": { "type": "string" },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" }
+      }
+    }
+  }
+}

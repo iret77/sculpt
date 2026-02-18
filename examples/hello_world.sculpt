@@ -1,0 +1,16 @@
+# Hello World (tradition kept)
+# Minimal deterministic example with no ND.
+
+module(HelloWorld)
+
+  flow(App)
+    start > Show
+
+    state(Show)
+      render text("Hallo", color: "yellow")
+      render text("Welt", color: "blue")
+      terminate
+    end
+  end
+
+end

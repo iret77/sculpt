@@ -1,0 +1,115 @@
+# Snake (Low ND)
+# Goal: highly specified rules so the solution space is narrow.
+# ND is reduced to a tiny UI-theme choice.
+
+module(SnakeLowND)
+
+  # Main flow
+  flow(Game)
+    start > Title
+
+    state(Title)
+      render text("SNAKE", color: "yellow")
+      render text("Enter = Start, Esc = Quit", color: "blue")
+      on key(Enter) > Play
+      on key(Esc)   > Exit
+    end
+
+    state(Play)
+      run Loop
+      on done > Title
+    end
+
+    state(Loop)
+      on tick > Loop
+      on key(Esc) > Exit
+    end
+
+    state(Exit)
+      terminate
+    end
+  end
+
+  # Deterministic configuration and initial game state
+  state()
+    width = 16
+    height = 12
+    speedMs = 120
+    score = 0
+    direction = "right"
+    pendingDirection = "right"
+    snake = "[(8,6),(7,6),(6,6)]"   # head first
+    food = "(12,6)"
+    foodSequence = "[(12,6),(12,7),(11,7),(10,7),(10,6)]"
+    stepIndex = 0
+  end
+
+  # Deterministic tick progression
+  rule(tick)
+    on tick
+      score += 1
+      stepIndex += 1
+    end
+  end
+
+  # Deterministic input handling
+  rule(inputUp)
+    on key(W)
+      pendingDirection = "up"
+    end
+  end
+
+  rule(inputDown)
+    on key(S)
+      pendingDirection = "down"
+    end
+  end
+
+  rule(inputLeft)
+    on key(A)
+      pendingDirection = "left"
+    end
+  end
+
+  rule(inputRight)
+    on key(D)
+      pendingDirection = "right"
+    end
+  end
+
+  # Deterministic movement and food handling
+  rule(applyDirection)
+    on tick
+      direction = pendingDirection
+      snake = moveSnake(snake, direction)
+      food = nextFood(foodSequence, stepIndex)
+    end
+  end
+
+  rule(checkCollision)
+    on tick
+      when hitWall(snake, width, height)
+        emit done
+      end
+      when hitSelf(snake)
+        emit done
+      end
+    end
+  end
+
+  # Deterministic finish condition
+  rule(finish)
+    when score >= 25
+      emit done
+    end
+  end
+
+  # Tiny ND for cosmetics only
+  nd(theme)
+    propose theme("classic")
+    satisfy(
+      exact("classic"),
+      highContrast()
+    )
+  end
+end

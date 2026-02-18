@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "cli-ir",
+  "type": "object",
+  "required": ["type", "version", "views", "flow"],
+  "properties": {
+    "type": { "const": "cli-ir" },
+    "version": { "type": "integer", "minimum": 1 },
+    "state": { "type": "object" },
+    "views": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/definitions/renderItem" }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "required": ["start", "transitions"],
+      "properties": {
+        "start": { "type": "string" },
+        "transitions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+    "extensions": { "type": "object" }
+  },
+  "definitions": {
+    "renderItem": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["text"] },
+        "text": { "type": "string" },
+        "color": { "type": "string" }
+      }
+    }
+  }
+}
