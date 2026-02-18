@@ -43,11 +43,12 @@
       "type": "object",
       "required": ["kind"],
       "properties": {
-        "kind": { "enum": ["text"] },
+        "kind": { "enum": ["text", "button"] },
         "text": { "type": "string" },
         "color": { "type": "string" },
         "x": { "type": "integer" },
-        "y": { "type": "integer" }
+        "y": { "type": "integer" },
+        "action": { "type": "string" }
       }
     }
   }

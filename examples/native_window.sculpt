@@ -1,0 +1,17 @@
+# Native Window Demo (macOS GUI)
+# Goal: show a real window with text + button.
+
+module(NativeWindow)
+
+  flow(App)
+    start > Main
+
+    state(Main)
+      render text("SCULPT Native Demo", color: "yellow")
+      render text("Click the button to open an OK modal", color: "blue")
+      render button("Open OK")
+      terminate
+    end
+  end
+
+end

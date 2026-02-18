@@ -18,6 +18,7 @@ This repo contains the MVP compiler in Rust and a small set of example programs.
 ## Status
 - MVP research compiler (CLI) with LLM-backed build pipeline.
 - Built-in targets: `cli`, `gui`, `web`.
+  - `gui` currently generates a macOS SwiftUI app via SwiftPM.
 
 ## Install
 ```bash
@@ -45,6 +46,7 @@ sculpt run examples/hello_world.sculpt --target cli
 - `sculpt target list`
 - `sculpt target describe --target <name>`
 - `sculpt auth check --provider openai [--verify]`
+- `sculpt build <file.sculpt> --target <...> --debug[=compact|raw|all|json]`
 
 ## Authentication
 Set a provider API key as an environment variable:
@@ -69,6 +71,7 @@ Optional config file (overridden by env var):
 - `examples/snake_high_nd.sculpt` — high ND, large solution space
 - `examples/snake_low_nd.sculpt` — low ND, tight solution space
 - `examples/invoice_review.sculpt` — business/web flavored example
+- `examples/native_window.sculpt` — macOS GUI window + button demo
 
 ## Syntax
 See `SCULPT_Syntax_Manifest.md` for the current MVP syntax.

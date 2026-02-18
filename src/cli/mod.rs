@@ -407,14 +407,35 @@ module(InvoiceReview)
 end
 "#;
 
+  let native_window = r#"# Native Window Demo (macOS GUI)
+# Goal: show a real window with text + button.
+
+module(NativeWindow)
+
+  flow(App)
+    start > Main
+
+    state(Main)
+      render text("SCULPT Native Demo", color: "yellow")
+      render text("Click the button to open an OK modal", color: "blue")
+      render button("Open OK")
+      terminate
+    end
+  end
+
+end
+"#;
+
   fs::write(examples_dir.join("hello_world.sculpt"), hello_world)?;
   fs::write(examples_dir.join("snake_high_nd.sculpt"), snake_high_nd)?;
   fs::write(examples_dir.join("snake_low_nd.sculpt"), snake_low_nd)?;
   fs::write(examples_dir.join("invoice_review.sculpt"), invoice_review)?;
+  fs::write(examples_dir.join("native_window.sculpt"), native_window)?;
   println!("Wrote examples/hello_world.sculpt");
   println!("Wrote examples/snake_high_nd.sculpt");
   println!("Wrote examples/snake_low_nd.sculpt");
   println!("Wrote examples/invoice_review.sculpt");
+  println!("Wrote examples/native_window.sculpt");
   Ok(())
 }
 
