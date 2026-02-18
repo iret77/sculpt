@@ -1,5 +1,7 @@
 # SCULPT
 
+(C) 2026 byte5 GmbH
+
 **SCULPT — a convergent programming language.**
 
 SCULPT is a research compiler for a converging, AI-first programming language.
@@ -16,7 +18,7 @@ LLM cost and speed are not static. We expect a trajectory similar to bandwidth o
 as models become faster and cheaper, what is possible expands dramatically. SCULPT therefore optimizes
 for today’s constraints without sacrificing tomorrow’s capability.
 
-This repo contains the MVP compiler in Rust and a small set of example programs.
+This repo contains the compiler in Rust and a small set of example programs.
 
 ## Why SCULPT
 - **Converging programming**: fewer lines mean a larger solution space; more lines constrain it.
@@ -24,7 +26,7 @@ This repo contains the MVP compiler in Rust and a small set of example programs.
 - **Provider-based**: LLM providers + target providers are pluggable.
 
 ## Status
-- MVP research compiler (CLI) with LLM-backed build pipeline.
+- Research compiler (CLI) with LLM-backed build pipeline.
 - Built-in targets: `cli`, `gui`, `web`.
   - `gui` currently generates a macOS SwiftUI app via SwiftPM.
 
@@ -82,7 +84,7 @@ Optional config file (overridden by env var). `provider` acts as the default, so
 - `examples/native_window.sculpt` — macOS GUI window + button demo
 
 ## Syntax
-See `SCULPT_Syntax_Manifest.md` for the current MVP syntax.
+See `SCULPT_Syntax_Manifest.md` for the current syntax.
 
 ## License
 MIT

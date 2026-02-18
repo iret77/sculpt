@@ -1,5 +1,7 @@
 # SCULPT Syntax‑Manifest v0.2 (Entwurf)
 
+(C) 2026 byte5 GmbH
+
 ## 1) Ziel
 SCULPT ist eine **konvergente** Sprache:
 Mehr Code → kleinere Lösungsmenge → deterministischer, aber nie vollständig deterministisch.
@@ -109,7 +111,7 @@ nd(chooseLayout, level)
 end
 ```
 
-## 8) Expressions (MVP)
+## 8) Expressions (aktuell)
 - Literale: numbers, strings, null
 - Identifiers: `counter`
 - Calls: `key(Enter)`

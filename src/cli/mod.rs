@@ -28,7 +28,7 @@ use crate::targets::{
 use serde_json::Value;
 
 #[derive(Parser)]
-#[command(name = "sculpt", version, about = "SCULPT MVP compiler")]
+#[command(name = "sculpt", version, about = "SCULPT compiler — (C) 2026 byte5 GmbH")]
 pub struct Cli {
   #[command(subcommand)]
   cmd: Command,
@@ -545,6 +545,7 @@ fn build(
   println!("  ir.json");
   println!("  nondet.report");
   println!("  target: {}", target);
+  println!("(C) 2026 byte5 GmbH");
   Ok(())
 }
 
@@ -638,6 +639,7 @@ fn freeze(
   println!("  ir.json");
   println!("  nondet.report");
   println!("  target: {}", target);
+  println!("(C) 2026 byte5 GmbH");
   Ok(())
 }
 
@@ -668,6 +670,7 @@ fn replay(input: &Path, target: Option<&str>) -> Result<()> {
   println!("  ir.json");
   println!("  nondet.report");
   println!("  target: {}", target);
+  println!("(C) 2026 byte5 GmbH");
   Ok(())
 }
 
