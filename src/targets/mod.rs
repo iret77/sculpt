@@ -151,21 +151,30 @@ let package = Package(
   swift.push_str("struct ContentView: View {\n");
   swift.push_str("  @State private var showAlert = false\n\n");
   swift.push_str("  var body: some View {\n");
-  swift.push_str("    VStack(spacing: 12) {\n");
-  for (text, color) in text_views {
+  swift.push_str("    VStack(alignment: .leading, spacing: 12) {\n");
+  for (idx, (text, color)) in text_views.iter().enumerate() {
+    let font = if idx == 0 { ".font(.title2.weight(.semibold))" } else { ".font(.body)" };
+    let fallback_color = if idx == 0 { "primary" } else { "secondary" };
+    let mapped = map_color_or(&color, fallback_color);
     swift.push_str(&format!(
-      "      Text(\"{}\").foregroundStyle({})\n",
-      escape_swift(&text),
-      map_color(&color)
+      "      Text(\"{}\"){font}.foregroundStyle({})\n",
+      escape_swift(text),
+      mapped
     ));
   }
   swift.push_str(&format!(
     "      Button(\"{}\") {{ showAlert = true }}\n",
     escape_swift(button_label.as_deref().unwrap_or("OK"))
   ));
+  swift.push_str("        .buttonStyle(.borderedProminent)\n");
+  swift.push_str("        .controlSize(.large)\n");
+  swift.push_str("        .keyboardShortcut(.defaultAction)\n");
   swift.push_str("    }\n");
+  swift.push_str("    .padding(24)\n");
+  swift.push_str("    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)\n");
   swift.push_str(&format!("    .frame(width: {}, height: {})\n", width, height));
-  swift.push_str(&format!("    .alert(\"OK\", isPresented: $showAlert) {{ Button(\"OK\", role: .cancel) {{ }} }}\n"));
+  swift.push_str("    .background(Color(nsColor: .windowBackgroundColor))\n");
+  swift.push_str("    .alert(\"OK\", isPresented: $showAlert) { Button(\"OK\", role: .cancel) { } }\n");
   swift.push_str("  }\n");
   swift.push_str("}\n\n");
   swift.push_str("@main struct SculptGuiApp: App {\n");
@@ -199,15 +208,17 @@ fn escape_swift(input: &str) -> String {
   input.replace('\\', "\\\\").replace('\"', "\\\"")
 }
 
-fn map_color(color: &str) -> &'static str {
+fn map_color_or(color: &str, fallback: &str) -> String {
   match color.to_lowercase().as_str() {
-    "yellow" => "Color.yellow",
-    "blue" => "Color.blue",
-    "green" => "Color.green",
-    "red" => "Color.red",
-    "black" => "Color.black",
-    "white" => "Color.white",
-    _ => "Color.primary",
+    "yellow" => "Color.yellow".to_string(),
+    "blue" => "Color.blue".to_string(),
+    "green" => "Color.green".to_string(),
+    "red" => "Color.red".to_string(),
+    "black" => "Color.black".to_string(),
+    "white" => "Color.white".to_string(),
+    "primary" => "Color.primary".to_string(),
+    "secondary" => "Color.secondary".to_string(),
+    _ => format!("Color.{}", fallback),
   }
 }
 

@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Result};
 use serde_json::{json, Value};
@@ -88,7 +88,7 @@ fn openai_generate(
     }
   });
 
-  let client = reqwest::blocking::Client::new();
+  let client = http_client()?;
   let started = Instant::now();
   let resp = client
     .post("https://api.openai.com/v1/responses")
@@ -154,7 +154,7 @@ fn anthropic_generate(
     ]
   });
 
-  let client = reqwest::blocking::Client::new();
+  let client = http_client()?;
   let started = Instant::now();
   let resp = client
     .post("https://api.anthropic.com/v1/messages")
@@ -205,7 +205,7 @@ fn gemini_generate(
   });
 
   let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent", model);
-  let client = reqwest::blocking::Client::new();
+  let client = http_client()?;
   let started = Instant::now();
   let resp = client
     .post(url)
@@ -318,4 +318,12 @@ fn parse_json_response(text: &str) -> Result<Value> {
   }
 
   bail!("Failed to parse JSON from model output")
+}
+
+fn http_client() -> Result<reqwest::blocking::Client> {
+  Ok(
+    reqwest::blocking::Client::builder()
+      .timeout(Duration::from_secs(120))
+      .build()?,
+  )
 }
