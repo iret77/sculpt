@@ -101,10 +101,24 @@ pub enum AuthCommand {
 struct Config {
   provider: Option<String>,
   openai: Option<OpenAIConfig>,
+  anthropic: Option<AnthropicConfig>,
+  gemini: Option<GeminiConfig>,
 }
 
 #[derive(Default, serde::Deserialize)]
 struct OpenAIConfig {
+  api_key: Option<String>,
+  model: Option<String>,
+}
+
+#[derive(Default, serde::Deserialize)]
+struct AnthropicConfig {
+  api_key: Option<String>,
+  model: Option<String>,
+}
+
+#[derive(Default, serde::Deserialize)]
+struct GeminiConfig {
   api_key: Option<String>,
   model: Option<String>,
 }
@@ -551,6 +565,82 @@ fn auth_check(provider: &str, verify: bool) -> Result<()> {
       println!("OpenAI provider: API key verified");
       Ok(())
     }
+    "anthropic" => {
+      let config = load_config();
+      let key = env::var("ANTHROPIC_API_KEY")
+        .ok()
+        .or_else(|| config.anthropic.as_ref().and_then(|c| c.api_key.clone()));
+      let Some(api_key) = key else {
+        bail!("ANTHROPIC_API_KEY not set and no key in sculpt.config.json");
+      };
+
+      if !verify {
+        println!("Anthropic provider: API key found");
+        return Ok(());
+      }
+
+      let model = config
+        .anthropic
+        .as_ref()
+        .and_then(|c| c.model.clone())
+        .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
+      let client = reqwest::blocking::Client::new();
+      let body = serde_json::json!({
+        "model": model,
+        "max_tokens": 1,
+        "system": "ping",
+        "messages": [{ "role": "user", "content": "ping" }]
+      });
+      let resp = client
+        .post("https://api.anthropic.com/v1/messages")
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .header("content-type", "application/json")
+        .json(&body)
+        .send()?;
+      if !resp.status().is_success() {
+        bail!("Anthropic auth check failed: status {}", resp.status());
+      }
+      println!("Anthropic provider: API key verified");
+      Ok(())
+    }
+    "gemini" => {
+      let config = load_config();
+      let key = env::var("GEMINI_API_KEY")
+        .ok()
+        .or_else(|| config.gemini.as_ref().and_then(|c| c.api_key.clone()));
+      let Some(api_key) = key else {
+        bail!("GEMINI_API_KEY not set and no key in sculpt.config.json");
+      };
+
+      if !verify {
+        println!("Gemini provider: API key found");
+        return Ok(());
+      }
+
+      let model = config
+        .gemini
+        .as_ref()
+        .and_then(|c| c.model.clone())
+        .unwrap_or_else(|| "gemini-2.5-pro".to_string());
+      let body = serde_json::json!({
+        "contents": [{ "role": "user", "parts": [{ "text": "ping" }] }],
+        "generationConfig": { "maxOutputTokens": 1 }
+      });
+      let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent", model);
+      let client = reqwest::blocking::Client::new();
+      let resp = client
+        .post(url)
+        .header("x-goog-api-key", api_key)
+        .header("content-type", "application/json")
+        .json(&body)
+        .send()?;
+      if !resp.status().is_success() {
+        bail!("Gemini auth check failed: status {}", resp.status());
+      }
+      println!("Gemini provider: API key verified");
+      Ok(())
+    }
     other => bail!("Unknown provider: {}", other),
   }
 }
@@ -585,6 +675,38 @@ fn select_ai_provider(
         bail!("OpenAI provider selected but no API key provided");
       } else {
         eprintln!("Warning: OpenAI provider selected but no API key found. Falling back to stub.");
+        Ok(AiProvider::Stub)
+      }
+    }
+    "anthropic" => {
+      let key = env::var("ANTHROPIC_API_KEY")
+        .ok()
+        .or_else(|| config.anthropic.as_ref().and_then(|c| c.api_key.clone()));
+      if let Some(api_key) = key {
+        let model_name = model_override
+          .or_else(|| config.anthropic.as_ref().and_then(|c| c.model.clone()))
+          .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
+        Ok(AiProvider::Anthropic { api_key, model: model_name })
+      } else if strict {
+        bail!("Anthropic provider selected but no API key provided");
+      } else {
+        eprintln!("Warning: Anthropic provider selected but no API key found. Falling back to stub.");
+        Ok(AiProvider::Stub)
+      }
+    }
+    "gemini" => {
+      let key = env::var("GEMINI_API_KEY")
+        .ok()
+        .or_else(|| config.gemini.as_ref().and_then(|c| c.api_key.clone()));
+      if let Some(api_key) = key {
+        let model_name = model_override
+          .or_else(|| config.gemini.as_ref().and_then(|c| c.model.clone()))
+        .unwrap_or_else(|| "gemini-2.5-pro".to_string());
+        Ok(AiProvider::Gemini { api_key, model: model_name })
+      } else if strict {
+        bail!("Gemini provider selected but no API key provided");
+      } else {
+        eprintln!("Warning: Gemini provider selected but no API key found. Falling back to stub.");
         Ok(AiProvider::Stub)
       }
     }

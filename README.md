@@ -38,7 +38,7 @@ sculpt run examples/hello_world.sculpt --target cli
 
 ## Commands
 - `sculpt examples` — write example programs into `examples/`
-- `sculpt build <file.sculpt> --target <cli|gui|web> --provider <openai|stub>`
+- `sculpt build <file.sculpt> --target <cli|gui|web> --provider <openai|anthropic|gemini|stub>`
 - `sculpt freeze <file.sculpt> --target <...> --provider <...>`
 - `sculpt replay <file.sculpt> --target <...>`
 - `sculpt run <file.sculpt> --target <...>`
@@ -46,20 +46,21 @@ sculpt run examples/hello_world.sculpt --target cli
 - `sculpt target describe --target <name>`
 - `sculpt auth check --provider openai [--verify]`
 
-## OpenAI Authentication
-Set your API key as an environment variable:
+## Authentication
+Set a provider API key as an environment variable:
 ```bash
 export OPENAI_API_KEY=... 
+export ANTHROPIC_API_KEY=...
+export GEMINI_API_KEY=...
 ```
 
 Optional config file (overridden by env var):
 ```json
 {
-  "provider": "openai",
-  "openai": {
-    "api_key": "...",
-    "model": "gpt-4.1-mini"
-  }
+  "provider": "gemini",
+  "openai":   { "api_key": "...", "model": "gpt-4.1-mini" },
+  "anthropic":{ "api_key": "...", "model": "claude-sonnet-4-20250514" },
+  "gemini":   { "api_key": "...", "model": "gemini-2.5-pro" }
 }
 ```
 
