@@ -8,6 +8,7 @@ Mehr Code → kleinere Lösungsmenge → deterministischer, aber nie vollständi
 - **Nicht‑Whitespace‑sensitiv.** Whitespaces dienen der Lesbarkeit, niemals der Syntax.
 - **Strukturelle Klarheit durch Symbole.** Syntax soll visuell gliedern, ohne zu „schreien“.
 - **Einheitlichkeit:** Gleicher Aufbau für alle Blocktypen.
+- **Skalierbarkeit:** Wir optimieren für heutige LLM‑Constraints ohne die Zukunftsfähigkeit zu opfern.
 
 ## 2) Block‑Form
 **Jeder Block ist eine Funktionssignatur.**  

@@ -11,6 +11,11 @@ and asks an LLM to produce target IR, which is then built deterministically by a
 The LLM sees **only** a compact, short‑key IR. We then normalize into standard IR
 for deterministic build and validation.
 
+## Thesis
+LLM cost and speed are not static. We expect a trajectory similar to bandwidth on the early internet:
+as models become faster and cheaper, what is possible expands dramatically. SCULPT therefore optimizes
+for today’s constraints without sacrificing tomorrow’s capability.
+
 This repo contains the MVP compiler in Rust and a small set of example programs.
 
 ## Why SCULPT
