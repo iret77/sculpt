@@ -1,0 +1,9 @@
+/target/
+/dist/
+/ir.json
+/nondet.report
+/sculpt.lock
+/sculpt.config.json
+.env
+.env.*
+.DS_Store
