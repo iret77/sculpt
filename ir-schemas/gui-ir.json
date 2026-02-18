@@ -36,6 +36,18 @@
         }
       }
     },
+    "layout": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "padding": { "type": "integer" },
+          "spacing": { "type": "integer" },
+          "align": { "enum": ["leading", "center", "trailing"] },
+          "background": { "enum": ["window", "grouped", "clear"] }
+        }
+      }
+    },
     "extensions": { "type": "object" }
   },
   "definitions": {

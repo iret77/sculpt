@@ -142,6 +142,14 @@ let package = Package(
     .unwrap_or_else(|| "SCULPT".to_string());
   let width = target.window.as_ref().and_then(|w| w.width).unwrap_or(420);
   let height = target.window.as_ref().and_then(|w| w.height).unwrap_or(260);
+  let layout = target
+    .layout
+    .as_ref()
+    .and_then(|map| map.get(&view_name));
+  let padding = layout.and_then(|l| l.padding).unwrap_or(24);
+  let spacing = layout.and_then(|l| l.spacing).unwrap_or(12);
+  let align = layout.and_then(|l| l.align.as_deref()).unwrap_or("leading");
+  let background = layout.and_then(|l| l.background.as_deref()).unwrap_or("window");
 
   let mut swift = String::new();
   swift.push_str("import SwiftUI\nimport AppKit\n\n");
@@ -151,7 +159,7 @@ let package = Package(
   swift.push_str("struct ContentView: View {\n");
   swift.push_str("  @State private var showAlert = false\n\n");
   swift.push_str("  var body: some View {\n");
-  swift.push_str("    VStack(alignment: .leading, spacing: 12) {\n");
+  swift.push_str(&format!("    VStack(alignment: {}, spacing: {}) {{\n", map_alignment(align), spacing));
   for (idx, (text, color, style)) in text_views.iter().enumerate() {
     let (font, fallback_color) = map_text_style(style.as_deref(), idx);
     let mapped = map_color_or(color, fallback_color);
@@ -169,10 +177,10 @@ let package = Package(
   swift.push_str("        .controlSize(.large)\n");
   swift.push_str("        .keyboardShortcut(.defaultAction)\n");
   swift.push_str("    }\n");
-  swift.push_str("    .padding(24)\n");
+  swift.push_str(&format!("    .padding({})\n", padding));
   swift.push_str("    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)\n");
   swift.push_str(&format!("    .frame(width: {}, height: {})\n", width, height));
-  swift.push_str("    .background(Color(nsColor: .windowBackgroundColor))\n");
+  swift.push_str(&format!("    .background({})\n", map_background(background)));
   swift.push_str("    .alert(\"OK\", isPresented: $showAlert) { Button(\"OK\", role: .cancel) { } }\n");
   swift.push_str("  }\n");
   swift.push_str("}\n\n");
@@ -234,6 +242,22 @@ fn map_text_style(style: Option<&str>, index: usize) -> (&'static str, &'static 
         (".font(.body)", "secondary")
       }
     }
+  }
+}
+
+fn map_alignment(align: &str) -> &'static str {
+  match align {
+    "center" => ".center",
+    "trailing" => ".trailing",
+    _ => ".leading",
+  }
+}
+
+fn map_background(value: &str) -> &'static str {
+  match value {
+    "grouped" => "Color(nsColor: .controlBackgroundColor)",
+    "clear" => "Color.clear",
+    _ => "Color(nsColor: .windowBackgroundColor)",
   }
 }
 

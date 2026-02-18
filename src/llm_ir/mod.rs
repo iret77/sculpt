@@ -151,6 +151,48 @@ pub fn normalize_llm_ir(standard_ir: &str, input: &Value) -> Value {
     out.insert("views".to_string(), Value::Object(views_out));
   }
 
+  if let Some(layout) = input.get("l") {
+    let mut layout_out = Map::new();
+    if let Some(arr) = layout.as_array() {
+      for entry in arr {
+        if let Some(pair) = entry.as_array() {
+          if pair.len() >= 2 {
+            let name = pair[0].as_str().unwrap_or("").to_string();
+            let mut view_layout = Map::new();
+            if let Some(items) = pair[1].as_array() {
+              if let Some(padding) = items.get(0) {
+                if !padding.is_null() {
+                  view_layout.insert("padding".to_string(), padding.clone());
+                }
+              }
+              if let Some(spacing) = items.get(1) {
+                if !spacing.is_null() {
+                  view_layout.insert("spacing".to_string(), spacing.clone());
+                }
+              }
+              if let Some(align) = items.get(2) {
+                if !align.is_null() {
+                  view_layout.insert("align".to_string(), align.clone());
+                }
+              }
+              if let Some(background) = items.get(3) {
+                if !background.is_null() {
+                  view_layout.insert("background".to_string(), background.clone());
+                }
+              }
+            }
+            if !name.is_empty() && !view_layout.is_empty() {
+              layout_out.insert(name, Value::Object(view_layout));
+            }
+          }
+        }
+      }
+    }
+    if !layout_out.is_empty() {
+      out.insert("layout".to_string(), Value::Object(layout_out));
+    }
+  }
+
   if let Some(flow) = input.get("f") {
     let mut flow_out = Map::new();
     if let Some(arr) = flow.as_array() {
@@ -320,6 +362,27 @@ fn schema_base(standard_ir: &str, include_window: bool, allow_button: bool) -> V
       }
     ],
     "items": false
+  }));
+
+  props.insert("l".to_string(), json!({
+    "type": "array",
+    "items": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "string" },
+        {
+          "type": "array",
+          "prefixItems": [
+            { "type": ["integer", "null"] },
+            { "type": ["integer", "null"] },
+            { "enum": ["leading", "center", "trailing", null] },
+            { "enum": ["window", "grouped", "clear", null] }
+          ],
+          "items": false
+        }
+      ],
+      "items": false
+    }
   }));
 
   json!({

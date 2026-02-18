@@ -15,6 +15,8 @@ pub struct TargetIr {
   #[serde(default)]
   pub window: Option<Window>,
   #[serde(default)]
+  pub layout: Option<HashMap<String, ViewLayout>>,
+  #[serde(default)]
   pub extensions: Value,
   #[serde(flatten)]
   pub extra: HashMap<String, Value>,
@@ -36,6 +38,14 @@ pub struct RenderItem {
   pub action: Option<String>,
   pub style: Option<String>,
   pub css: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ViewLayout {
+  pub padding: Option<i64>,
+  pub spacing: Option<i64>,
+  pub align: Option<String>,
+  pub background: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
