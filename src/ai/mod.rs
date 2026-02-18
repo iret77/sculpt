@@ -3,6 +3,8 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Result};
 use serde_json::{json, Value};
 
+use crate::llm_ir::{compact_schema_for, normalize_llm_ir};
+
 pub enum AiProvider {
   OpenAI { api_key: String, model: String },
   Anthropic { api_key: String, model: String },
@@ -73,7 +75,8 @@ fn openai_generate(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
 ) -> Result<(Value, DebugCapture)> {
-  let input = build_prompt(sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
+  let compact_schema = compact_schema_for(&target_spec.standard_ir);
+  let input = build_prompt(sculpt_ir, target_spec, compact_schema.as_ref(), nondet_report, previous_target_ir)?;
 
   let body = json!({
     "model": model,
@@ -82,7 +85,7 @@ fn openai_generate(
       "format": {
         "type": "json_schema",
         "name": "target_ir",
-        "schema": target_spec.schema,
+        "schema": compact_schema.as_ref().unwrap_or(&target_spec.schema),
         "strict": false
       }
     }
@@ -109,8 +112,13 @@ fn openai_generate(
   }
 
   let parsed = parse_json_response(&text)?;
+  let normalized = if compact_schema.is_some() {
+    normalize_llm_ir(&target_spec.standard_ir, &parsed)
+  } else {
+    parsed
+  };
   Ok((
-    parsed,
+    normalized,
     DebugCapture {
       prompt: input,
       raw_output: text,
@@ -144,7 +152,8 @@ fn anthropic_generate(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
 ) -> Result<(Value, DebugCapture)> {
-  let input = build_prompt(sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
+  let compact_schema = compact_schema_for(&target_spec.standard_ir);
+  let input = build_prompt(sculpt_ir, target_spec, compact_schema.as_ref(), nondet_report, previous_target_ir)?;
   let body = json!({
     "model": model,
     "max_tokens": 2048,
@@ -176,8 +185,13 @@ fn anthropic_generate(
     bail!("Anthropic returned empty output");
   }
   let parsed = parse_json_response(&text)?;
+  let normalized = if compact_schema.is_some() {
+    normalize_llm_ir(&target_spec.standard_ir, &parsed)
+  } else {
+    parsed
+  };
   Ok((
-    parsed,
+    normalized,
     DebugCapture {
       prompt: input,
       raw_output: text,
@@ -194,7 +208,8 @@ fn gemini_generate(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
 ) -> Result<(Value, DebugCapture)> {
-  let input = build_prompt(sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
+  let compact_schema = compact_schema_for(&target_spec.standard_ir);
+  let input = build_prompt(sculpt_ir, target_spec, compact_schema.as_ref(), nondet_report, previous_target_ir)?;
   let body = json!({
     "contents": [
       { "role": "user", "parts": [ { "text": input } ] }
@@ -226,8 +241,13 @@ fn gemini_generate(
     bail!("Gemini returned empty output");
   }
   let parsed = parse_json_response(&text)?;
+  let normalized = if compact_schema.is_some() {
+    normalize_llm_ir(&target_spec.standard_ir, &parsed)
+  } else {
+    parsed
+  };
   Ok((
-    parsed,
+    normalized,
     DebugCapture {
       prompt: input,
       raw_output: text,
@@ -239,16 +259,19 @@ fn gemini_generate(
 fn build_prompt(
   sculpt_ir: &Value,
   target_spec: &TargetSpec,
+  compact_schema: Option<&Value>,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
 ) -> Result<String> {
   let mut input = String::new();
   input.push_str("You are the Sculpt compiler AI. Generate target IR JSON that conforms to the provided schema.\n");
-  input.push_str("Do not include explanations. Output only JSON.\n\n");
+  input.push_str("Do not include explanations. Output only JSON.\n");
+  input.push_str("If schema uses short keys, output the short-key form exactly.\n\n");
   input.push_str("STANDARD_IR:\n");
   input.push_str(&target_spec.standard_ir);
-  input.push_str("\n\nSCHEMA_JSON:\n");
-  input.push_str(&serde_json::to_string_pretty(&target_spec.schema)?);
+  input.push_str("\n\nLLM_IR_SCHEMA_JSON:\n");
+  let schema = compact_schema.unwrap_or(&target_spec.schema);
+  input.push_str(&serde_json::to_string_pretty(schema)?);
   input.push_str("\n\nSCULPT_IR_JSON:\n");
   input.push_str(&serde_json::to_string_pretty(sculpt_ir)?);
   input.push_str("\n\nNONDET_REPORT:\n");

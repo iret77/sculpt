@@ -489,8 +489,29 @@ fn build(
     &nondet,
     previous_target_ir.as_ref(),
   )?;
-  let target_ir = from_json_value(target_ir_value.clone())
-    .map_err(|e| anyhow::anyhow!("Target IR parse error: {}", e))?;
+  let target_ir = match from_json_value(target_ir_value.clone()) {
+    Ok(ir) => ir,
+    Err(e) => {
+      if let Some(level) = debug_level {
+        eprintln!("Debug (parse failure):");
+        eprintln!("  target={} input={}", target, input.display());
+        eprintln!("  standard_ir={}", spec.standard_ir);
+        if matches!(level, DebugLevel::Raw | DebugLevel::All) {
+          if let Some(c) = debug_capture.as_ref() {
+            eprintln!("--- raw output ---");
+            eprintln!("{}", c.raw_output);
+          }
+        }
+        if matches!(level, DebugLevel::All | DebugLevel::Json) {
+          if let Ok(pretty) = serde_json::to_string_pretty(&target_ir_value) {
+            eprintln!("--- normalized target ir ---");
+            eprintln!("{}", pretty);
+          }
+        }
+      }
+      return Err(anyhow::anyhow!("Target IR parse error: {}", e));
+    }
+  };
   if target_ir.ir_type != spec.standard_ir {
     bail!("Target IR type mismatch: expected {}, got {}", spec.standard_ir, target_ir.ir_type);
   }
@@ -547,8 +568,29 @@ fn freeze(
     &nondet,
     previous_target_ir.as_ref(),
   )?;
-  let target_ir = from_json_value(target_ir_value.clone())
-    .map_err(|e| anyhow::anyhow!("Target IR parse error: {}", e))?;
+  let target_ir = match from_json_value(target_ir_value.clone()) {
+    Ok(ir) => ir,
+    Err(e) => {
+      if let Some(level) = debug_level {
+        eprintln!("Debug (parse failure):");
+        eprintln!("  target={} input={}", target, input.display());
+        eprintln!("  standard_ir={}", spec.standard_ir);
+        if matches!(level, DebugLevel::Raw | DebugLevel::All) {
+          if let Some(c) = debug_capture.as_ref() {
+            eprintln!("--- raw output ---");
+            eprintln!("{}", c.raw_output);
+          }
+        }
+        if matches!(level, DebugLevel::All | DebugLevel::Json) {
+          if let Ok(pretty) = serde_json::to_string_pretty(&target_ir_value) {
+            eprintln!("--- normalized target ir ---");
+            eprintln!("{}", pretty);
+          }
+        }
+      }
+      return Err(anyhow::anyhow!("Target IR parse error: {}", e));
+    }
+  };
   if target_ir.ir_type != spec.standard_ir {
     bail!("Target IR type mismatch: expected {}, got {}", spec.standard_ir, target_ir.ir_type);
   }

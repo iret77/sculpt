@@ -5,6 +5,7 @@ pub mod codegen;
 pub mod freeze;
 pub mod ir;
 pub mod lexer;
+pub mod llm_ir;
 pub mod parser;
 pub mod report;
 pub mod targets;
