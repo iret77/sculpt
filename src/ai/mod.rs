@@ -30,18 +30,19 @@ pub fn generate_target_ir(
   target_spec: &TargetSpec,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
+  layout_required: bool,
 ) -> Result<(Value, Option<DebugCapture>)> {
   match provider {
     AiProvider::OpenAI { api_key, model } => {
-      let (value, debug) = openai_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
+      let (value, debug) = openai_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir, layout_required)?;
       Ok((value, Some(debug)))
     }
     AiProvider::Anthropic { api_key, model } => {
-      let (value, debug) = anthropic_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
+      let (value, debug) = anthropic_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir, layout_required)?;
       Ok((value, Some(debug)))
     }
     AiProvider::Gemini { api_key, model } => {
-      let (value, debug) = gemini_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
+      let (value, debug) = gemini_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir, layout_required)?;
       Ok((value, Some(debug)))
     }
     AiProvider::Stub => Ok((stub_generate(target_spec), None)),
@@ -74,10 +75,11 @@ fn openai_generate(
   target_spec: &TargetSpec,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
+  layout_required: bool,
 ) -> Result<(Value, DebugCapture)> {
   let compact_schema = compact_schema_for(&target_spec.standard_ir)
     .ok_or_else(|| anyhow::anyhow!("No compact LLM schema for {}", target_spec.standard_ir))?;
-  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir)?;
+  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir, layout_required)?;
 
   let body = json!({
     "model": model,
@@ -148,10 +150,11 @@ fn anthropic_generate(
   target_spec: &TargetSpec,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
+  layout_required: bool,
 ) -> Result<(Value, DebugCapture)> {
   let compact_schema = compact_schema_for(&target_spec.standard_ir)
     .ok_or_else(|| anyhow::anyhow!("No compact LLM schema for {}", target_spec.standard_ir))?;
-  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir)?;
+  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir, layout_required)?;
   let body = json!({
     "model": model,
     "max_tokens": 2048,
@@ -201,10 +204,11 @@ fn gemini_generate(
   target_spec: &TargetSpec,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
+  layout_required: bool,
 ) -> Result<(Value, DebugCapture)> {
   let compact_schema = compact_schema_for(&target_spec.standard_ir)
     .ok_or_else(|| anyhow::anyhow!("No compact LLM schema for {}", target_spec.standard_ir))?;
-  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir)?;
+  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir, layout_required)?;
   let body = json!({
     "contents": [
       { "role": "user", "parts": [ { "text": input } ] }
@@ -253,6 +257,7 @@ fn build_prompt(
   compact_schema: &Value,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
+  layout_required: bool,
 ) -> Result<String> {
   let mut input = String::new();
   input.push_str("You are the Sculpt compiler AI. Generate target IR JSON that conforms to the provided schema.\n");
@@ -265,6 +270,9 @@ fn build_prompt(
   input.push_str("  l = [ [viewName, [padding,spacing,align,background] ], ... ]\n");
   input.push_str("Action semantics:\n");
   input.push_str("  action=\"modal.ok\" means show a simple OK modal when the button is clicked.\n\n");
+  if layout_required {
+    input.push_str("Layout is REQUIRED: include l with explicit layout for each view.\n\n");
+  }
   input.push_str("STANDARD_IR:\n");
   input.push_str(&target_spec.standard_ir);
   input.push_str("\n\nLLM_IR_SCHEMA_JSON:\n");

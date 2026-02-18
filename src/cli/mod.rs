@@ -489,6 +489,7 @@ fn build(
     &spec,
     &nondet,
     previous_target_ir.as_ref(),
+    layout_required,
   )?;
   let target_ir = match from_json_value(target_ir_value.clone()) {
     Ok(ir) => ir,
@@ -572,6 +573,7 @@ fn freeze(
     &spec,
     &nondet,
     previous_target_ir.as_ref(),
+    layout_required,
   )?;
   let target_ir = match from_json_value(target_ir_value.clone()) {
     Ok(ir) => ir,
