@@ -56,10 +56,17 @@ Run `sculpt` with no arguments to open the interactive TUI.
 - `sculpt freeze <file.sculpt> --target <...> --provider <...>`
 - `sculpt replay <file.sculpt> --target <...>`
 - `sculpt run <file.sculpt> --target <...>`
+- `sculpt clean <file.sculpt>` or `sculpt clean --all`
 - `sculpt target list`
 - `sculpt target describe --target <name>`
 - `sculpt auth check --provider openai [--verify]`
 - `sculpt build <file.sculpt> --target <...> --debug[=compact|raw|all|json]`
+
+Build outputs are isolated per script:
+- `dist/<scriptname>/target.ir.json`
+- `dist/<scriptname>/ir.json`
+- `dist/<scriptname>/nondet.report`
+- `dist/<scriptname>/build.meta.json`
 
 ## Authentication
 Set a provider API key as an environment variable:

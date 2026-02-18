@@ -17,6 +17,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Padding, Paragraph, Wrap};
 use ratatui::Terminal;
 
+use crate::build_meta::read_build_meta;
 use crate::targets::list_targets;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -359,6 +360,14 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
         let _ = state.run_command("sculpt", &build_args(state, "replay"));
       }
     }
+    KeyCode::Char('c') => {
+      if state.selected_file.is_some() {
+        let _ = state.run_command("sculpt", &build_args(state, "clean"));
+        state.update_preview_from_selection();
+      } else {
+        state.info_modal = Some("Select a .sculpt file first.".to_string());
+      }
+    }
     _ => {}
   }
   Ok(false)
@@ -482,7 +491,9 @@ fn ui(f: &mut ratatui::Frame, state: &mut AppState) {
       Span::styled("F", Style::default().fg(state.theme.accent2).add_modifier(Modifier::BOLD)),
       Span::raw(" freeze  "),
       Span::styled("P", Style::default().fg(state.theme.accent2).add_modifier(Modifier::BOLD)),
-      Span::raw(" replay"),
+      Span::raw(" replay  "),
+      Span::styled("C", Style::default().fg(state.theme.accent2).add_modifier(Modifier::BOLD)),
+      Span::raw(" clean"),
     ]),
   ])
   .block(
@@ -657,6 +668,38 @@ fn render_details(state: &AppState) -> Vec<Line<'_>> {
       for line in &state.preview_intro {
         lines.push(Line::from(Span::styled(format!("  {}", line), Style::default().fg(state.theme.fg))));
       }
+    }
+    if let Some(meta) = read_build_meta(&dist_dir) {
+      lines.push(Line::from(""));
+      lines.push(Line::from(Span::styled("Last Build:", Style::default().fg(state.theme.dim))));
+      lines.push(Line::from(vec![
+        Span::styled("  action ", Style::default().fg(state.theme.dim)),
+        Span::styled(meta.action, Style::default().fg(state.theme.fg)),
+        Span::raw("  "),
+        Span::styled("target ", Style::default().fg(state.theme.dim)),
+        Span::styled(meta.target, Style::default().fg(state.theme.fg)),
+      ]));
+      lines.push(Line::from(vec![
+        Span::styled("  provider ", Style::default().fg(state.theme.dim)),
+        Span::styled(meta.provider.unwrap_or_else(|| "unknown".to_string()), Style::default().fg(state.theme.fg)),
+        Span::raw("  "),
+        Span::styled("model ", Style::default().fg(state.theme.dim)),
+        Span::styled(meta.model.unwrap_or_else(|| "unknown".to_string()), Style::default().fg(state.theme.fg)),
+      ]));
+      lines.push(Line::from(vec![
+        Span::styled("  llm_ms ", Style::default().fg(state.theme.dim)),
+        Span::styled(meta.llm_ms.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string()), Style::default().fg(state.theme.fg)),
+        Span::raw("  "),
+        Span::styled("build_ms ", Style::default().fg(state.theme.dim)),
+        Span::styled(meta.build_ms.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string()), Style::default().fg(state.theme.fg)),
+      ]));
+      lines.push(Line::from(vec![
+        Span::styled("  total_ms ", Style::default().fg(state.theme.dim)),
+        Span::styled(meta.total_ms.to_string(), Style::default().fg(state.theme.fg)),
+        Span::raw("  "),
+        Span::styled("ts ", Style::default().fg(state.theme.dim)),
+        Span::styled(meta.timestamp_unix_ms.to_string(), Style::default().fg(state.theme.fg)),
+      ]));
     }
     if let Some(last) = &state.last_run {
       lines.push(Line::from(""));

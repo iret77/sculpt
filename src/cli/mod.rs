@@ -10,6 +10,7 @@ use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 
 use crate::ai::{generate_target_ir, AiProvider, DebugCapture, TargetSpec};
+use crate::build_meta::{dist_dir_for_input, now_unix_ms, write_build_meta, BuildMeta};
 use crate::freeze::{create_lock, read_lock, verify_lock, write_lock};
 use crate::ir::{from_ast, to_pretty_json, IrModule};
 use crate::parser::parse_source;
@@ -89,6 +90,11 @@ pub enum Command {
     #[arg(long)]
     target: Option<String>,
   },
+  Clean {
+    input: Option<PathBuf>,
+    #[arg(long)]
+    all: bool,
+  },
 }
 
 #[derive(Subcommand)]
@@ -155,6 +161,7 @@ pub fn run() -> Result<()> {
     }
     Command::Replay { input, target } => replay(&input, target.as_deref()),
     Command::Run { input, target } => run_cmd(&input, target.as_deref()),
+    Command::Clean { input, all } => clean_cmd(input.as_deref(), all),
   }
 }
 
@@ -474,6 +481,7 @@ fn build(
   strict: bool,
   debug: Option<String>,
 ) -> Result<()> {
+  let started = Instant::now();
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
@@ -566,6 +574,27 @@ fn build(
     );
   }
 
+  let total_ms = started.elapsed().as_millis();
+  let llm_ms = debug_capture.as_ref().map(|c| c.llm_ms);
+  write_build_meta(
+    &dist_dir,
+    &BuildMeta {
+      version: 1,
+      script: input.display().to_string(),
+      action: "build".to_string(),
+      target: target.clone(),
+      provider: Some(provider_info.name.clone()),
+      model: Some(provider_info.model.clone()),
+      llm_ms,
+      build_ms: Some(build_ms),
+      run_ms: None,
+      total_ms,
+      timestamp_unix_ms: now_unix_ms(),
+      status: "ok".to_string(),
+      token_usage: None,
+    },
+  )?;
+
   print_unified_footer(&[
     &format!("{}/target.ir.json", dist_dir.display()),
     &format!("{}/ir.json", dist_dir.display()),
@@ -582,6 +611,7 @@ fn freeze(
   target: Option<&str>,
   debug: Option<String>,
 ) -> Result<()> {
+  let started = Instant::now();
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
@@ -676,6 +706,27 @@ fn freeze(
     );
   }
 
+  let total_ms = started.elapsed().as_millis();
+  let llm_ms = debug_capture.as_ref().map(|c| c.llm_ms);
+  write_build_meta(
+    &dist_dir,
+    &BuildMeta {
+      version: 1,
+      script: input.display().to_string(),
+      action: "freeze".to_string(),
+      target: target.clone(),
+      provider: Some(provider_info.name.clone()),
+      model: Some(provider_info.model.clone()),
+      llm_ms,
+      build_ms: Some(build_ms),
+      run_ms: None,
+      total_ms,
+      timestamp_unix_ms: now_unix_ms(),
+      status: "ok".to_string(),
+      token_usage: None,
+    },
+  )?;
+
   print_unified_footer(&[
     "sculpt.lock",
     &format!("{}/target.ir.json", dist_dir.display()),
@@ -686,6 +737,7 @@ fn freeze(
 }
 
 fn replay(input: &Path, target: Option<&str>) -> Result<()> {
+  let started = Instant::now();
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
@@ -715,6 +767,25 @@ fn replay(input: &Path, target: Option<&str>) -> Result<()> {
     return Err(e);
   }
   finish_step("3", "Build Target", "ok");
+  let total_ms = started.elapsed().as_millis();
+  write_build_meta(
+    &dist_dir,
+    &BuildMeta {
+      version: 1,
+      script: input.display().to_string(),
+      action: "replay".to_string(),
+      target: target.clone(),
+      provider: Some("replay".to_string()),
+      model: Some("locked".to_string()),
+      llm_ms: None,
+      build_ms: None,
+      run_ms: None,
+      total_ms,
+      timestamp_unix_ms: now_unix_ms(),
+      status: "ok".to_string(),
+      token_usage: None,
+    },
+  )?;
   fs::write(dist_dir.join("ir.json"), to_pretty_json(&ir)?)?;
   fs::write(dist_dir.join("nondet.report"), generate_report(&ir))?;
 
@@ -817,11 +888,12 @@ fn emit_debug(
 }
 
 fn run_cmd(input: &Path, target: Option<&str>) -> Result<()> {
+  let started = Instant::now();
   let ir = load_ir(input)?;
   let target = resolve_target_from_meta(target, &ir)?;
   print_unified_header("Run", &target, input, None);
   let dist_dir = dist_dir(input);
-  match resolve_target(&target) {
+  let result = match resolve_target(&target) {
     TargetKind::Cli => run_cli(&dist_dir),
     TargetKind::Web => run_web(&dist_dir),
     TargetKind::Gui => run_gui(&dist_dir),
@@ -829,7 +901,56 @@ fn run_cmd(input: &Path, target: Option<&str>) -> Result<()> {
       run_external_target(&name, &ir, None, None, &dist_dir, input, None, "run")?;
       Ok(())
     }
+  };
+  result?;
+  let run_ms = started.elapsed().as_millis();
+  let meta = BuildMeta {
+    version: 1,
+    script: input.display().to_string(),
+    action: "run".to_string(),
+    target: target.clone(),
+    provider: None,
+    model: None,
+    llm_ms: None,
+    build_ms: None,
+    run_ms: Some(run_ms),
+    total_ms: run_ms,
+    timestamp_unix_ms: now_unix_ms(),
+    status: "ok".to_string(),
+    token_usage: None,
+  };
+  write_build_meta(&dist_dir, &meta)?;
+  Ok(())
+}
+
+fn clean_cmd(input: Option<&Path>, all: bool) -> Result<()> {
+  let root = std::env::current_dir()?;
+  clean_impl(&root, input, all)
+}
+
+fn clean_impl(root: &Path, input: Option<&Path>, all: bool) -> Result<()> {
+  if all {
+    let dist = root.join("dist");
+    if dist.exists() {
+      fs::remove_dir_all(&dist)?;
+      println!("Removed {}", dist.display());
+    } else {
+      println!("Nothing to clean.");
+    }
+    return Ok(());
   }
+
+  let Some(input) = input else {
+    bail!("Provide an input file or use --all");
+  };
+  let dist_dir = root.join(dist_dir(input));
+  if dist_dir.exists() {
+    fs::remove_dir_all(&dist_dir)?;
+    println!("Removed {}", dist_dir.display());
+  } else {
+    println!("Nothing to clean for {}", input.display());
+  }
+  Ok(())
 }
 
 fn enforce_meta(ir: &IrModule, target: &str) -> Result<bool> {
@@ -1215,8 +1336,7 @@ fn read_previous_target_ir(input: &Path) -> Option<Value> {
 }
 
 fn dist_dir(input: &Path) -> PathBuf {
-  let stem = input.file_stem().and_then(|s| s.to_str()).unwrap_or("sculpt");
-  Path::new("dist").join(stem)
+  dist_dir_for_input(input)
 }
 
 fn load_config() -> Config {
@@ -1227,4 +1347,47 @@ fn load_config() -> Config {
     }
   }
   Config::default()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::time::{SystemTime, UNIX_EPOCH};
+
+  fn temp_workspace() -> PathBuf {
+    let stamp = SystemTime::now()
+      .duration_since(UNIX_EPOCH)
+      .map(|d| d.as_nanos())
+      .unwrap_or(0);
+    let dir = std::env::temp_dir().join(format!("sculpt_cli_test_{}", stamp));
+    fs::create_dir_all(&dir).expect("create temp workspace");
+    dir
+  }
+
+  #[test]
+  fn clean_all_removes_dist() {
+    let ws = temp_workspace();
+    fs::create_dir_all(ws.join("dist/hello_world")).expect("make dist");
+    fs::write(ws.join("dist/hello_world/main.js"), "ok").expect("write file");
+
+    clean_impl(&ws, None, true).expect("clean all");
+    assert!(!ws.join("dist").exists());
+
+    let _ = fs::remove_dir_all(ws);
+  }
+
+  #[test]
+  fn clean_input_removes_only_matching_script_dist() {
+    let ws = temp_workspace();
+    fs::create_dir_all(ws.join("dist/a")).expect("make dist a");
+    fs::create_dir_all(ws.join("dist/b")).expect("make dist b");
+    fs::write(ws.join("dist/a/main.js"), "a").expect("write a");
+    fs::write(ws.join("dist/b/main.js"), "b").expect("write b");
+
+    clean_impl(&ws, Some(Path::new("a.sculpt")), false).expect("clean input");
+    assert!(!ws.join("dist/a").exists());
+    assert!(ws.join("dist/b").exists());
+
+    let _ = fs::remove_dir_all(ws);
+  }
 }
