@@ -28,7 +28,12 @@ use crate::targets::{
 use serde_json::Value;
 
 #[derive(Parser)]
-#[command(name = "sculpt", version, about = "SCULPT compiler — (C) 2026 byte5 GmbH")]
+#[command(
+  name = "sculpt",
+  version,
+  about = "SCULPT compiler — (C) 2026 byte5 GmbH",
+  after_help = "TUI: run `sculpt` with no arguments\nHelp: run `sculpt help`"
+)]
 pub struct Cli {
   #[command(subcommand)]
   cmd: Command,
