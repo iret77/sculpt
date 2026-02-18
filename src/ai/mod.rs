@@ -203,6 +203,8 @@ fn build_prompt(
   input.push_str("Do not include explanations. Output only JSON.\n\n");
   input.push_str("STANDARD_IR:\n");
   input.push_str(&target_spec.standard_ir);
+  input.push_str("\n\nSCHEMA_JSON:\n");
+  input.push_str(&serde_json::to_string_pretty(&target_spec.schema)?);
   input.push_str("\n\nSCULPT_IR_JSON:\n");
   input.push_str(&serde_json::to_string_pretty(sculpt_ir)?);
   input.push_str("\n\nNONDET_REPORT:\n");
@@ -242,6 +244,34 @@ fn extract_gemini_text(value: &Value) -> Option<String> {
 }
 
 fn parse_json_response(text: &str) -> Result<Value> {
-  let parsed: Value = serde_json::from_str(text)?;
-  Ok(parsed)
+  let trimmed = text.trim();
+  if let Ok(parsed) = serde_json::from_str::<Value>(trimmed) {
+    return Ok(parsed);
+  }
+
+  let mut s = trimmed;
+  if let Some(stripped) = s.strip_prefix("```") {
+    s = stripped.trim_start();
+    if let Some(rest) = s.strip_prefix("json") {
+      s = rest.trim_start();
+    }
+    if let Some(end) = s.rfind("```") {
+      s = &s[..end];
+    }
+  }
+
+  if let Ok(parsed) = serde_json::from_str::<Value>(s.trim()) {
+    return Ok(parsed);
+  }
+
+  if let (Some(start), Some(end)) = (s.find('{'), s.rfind('}')) {
+    if start < end {
+      let slice = &s[start..=end];
+      if let Ok(parsed) = serde_json::from_str::<Value>(slice) {
+        return Ok(parsed);
+      }
+    }
+  }
+
+  bail!("Failed to parse JSON from model output")
 }
