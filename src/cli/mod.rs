@@ -32,7 +32,7 @@ use serde_json::Value;
   name = "sculpt",
   version,
   about = "SCULPT compiler — (C) 2026 byte5 GmbH",
-  long_about = "SCULPT compiler — (C) 2026 byte5 GmbH\nTUI: run `sculpt` with no arguments\nHelp: run `sculpt help`"
+  after_help = "TUI: run `sculpt` with no arguments"
 )]
 pub struct Cli {
   #[command(subcommand)]
