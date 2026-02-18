@@ -34,6 +34,7 @@ pub struct RenderItem {
   pub x: Option<i64>,
   pub y: Option<i64>,
   pub action: Option<String>,
+  pub style: Option<String>,
   pub css: Option<Value>,
 }
 

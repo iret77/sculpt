@@ -136,6 +136,9 @@ pub fn normalize_llm_ir(standard_ir: &str, input: &Value) -> Value {
               if let Some(action) = obj.get("a").cloned() {
                 item_out.insert("action".to_string(), action);
               }
+              if let Some(style) = obj.get("st").cloned() {
+                item_out.insert("style".to_string(), style);
+              }
               if !item_out.is_empty() {
                 list.push(Value::Object(item_out));
               }
@@ -228,6 +231,11 @@ fn render_from_array(item_arr: &[Value]) -> Option<Map<String, Value>> {
       item_out.insert("action".to_string(), action.clone());
     }
   }
+  if let Some(style) = item_arr.get(6) {
+    if !style.is_null() {
+      item_out.insert("style".to_string(), style.clone());
+    }
+  }
   if item_out.is_empty() { None } else { Some(item_out) }
 }
 
@@ -258,12 +266,14 @@ fn schema_base(standard_ir: &str, include_window: bool, allow_button: bool) -> V
 
   props.insert("u".to_string(), json!({
     "type": "array",
+    "minItems": 1,
     "items": {
       "type": "array",
       "prefixItems": [
         { "type": "string" },
         {
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "array",
             "prefixItems": [
@@ -272,6 +282,7 @@ fn schema_base(standard_ir: &str, include_window: bool, allow_button: bool) -> V
               { "type": ["string", "null"] },
               { "type": ["integer", "null"] },
               { "type": ["integer", "null"] },
+              { "type": ["string", "null"] },
               { "type": ["string", "null"] }
             ],
             "items": false

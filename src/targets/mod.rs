@@ -113,7 +113,7 @@ let package = Package(
 
   let view_name = target.flow.start.clone();
   let items = target.views.get(&view_name).cloned().unwrap_or_default();
-  let mut text_views = Vec::new();
+  let mut text_views: Vec<(String, String, Option<String>)> = Vec::new();
   let mut button_label = None;
 
   for item in items {
@@ -121,7 +121,7 @@ let package = Package(
       "text" => {
         if let Some(text) = item.text {
           let color = item.color.unwrap_or_else(|| "primary".to_string());
-          text_views.push((text, color));
+          text_views.push((text, color, item.style));
         }
       }
       "button" => {
@@ -152,10 +152,9 @@ let package = Package(
   swift.push_str("  @State private var showAlert = false\n\n");
   swift.push_str("  var body: some View {\n");
   swift.push_str("    VStack(alignment: .leading, spacing: 12) {\n");
-  for (idx, (text, color)) in text_views.iter().enumerate() {
-    let font = if idx == 0 { ".font(.title2.weight(.semibold))" } else { ".font(.body)" };
-    let fallback_color = if idx == 0 { "primary" } else { "secondary" };
-    let mapped = map_color_or(&color, fallback_color);
+  for (idx, (text, color, style)) in text_views.iter().enumerate() {
+    let (font, fallback_color) = map_text_style(style.as_deref(), idx);
+    let mapped = map_color_or(color, fallback_color);
     swift.push_str(&format!(
       "      Text(\"{}\"){font}.foregroundStyle({})\n",
       escape_swift(text),
@@ -219,6 +218,22 @@ fn map_color_or(color: &str, fallback: &str) -> String {
     "primary" => "Color.primary".to_string(),
     "secondary" => "Color.secondary".to_string(),
     _ => format!("Color.{}", fallback),
+  }
+}
+
+fn map_text_style(style: Option<&str>, index: usize) -> (&'static str, &'static str) {
+  match style.unwrap_or("") {
+    "title" => (".font(.title2.weight(.semibold))", "primary"),
+    "subtitle" => (".font(.headline)", "secondary"),
+    "caption" => (".font(.caption)", "secondary"),
+    "body" => (".font(.body)", "secondary"),
+    _ => {
+      if index == 0 {
+        (".font(.title2.weight(.semibold))", "primary")
+      } else {
+        (".font(.body)", "secondary")
+      }
+    }
   }
 }
 

@@ -48,7 +48,8 @@
         "color": { "type": "string" },
         "x": { "type": "integer" },
         "y": { "type": "integer" },
-        "action": { "type": "string" }
+        "action": { "type": "string" },
+        "style": { "type": "string" }
       }
     }
   }

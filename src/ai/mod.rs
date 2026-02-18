@@ -87,7 +87,7 @@ fn openai_generate(
         "type": "json_schema",
         "name": "target_ir",
         "schema": compact_schema,
-        "strict": false
+        "strict": true
       }
     }
   });
@@ -259,7 +259,7 @@ fn build_prompt(
   input.push_str("Do not include explanations. Output only JSON.\n");
   input.push_str("Output must follow the compact schema exactly (positional arrays, no extra keys).\n");
   input.push_str("Format:\n");
-  input.push_str("  u = [ [viewName, [ [kind,text,color,x,y,action], ... ] ], ... ]\n");
+  input.push_str("  u = [ [viewName, [ [kind,text,color,x,y,action,style], ... ] ], ... ]\n");
   input.push_str("  f = [ start, [ [from, [ [event,target], ... ] ], ... ] ]\n");
   input.push_str("  w = [title,width,height]\n\n");
   input.push_str("STANDARD_IR:\n");
