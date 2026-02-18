@@ -6,6 +6,7 @@ pub enum TokenKind {
   Number(f64),
   String(String),
   Keyword(Keyword),
+  At,
   Gt,
   PlusEq,
   Eq,
@@ -71,6 +72,11 @@ pub fn lex(input: &str) -> Result<Vec<Token>> {
             break;
           }
         }
+      }
+      '@' => {
+        chars.next();
+        tokens.push(Token { kind: TokenKind::At, line, col });
+        col += 1;
       }
       '+' => {
         chars.next();

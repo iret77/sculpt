@@ -14,6 +14,12 @@ Mehr Code → kleinere Lösungsmenge → deterministischer, aber nie vollständi
 **Jeder Block ist eine Funktionssignatur.**  
 Whitespace dient nur der Lesbarkeit und ist **niemals** Syntax.
 
+**Meta‑Header (optional, nicht Teil der Logik):**
+```
+@meta target=gui layout=explicit
+@meta author="team"
+```
+
 ```
 <blockType>(<name, params...>)
   ...

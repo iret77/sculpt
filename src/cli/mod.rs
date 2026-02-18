@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 
 use crate::ai::{generate_target_ir, AiProvider, DebugCapture, TargetSpec};
 use crate::freeze::{create_lock, read_lock, verify_lock, write_lock};
-use crate::ir::{from_ast, to_pretty_json};
+use crate::ir::{from_ast, to_pretty_json, IrModule};
 use crate::parser::parse_source;
 use crate::report::generate_report;
 use crate::target_ir::{from_json_value, TargetIr};
@@ -469,6 +469,7 @@ fn build(
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
+  let layout_required = enforce_meta(&ir, target)?;
   let ir_json = to_pretty_json(&ir)?;
   let nondet = generate_report(&ir);
 
@@ -515,6 +516,9 @@ fn build(
   if target_ir.ir_type != spec.standard_ir {
     bail!("Target IR type mismatch: expected {}, got {}", spec.standard_ir, target_ir.ir_type);
   }
+  if layout_required && target_ir.layout.is_none() {
+    bail!("layout=explicit requires layout data in target IR");
+  }
 
   fs::write("dist/target.ir.json", serde_json::to_string_pretty(&target_ir_value)?)?;
   let build_started = Instant::now();
@@ -553,6 +557,7 @@ fn freeze(
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
+  let layout_required = enforce_meta(&ir, target)?;
   let nondet = generate_report(&ir);
 
   let spec = build_target_spec(target)?;
@@ -594,6 +599,9 @@ fn freeze(
   if target_ir.ir_type != spec.standard_ir {
     bail!("Target IR type mismatch: expected {}, got {}", spec.standard_ir, target_ir.ir_type);
   }
+  if layout_required && target_ir.layout.is_none() {
+    bail!("layout=explicit requires layout data in target IR");
+  }
 
   let lock = create_lock(&ir, &provider_info.name, target, &target_ir_value, &provider_info.model)?;
   write_lock(Path::new("sculpt.lock"), &lock)?;
@@ -633,12 +641,16 @@ fn replay(input: &Path, target: &str) -> Result<()> {
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
+  let layout_required = enforce_meta(&ir, target)?;
   let lock = read_lock(Path::new("sculpt.lock"))?;
   verify_lock(&ir, &lock)?;
 
   let target_ir_value = lock.target_ir.clone();
   let target_ir = from_json_value(target_ir_value.clone())
     .map_err(|e| anyhow::anyhow!("Target IR parse error: {}", e))?;
+  if layout_required && target_ir.layout.is_none() {
+    bail!("layout=explicit requires layout data in target IR");
+  }
 
   fs::create_dir_all("dist")?;
   fs::write("dist/target.ir.json", serde_json::to_string_pretty(&target_ir_value)?)?;
@@ -749,6 +761,23 @@ fn run_cmd(input: &Path, target: &str) -> Result<()> {
       Ok(())
     }
   }
+}
+
+fn enforce_meta(ir: &IrModule, target: &str) -> Result<bool> {
+  if let Some(t) = ir.meta.get("target") {
+    if t.to_lowercase() != target.to_lowercase() {
+      bail!("Target mismatch: meta target is {}, but build target is {}", t, target);
+    }
+  }
+  let layout_required = ir
+    .meta
+    .get("layout")
+    .map(|v| v.to_lowercase() == "explicit")
+    .unwrap_or(false);
+  if layout_required && target != "gui" {
+    bail!("layout=explicit is only valid for gui target");
+  }
+  Ok(layout_required)
 }
 
 struct ProviderInfo {

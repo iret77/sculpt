@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Module {
   pub name: String,
+  pub meta: std::collections::HashMap<String, String>,
   pub items: Vec<Item>,
 }
 

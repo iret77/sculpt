@@ -6,6 +6,7 @@ use serde_json::{Map, Value};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IrModule {
   pub name: String,
+  pub meta: std::collections::HashMap<String, String>,
   pub flows: Vec<IrFlow>,
   pub global_state: Vec<ast::StateStmt>,
   pub rules: Vec<ast::Rule>,
@@ -38,7 +39,7 @@ pub fn from_ast(module: ast::Module) -> IrModule {
     }
   }
 
-  IrModule { name: module.name, flows, global_state, rules, nd_blocks }
+  IrModule { name: module.name, meta: module.meta, flows, global_state, rules, nd_blocks }
 }
 
 pub fn canonical_json(value: &Value) -> Value {

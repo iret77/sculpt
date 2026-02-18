@@ -27,6 +27,20 @@ fn missing_module_fails() {
 }
 
 #[test]
+fn parses_meta_headers() {
+  let src = r#"
+@meta target=gui layout=explicit
+@meta author="test"
+module(App)
+end
+"#;
+  let module = parse_source(src).expect("parse ok");
+  assert_eq!(module.meta.get("target").unwrap(), "gui");
+  assert_eq!(module.meta.get("layout").unwrap(), "explicit");
+  assert_eq!(module.meta.get("author").unwrap(), "test");
+}
+
+#[test]
 fn missing_end_fails() {
   let src = r#"module(Mini)
   flow(App)

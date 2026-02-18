@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 
 use crate::ast::*;
 use crate::lexer::{lex, Keyword, Token, TokenKind};
+use std::collections::HashMap;
 
 pub fn parse_source(input: &str) -> Result<Module> {
   let tokens = lex(input)?;
@@ -17,6 +18,7 @@ struct Parser {
 impl Parser {
   fn parse_module(&mut self) -> Result<Module> {
     self.consume_newlines();
+    let meta = self.parse_meta_headers()?;
     self.expect_keyword(Keyword::Module)?;
     self.expect(TokenKind::LParen)?;
     let name = self.expect_ident()?;
@@ -43,7 +45,65 @@ impl Parser {
     }
 
     self.expect_keyword(Keyword::End)?;
-    Ok(Module { name, items })
+    Ok(Module { name, meta, items })
+  }
+
+  fn parse_meta_headers(&mut self) -> Result<HashMap<String, String>> {
+    let mut meta = HashMap::new();
+    loop {
+      self.consume_newlines();
+      if !self.check(TokenKind::At) {
+        break;
+      }
+      self.expect(TokenKind::At)?;
+      let tag = self.expect_ident()?;
+      if tag != "meta" {
+        bail!("Unknown directive @{}", tag);
+      }
+
+      while !self.check(TokenKind::Newline) && !self.is_eof() {
+        let key = self.expect_ident()?.to_lowercase();
+        self.expect(TokenKind::Eq)?;
+        let value = self.expect_meta_value()?;
+        meta.insert(key, value);
+
+        if self.check(TokenKind::Comma) {
+          self.advance();
+        }
+      }
+      self.consume_newlines();
+    }
+    Ok(meta)
+  }
+
+  fn expect_meta_value(&mut self) -> Result<String> {
+    if let Some(tok) = self.peek() {
+      match &tok.kind {
+        TokenKind::String(s) => {
+          let out = s.clone();
+          self.advance();
+          Ok(out)
+        }
+        TokenKind::Number(n) => {
+          let out = n.to_string();
+          self.advance();
+          Ok(out)
+        }
+        TokenKind::Identifier(s) => {
+          let out = s.clone();
+          self.advance();
+          Ok(out)
+        }
+        TokenKind::Keyword(k) => {
+          let out = format!("{:?}", k).to_lowercase();
+          self.advance();
+          Ok(out)
+        }
+        _ => bail!("Expected meta value"),
+      }
+    } else {
+      bail!("Expected meta value")
+    }
   }
 
   fn parse_flow(&mut self) -> Result<Flow> {
