@@ -257,7 +257,11 @@ fn build_prompt(
   let mut input = String::new();
   input.push_str("You are the Sculpt compiler AI. Generate target IR JSON that conforms to the provided schema.\n");
   input.push_str("Do not include explanations. Output only JSON.\n");
-  input.push_str("If schema uses short keys, output the short-key form exactly.\n\n");
+  input.push_str("Output must follow the compact schema exactly (positional arrays, no extra keys).\n");
+  input.push_str("Format:\n");
+  input.push_str("  u = [ [viewName, [ [kind,text,color,x,y,action], ... ] ], ... ]\n");
+  input.push_str("  f = [ start, [ [from, [ [event,target], ... ] ], ... ] ]\n");
+  input.push_str("  w = [title,width,height]\n\n");
   input.push_str("STANDARD_IR:\n");
   input.push_str(&target_spec.standard_ir);
   input.push_str("\n\nLLM_IR_SCHEMA_JSON:\n");

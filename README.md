@@ -8,7 +8,7 @@ and asks an LLM to produce target IR, which is then built deterministically by a
 
 **AI‑first, but human‑centered:** build *by* AI, build *with* AI, build *for* humans.
 
-The LLM sees **only** a compact, short‑key IR. We then normalize into standard IR
+The LLM sees **only** a compact, positional‑array IR. We then normalize into standard IR
 for deterministic build and validation.
 
 ## Thesis
