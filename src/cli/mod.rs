@@ -1,11 +1,12 @@
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 
-use crate::ai::{generate_target_ir, AiProvider, TargetSpec};
+use crate::ai::{generate_target_ir, AiProvider, DebugCapture, TargetSpec};
 use crate::freeze::{create_lock, read_lock, verify_lock, write_lock};
 use crate::ir::{from_ast, to_pretty_json};
 use crate::parser::parse_source;
@@ -54,6 +55,8 @@ pub enum Command {
     model: Option<String>,
     #[arg(long)]
     strict_provider: bool,
+    #[arg(long, value_name = "level", num_args = 0..=1, default_missing_value = "compact", value_parser = ["compact", "raw", "all", "json"])]
+    debug: Option<String>,
   },
   Freeze {
     input: PathBuf,
@@ -65,6 +68,8 @@ pub enum Command {
     strict_provider: bool,
     #[arg(long)]
     target: String,
+    #[arg(long, value_name = "level", num_args = 0..=1, default_missing_value = "compact", value_parser = ["compact", "raw", "all", "json"])]
+    debug: Option<String>,
   },
   Replay {
     input: PathBuf,
@@ -134,11 +139,11 @@ pub fn run() -> Result<()> {
       TargetCommand::List => target_list(),
       TargetCommand::Describe { target } => target_describe(&target),
     },
-    Command::Build { input, target, provider, model, strict_provider } => {
-      build(&input, &target, provider, model, strict_provider)
+    Command::Build { input, target, provider, model, strict_provider, debug } => {
+      build(&input, &target, provider, model, strict_provider, debug)
     }
-    Command::Freeze { input, provider, model, strict_provider, target } => {
-      freeze(&input, provider, model, strict_provider, &target)
+    Command::Freeze { input, provider, model, strict_provider, target, debug } => {
+      freeze(&input, provider, model, strict_provider, &target, debug)
     }
     Command::Replay { input, target } => replay(&input, &target),
     Command::Run { input, target } => run_cmd(&input, &target),
@@ -413,7 +418,33 @@ end
   Ok(())
 }
 
-fn build(input: &Path, target: &str, provider: Option<String>, model: Option<String>, strict: bool) -> Result<()> {
+#[derive(Clone, Copy)]
+enum DebugLevel {
+  Compact,
+  Raw,
+  All,
+  Json,
+}
+
+fn parse_debug(level: Option<String>) -> Option<DebugLevel> {
+  let Some(value) = level else { return None; };
+  match value.as_str() {
+    "compact" => Some(DebugLevel::Compact),
+    "raw" => Some(DebugLevel::Raw),
+    "all" => Some(DebugLevel::All),
+    "json" => Some(DebugLevel::Json),
+    _ => None,
+  }
+}
+
+fn build(
+  input: &Path,
+  target: &str,
+  provider: Option<String>,
+  model: Option<String>,
+  strict: bool,
+  debug: Option<String>,
+) -> Result<()> {
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
@@ -425,11 +456,18 @@ fn build(input: &Path, target: &str, provider: Option<String>, model: Option<Str
   fs::write("nondet.report", &nondet)?;
 
   let spec = build_target_spec(target)?;
-  let ai_provider = select_ai_provider(provider, model, strict)?;
+  let debug_level = parse_debug(debug);
+  let (ai_provider, provider_info) = select_ai_provider(provider, model, strict)?;
   let sculpt_ir_value = serde_json::to_value(&ir)?;
   let previous_target_ir = read_previous_target_ir();
 
-  let target_ir_value = generate_target_ir(ai_provider, &sculpt_ir_value, &spec, &nondet, previous_target_ir.as_ref())?;
+  let (target_ir_value, debug_capture) = generate_target_ir(
+    ai_provider,
+    &sculpt_ir_value,
+    &spec,
+    &nondet,
+    previous_target_ir.as_ref(),
+  )?;
   let target_ir = from_json_value(target_ir_value.clone())
     .map_err(|e| anyhow::anyhow!("Target IR parse error: {}", e))?;
   if target_ir.ir_type != spec.standard_ir {
@@ -437,7 +475,22 @@ fn build(input: &Path, target: &str, provider: Option<String>, model: Option<Str
   }
 
   fs::write("dist/target.ir.json", serde_json::to_string_pretty(&target_ir_value)?)?;
+  let build_started = Instant::now();
   deterministic_build(target, &target_ir, &target_ir_value, input)?;
+  let build_ms = build_started.elapsed().as_millis();
+
+  if let Some(level) = debug_level {
+    emit_debug(
+      level,
+      target,
+      input,
+      &provider_info,
+      &spec,
+      &target_ir,
+      debug_capture.as_ref(),
+      build_ms,
+    );
+  }
 
   println!("Build complete:");
   println!("  dist/target.ir.json");
@@ -447,27 +500,39 @@ fn build(input: &Path, target: &str, provider: Option<String>, model: Option<Str
   Ok(())
 }
 
-fn freeze(input: &Path, provider: Option<String>, model: Option<String>, strict: bool, target: &str) -> Result<()> {
+fn freeze(
+  input: &Path,
+  provider: Option<String>,
+  model: Option<String>,
+  strict: bool,
+  target: &str,
+  debug: Option<String>,
+) -> Result<()> {
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
   let ir = from_ast(module);
   let nondet = generate_report(&ir);
 
   let spec = build_target_spec(target)?;
-  let ai_provider = select_ai_provider(provider.clone(), model.clone(), strict)?;
+  let debug_level = parse_debug(debug);
+  let (ai_provider, provider_info) = select_ai_provider(provider.clone(), model.clone(), strict)?;
   let sculpt_ir_value = serde_json::to_value(&ir)?;
   let previous_target_ir = read_previous_target_ir();
 
-  let target_ir_value = generate_target_ir(ai_provider, &sculpt_ir_value, &spec, &nondet, previous_target_ir.as_ref())?;
+  let (target_ir_value, debug_capture) = generate_target_ir(
+    ai_provider,
+    &sculpt_ir_value,
+    &spec,
+    &nondet,
+    previous_target_ir.as_ref(),
+  )?;
   let target_ir = from_json_value(target_ir_value.clone())
     .map_err(|e| anyhow::anyhow!("Target IR parse error: {}", e))?;
   if target_ir.ir_type != spec.standard_ir {
     bail!("Target IR type mismatch: expected {}, got {}", spec.standard_ir, target_ir.ir_type);
   }
 
-  let provider_name = provider.unwrap_or_else(|| "openai".to_string());
-  let model_name = model.unwrap_or_else(|| "gpt-4.1".to_string());
-  let lock = create_lock(&ir, &provider_name, target, &target_ir_value, &model_name)?;
+  let lock = create_lock(&ir, &provider_info.name, target, &target_ir_value, &provider_info.model)?;
   write_lock(Path::new("sculpt.lock"), &lock)?;
 
   fs::create_dir_all("dist")?;
@@ -475,7 +540,22 @@ fn freeze(input: &Path, provider: Option<String>, model: Option<String>, strict:
   fs::write("ir.json", to_pretty_json(&ir)?)?;
   fs::write("nondet.report", &nondet)?;
 
+  let build_started = Instant::now();
   deterministic_build(target, &target_ir, &target_ir_value, input)?;
+  let build_ms = build_started.elapsed().as_millis();
+
+  if let Some(level) = debug_level {
+    emit_debug(
+      level,
+      target,
+      input,
+      &provider_info,
+      &spec,
+      &target_ir,
+      debug_capture.as_ref(),
+      build_ms,
+    );
+  }
 
   println!("Freeze complete:");
   println!("  sculpt.lock");
@@ -511,6 +591,91 @@ fn replay(input: &Path, target: &str) -> Result<()> {
   Ok(())
 }
 
+fn emit_debug(
+  level: DebugLevel,
+  target: &str,
+  input: &Path,
+  provider: &ProviderInfo,
+  spec: &TargetSpec,
+  target_ir: &TargetIr,
+  capture: Option<&DebugCapture>,
+  build_ms: u128,
+) {
+  let llm_ms = capture.map(|c| c.llm_ms).unwrap_or(0);
+  let view_count = target_ir.views.len();
+  let transition_count: usize = target_ir
+    .flow
+    .transitions
+    .values()
+    .map(|m| m.len())
+    .sum();
+
+  let mut out = serde_json::json!({
+    "provider": provider.name,
+    "model": provider.model,
+    "target": target,
+    "input": input,
+    "standard_ir": spec.standard_ir,
+    "summary": {
+      "flow_start": target_ir.flow.start,
+      "views": view_count,
+      "transitions": transition_count
+    },
+    "timing_ms": {
+      "llm": llm_ms,
+      "build": build_ms
+    },
+    "outputs": [
+      "dist/target.ir.json",
+      "ir.json",
+      "nondet.report"
+    ]
+  });
+
+  if matches!(level, DebugLevel::Raw | DebugLevel::All | DebugLevel::Json) {
+    if let Some(c) = capture {
+      out["raw_output"] = serde_json::Value::String(c.raw_output.clone());
+    }
+  }
+
+  if matches!(level, DebugLevel::All | DebugLevel::Json) {
+    if let Some(c) = capture {
+      out["prompt"] = serde_json::Value::String(c.prompt.clone());
+    }
+  }
+
+  if matches!(level, DebugLevel::Json) {
+    eprintln!("{}", serde_json::to_string_pretty(&out).unwrap_or_default());
+    return;
+  }
+
+  eprintln!("Debug:");
+  eprintln!("  provider={} model={}", provider.name, provider.model);
+  eprintln!("  target={} input={}", target, input.display());
+  eprintln!("  standard_ir={}", spec.standard_ir);
+  eprintln!(
+    "  summary: start={} views={} transitions={}",
+    target_ir.flow.start,
+    view_count,
+    transition_count
+  );
+  eprintln!("  timing_ms: llm={} build={}", llm_ms, build_ms);
+  eprintln!("  outputs: dist/target.ir.json ir.json nondet.report");
+
+  if matches!(level, DebugLevel::Raw | DebugLevel::All) {
+    if let Some(c) = capture {
+      eprintln!("--- raw output ---");
+      eprintln!("{}", c.raw_output);
+    }
+  }
+  if matches!(level, DebugLevel::All) {
+    if let Some(c) = capture {
+      eprintln!("--- prompt ---");
+      eprintln!("{}", c.prompt);
+    }
+  }
+}
+
 fn run_cmd(input: &Path, target: &str) -> Result<()> {
   match resolve_target(target) {
     TargetKind::Cli => run_cli(Path::new("dist")),
@@ -521,6 +686,11 @@ fn run_cmd(input: &Path, target: &str) -> Result<()> {
       Ok(())
     }
   }
+}
+
+struct ProviderInfo {
+  name: String,
+  model: String,
 }
 
 fn target_list() -> Result<()> {
@@ -655,7 +825,7 @@ fn select_ai_provider(
   provider_override: Option<String>,
   model_override: Option<String>,
   strict: bool,
-) -> Result<AiProvider> {
+) -> Result<(AiProvider, ProviderInfo)> {
   let config = load_config();
   let provider_name = provider_override
     .or_else(|| config.provider)
@@ -670,12 +840,18 @@ fn select_ai_provider(
         let model_name = model_override
           .or_else(|| config.openai.and_then(|c| c.model))
           .unwrap_or_else(|| "gpt-4.1".to_string());
-        Ok(AiProvider::OpenAI { api_key, model: model_name })
+        Ok((
+          AiProvider::OpenAI { api_key, model: model_name.clone() },
+          ProviderInfo { name: "openai".to_string(), model: model_name },
+        ))
       } else if strict {
         bail!("OpenAI provider selected but no API key provided");
       } else {
         eprintln!("Warning: OpenAI provider selected but no API key found. Falling back to stub.");
-        Ok(AiProvider::Stub)
+        Ok((
+          AiProvider::Stub,
+          ProviderInfo { name: "stub".to_string(), model: "stub".to_string() },
+        ))
       }
     }
     "anthropic" => {
@@ -686,12 +862,18 @@ fn select_ai_provider(
         let model_name = model_override
           .or_else(|| config.anthropic.as_ref().and_then(|c| c.model.clone()))
           .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
-        Ok(AiProvider::Anthropic { api_key, model: model_name })
+        Ok((
+          AiProvider::Anthropic { api_key, model: model_name.clone() },
+          ProviderInfo { name: "anthropic".to_string(), model: model_name },
+        ))
       } else if strict {
         bail!("Anthropic provider selected but no API key provided");
       } else {
         eprintln!("Warning: Anthropic provider selected but no API key found. Falling back to stub.");
-        Ok(AiProvider::Stub)
+        Ok((
+          AiProvider::Stub,
+          ProviderInfo { name: "stub".to_string(), model: "stub".to_string() },
+        ))
       }
     }
     "gemini" => {
@@ -701,16 +883,25 @@ fn select_ai_provider(
       if let Some(api_key) = key {
         let model_name = model_override
           .or_else(|| config.gemini.as_ref().and_then(|c| c.model.clone()))
-        .unwrap_or_else(|| "gemini-2.5-pro".to_string());
-        Ok(AiProvider::Gemini { api_key, model: model_name })
+          .unwrap_or_else(|| "gemini-2.5-pro".to_string());
+        Ok((
+          AiProvider::Gemini { api_key, model: model_name.clone() },
+          ProviderInfo { name: "gemini".to_string(), model: model_name },
+        ))
       } else if strict {
         bail!("Gemini provider selected but no API key provided");
       } else {
         eprintln!("Warning: Gemini provider selected but no API key found. Falling back to stub.");
-        Ok(AiProvider::Stub)
+        Ok((
+          AiProvider::Stub,
+          ProviderInfo { name: "stub".to_string(), model: "stub".to_string() },
+        ))
       }
     }
-    "stub" => Ok(AiProvider::Stub),
+    "stub" => Ok((
+      AiProvider::Stub,
+      ProviderInfo { name: "stub".to_string(), model: "stub".to_string() },
+    )),
     other => bail!("Unknown AI provider: {}", other),
   }
 }

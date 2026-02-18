@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use anyhow::{bail, Result};
 use serde_json::{json, Value};
 
@@ -14,18 +16,33 @@ pub struct TargetSpec {
   pub extensions: Value,
 }
 
+pub struct DebugCapture {
+  pub prompt: String,
+  pub raw_output: String,
+  pub llm_ms: u128,
+}
+
 pub fn generate_target_ir(
   provider: AiProvider,
   sculpt_ir: &Value,
   target_spec: &TargetSpec,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
-) -> Result<Value> {
+) -> Result<(Value, Option<DebugCapture>)> {
   match provider {
-    AiProvider::OpenAI { api_key, model } => openai_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir),
-    AiProvider::Anthropic { api_key, model } => anthropic_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir),
-    AiProvider::Gemini { api_key, model } => gemini_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir),
-    AiProvider::Stub => Ok(stub_generate(target_spec)),
+    AiProvider::OpenAI { api_key, model } => {
+      let (value, debug) = openai_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
+      Ok((value, Some(debug)))
+    }
+    AiProvider::Anthropic { api_key, model } => {
+      let (value, debug) = anthropic_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
+      Ok((value, Some(debug)))
+    }
+    AiProvider::Gemini { api_key, model } => {
+      let (value, debug) = gemini_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
+      Ok((value, Some(debug)))
+    }
+    AiProvider::Stub => Ok((stub_generate(target_spec), None)),
   }
 }
 
@@ -55,7 +72,7 @@ fn openai_generate(
   target_spec: &TargetSpec,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
-) -> Result<Value> {
+) -> Result<(Value, DebugCapture)> {
   let input = build_prompt(sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
 
   let body = json!({
@@ -72,6 +89,7 @@ fn openai_generate(
   });
 
   let client = reqwest::blocking::Client::new();
+  let started = Instant::now();
   let resp = client
     .post("https://api.openai.com/v1/responses")
     .bearer_auth(api_key)
@@ -90,7 +108,15 @@ fn openai_generate(
     bail!("OpenAI returned empty output");
   }
 
-  parse_json_response(&text)
+  let parsed = parse_json_response(&text)?;
+  Ok((
+    parsed,
+    DebugCapture {
+      prompt: input,
+      raw_output: text,
+      llm_ms: started.elapsed().as_millis(),
+    },
+  ))
 }
 
 fn extract_output_text(value: &Value) -> Option<String> {
@@ -117,7 +143,7 @@ fn anthropic_generate(
   target_spec: &TargetSpec,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
-) -> Result<Value> {
+) -> Result<(Value, DebugCapture)> {
   let input = build_prompt(sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
   let body = json!({
     "model": model,
@@ -129,6 +155,7 @@ fn anthropic_generate(
   });
 
   let client = reqwest::blocking::Client::new();
+  let started = Instant::now();
   let resp = client
     .post("https://api.anthropic.com/v1/messages")
     .header("x-api-key", api_key)
@@ -148,7 +175,15 @@ fn anthropic_generate(
   if text.is_empty() {
     bail!("Anthropic returned empty output");
   }
-  parse_json_response(&text)
+  let parsed = parse_json_response(&text)?;
+  Ok((
+    parsed,
+    DebugCapture {
+      prompt: input,
+      raw_output: text,
+      llm_ms: started.elapsed().as_millis(),
+    },
+  ))
 }
 
 fn gemini_generate(
@@ -158,7 +193,7 @@ fn gemini_generate(
   target_spec: &TargetSpec,
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
-) -> Result<Value> {
+) -> Result<(Value, DebugCapture)> {
   let input = build_prompt(sculpt_ir, target_spec, nondet_report, previous_target_ir)?;
   let body = json!({
     "contents": [
@@ -171,6 +206,7 @@ fn gemini_generate(
 
   let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent", model);
   let client = reqwest::blocking::Client::new();
+  let started = Instant::now();
   let resp = client
     .post(url)
     .header("x-goog-api-key", api_key)
@@ -189,7 +225,15 @@ fn gemini_generate(
   if text.is_empty() {
     bail!("Gemini returned empty output");
   }
-  parse_json_response(&text)
+  let parsed = parse_json_response(&text)?;
+  Ok((
+    parsed,
+    DebugCapture {
+      prompt: input,
+      raw_output: text,
+      llm_ms: started.elapsed().as_millis(),
+    },
+  ))
 }
 
 fn build_prompt(
