@@ -47,6 +47,9 @@ Run the output:
 sculpt run examples/hello_world.sculpt --target cli
 ```
 
+## TUI Mode
+Run `sculpt` with no arguments to open the interactive TUI.
+
 ## Commands
 - `sculpt examples` — write example programs into `examples/`
 - `sculpt build <file.sculpt> --target <cli|gui|web> --provider <openai|anthropic|gemini|stub>`
