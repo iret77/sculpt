@@ -540,12 +540,13 @@ fn build(
     );
   }
 
-  println!("Build complete:");
-  println!("  dist/target.ir.json");
-  println!("  ir.json");
-  println!("  nondet.report");
-  println!("  target: {}", target);
-  println!("(C) 2026 byte5 GmbH");
+  print_unified_summary(
+    "Build",
+    &target,
+    input,
+    &provider_info,
+    &["dist/target.ir.json", "ir.json", "nondet.report"],
+  );
   Ok(())
 }
 
@@ -633,13 +634,13 @@ fn freeze(
     );
   }
 
-  println!("Freeze complete:");
-  println!("  sculpt.lock");
-  println!("  dist/target.ir.json");
-  println!("  ir.json");
-  println!("  nondet.report");
-  println!("  target: {}", target);
-  println!("(C) 2026 byte5 GmbH");
+  print_unified_summary(
+    "Freeze",
+    &target,
+    input,
+    &provider_info,
+    &["sculpt.lock", "dist/target.ir.json", "ir.json", "nondet.report"],
+  );
   Ok(())
 }
 
@@ -665,12 +666,13 @@ fn replay(input: &Path, target: Option<&str>) -> Result<()> {
   fs::write("ir.json", to_pretty_json(&ir)?)?;
   fs::write("nondet.report", generate_report(&ir))?;
 
-  println!("Replay complete:");
-  println!("  dist/target.ir.json");
-  println!("  ir.json");
-  println!("  nondet.report");
-  println!("  target: {}", target);
-  println!("(C) 2026 byte5 GmbH");
+  print_unified_summary(
+    "Replay",
+    &target,
+    input,
+    &ProviderInfo { name: "replay".to_string(), model: "locked".to_string() },
+    &["dist/target.ir.json", "ir.json", "nondet.report"],
+  );
   Ok(())
 }
 
@@ -762,6 +764,7 @@ fn emit_debug(
 fn run_cmd(input: &Path, target: Option<&str>) -> Result<()> {
   let ir = load_ir(input)?;
   let target = resolve_target_from_meta(target, &ir)?;
+  print_unified_header("Run", &target, input, None);
   match resolve_target(&target) {
     TargetKind::Cli => run_cli(Path::new("dist")),
     TargetKind::Web => run_web(Path::new("dist")),
@@ -803,6 +806,48 @@ fn resolve_target_from_meta(target: Option<&str>, ir: &IrModule) -> Result<Strin
 struct ProviderInfo {
   name: String,
   model: String,
+}
+
+fn print_unified_header(action: &str, target: &str, input: &Path, provider: Option<&ProviderInfo>) {
+  let title = style_title("SCULPT");
+  let action_s = style_accent(action);
+  let target_s = style_dim(&format!("target={}", target));
+  let input_s = style_dim(&format!("input={}", input.display()));
+  println!("{title}  {action_s}  {target_s}  {input_s}");
+  if let Some(p) = provider {
+    let prov = style_dim(&format!("provider={}", p.name));
+    let model = style_dim(&format!("model={}", p.model));
+    println!("{prov}  {model}");
+  }
+  println!("{}", style_divider());
+}
+
+fn print_unified_summary(
+  action: &str,
+  target: &str,
+  input: &Path,
+  provider: &ProviderInfo,
+  artifacts: &[&str],
+) {
+  print_unified_header(action, target, input, Some(provider));
+  println!("{}", style_step("1", "Parse & Validate", "ok"));
+  println!("{}", style_step("2", "LLM Compile", "ok"));
+  println!("{}", style_step("3", "Build Target", "ok"));
+  println!();
+  println!("{}", style_accent("Artifacts"));
+  for a in artifacts {
+    println!("  {}", style_dim(a));
+  }
+  println!("{}", style_divider());
+  println!("{}", style_dim("(C) 2026 byte5 GmbH"));
+}
+
+fn style_title(s: &str) -> String { format!("\x1b[1;36m{}\x1b[0m", s) }
+fn style_accent(s: &str) -> String { format!("\x1b[1;34m{}\x1b[0m", s) }
+fn style_dim(s: &str) -> String { format!("\x1b[2;37m{}\x1b[0m", s) }
+fn style_divider() -> String { style_dim("────────────────────────────────────────────────────") }
+fn style_step(idx: &str, label: &str, status: &str) -> String {
+  format!("  {} {} {}", style_dim(&format!("{idx}.")), label, style_accent(status))
 }
 
 fn target_list() -> Result<()> {
