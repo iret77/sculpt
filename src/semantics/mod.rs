@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::ast::{Call, Expr, Flow, Item, Module, NdBlock, Rule, StateBlock, StateStmt};
+use crate::ast::{BinaryOp, Call, Expr, Flow, Item, Module, NdBlock, Rule, RuleStmt, RuleTrigger, StateBlock, StateStmt};
 
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
@@ -49,7 +49,7 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
   validate_rules(&rules, &mut diagnostics);
   validate_nd_blocks(&nd_blocks, &mut diagnostics);
   validate_convergence_meta(module, &nd_blocks, &mut diagnostics);
-  validate_run_targets(&flows, &mut diagnostics);
+  validate_state_execution(&flows, &mut diagnostics);
   validate_symbol_references(module, &flows, &rules, &known_fqns, &mut diagnostics);
   validate_shadowing(module, &rules, &mut diagnostics);
 
@@ -191,6 +191,30 @@ fn validate_rules(rules: &[&Rule], diagnostics: &mut Vec<Diagnostic>) {
     if !rule_names.insert(rule.name.clone()) {
       diagnostics.push(Diagnostic::new("R201", format!("Duplicate rule '{}'", rule.name)));
     }
+    if rule.body.is_empty() {
+      diagnostics.push(Diagnostic::new(
+        "R202",
+        format!("Rule '{}' has no effect body", rule.name),
+      ));
+    }
+    if let RuleTrigger::When(expr) = &rule.trigger {
+      if !matches!(expr, Expr::Binary { op: BinaryOp::Gte, .. }) {
+        diagnostics.push(Diagnostic::new(
+          "R204",
+          format!("Rule '{}' uses 'when' without a comparison expression (expected >=)", rule.name),
+        ));
+      }
+    }
+    for stmt in &rule.body {
+      if let RuleStmt::Emit { event } = stmt {
+        if !is_valid_ident(event) {
+          diagnostics.push(Diagnostic::new(
+            "R205",
+            format!("Rule '{}' emits invalid event name '{}'", rule.name, event),
+          ));
+        }
+      }
+    }
   }
 }
 
@@ -201,6 +225,16 @@ fn validate_nd_blocks(nd_blocks: &[&NdBlock], diagnostics: &mut Vec<Diagnostic>)
     }
     if nd.constraints.is_empty() {
       diagnostics.push(Diagnostic::new("N303", format!("ND '{}' has empty satisfy()", nd.name)));
+    }
+    let mut signatures = HashSet::new();
+    for constraint in &nd.constraints {
+      let signature = call_signature(constraint);
+      if !signatures.insert(signature.clone()) {
+        diagnostics.push(Diagnostic::new(
+          "N304",
+          format!("ND '{}' has duplicate satisfy constraint '{}'", nd.name, signature),
+        ));
+      }
     }
   }
 }
@@ -237,13 +271,45 @@ fn validate_convergence_meta(module: &Module, nd_blocks: &[&NdBlock], diagnostic
   }
 }
 
-fn validate_run_targets(flows: &[&Flow], diagnostics: &mut Vec<Diagnostic>) {
+fn validate_state_execution(flows: &[&Flow], diagnostics: &mut Vec<Diagnostic>) {
   let known_flows: HashSet<String> = flows.iter().map(|f| f.name.clone()).collect();
   for flow in flows {
     for state in &flow.states {
       let state_name = state.name.as_deref().unwrap_or("<unnamed>");
+      let mut run_targets = Vec::new();
+      let mut has_done_handler = false;
+
+      for (idx, stmt) in state.statements.iter().enumerate() {
+        if let StateStmt::Terminate = stmt {
+          if idx + 1 != state.statements.len() {
+            diagnostics.push(Diagnostic::new(
+              "B402",
+              format!(
+                "terminate must be the last statement in '{}.{}'",
+                flow.name, state_name
+              ),
+            ));
+          }
+          if state.statements.len() > 1 {
+            diagnostics.push(Diagnostic::new(
+              "B402",
+              format!(
+                "terminate cannot be combined with other statements in '{}.{}'",
+                flow.name, state_name
+              ),
+            ));
+          }
+        }
+        if let StateStmt::On { event, .. } = stmt {
+          if event.name == "done" {
+            has_done_handler = true;
+          }
+        }
+      }
+
       for stmt in &state.statements {
         if let StateStmt::Run { flow: run_target } = stmt {
+          run_targets.push(run_target.clone());
           if !known_flows.contains(run_target) {
             diagnostics.push(Diagnostic::new(
               "B401",
@@ -254,6 +320,27 @@ fn validate_run_targets(flows: &[&Flow], diagnostics: &mut Vec<Diagnostic>) {
             ));
           }
         }
+      }
+
+      if run_targets.len() > 1 {
+        diagnostics.push(Diagnostic::new(
+          "B403",
+          format!(
+            "State '{}.{}' has multiple run targets ({})",
+            flow.name,
+            state_name,
+            run_targets.join(", ")
+          ),
+        ));
+      }
+      if !run_targets.is_empty() && !has_done_handler {
+        diagnostics.push(Diagnostic::new(
+          "B404",
+          format!(
+            "State '{}.{}' uses run without an explicit on done > ... transition",
+            flow.name, state_name
+          ),
+        ));
       }
     }
   }

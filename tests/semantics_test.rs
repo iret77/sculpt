@@ -50,6 +50,7 @@ end
   assert!(codes.contains(&"F105"));
   assert!(codes.contains(&"F106"));
   assert!(codes.contains(&"B401"));
+  assert!(codes.contains(&"B404"));
 }
 
 #[test]
@@ -138,4 +139,86 @@ end
   let module = parse_source(src).expect("parse ok");
   let diagnostics = validate_module(&module);
   assert!(diagnostics.iter().any(|d| d.code == "N305"));
+}
+
+#[test]
+fn catches_invalid_terminate_placement() {
+  let src = r#"module(App.Core)
+  flow(Main)
+    start > End
+    state(End)
+      terminate
+      on done > End
+    end
+  end
+end
+"#;
+  let module = parse_source(src).expect("parse ok");
+  let diagnostics = validate_module(&module);
+  assert!(diagnostics.iter().any(|d| d.code == "B402"));
+}
+
+#[test]
+fn catches_multiple_run_targets_in_state() {
+  let src = r#"module(App.Core)
+  flow(Main)
+    start > Runner
+    state(Runner)
+      run A
+      run B
+      on done > Runner
+    end
+  end
+
+  flow(A)
+    start > A1
+    state(A1)
+      terminate
+    end
+  end
+
+  flow(B)
+    start > B1
+    state(B1)
+      terminate
+    end
+  end
+end
+"#;
+  let module = parse_source(src).expect("parse ok");
+  let diagnostics = validate_module(&module);
+  assert!(diagnostics.iter().any(|d| d.code == "B403"));
+}
+
+#[test]
+fn catches_non_comparison_when_and_invalid_emit_event_name() {
+  let src = r#"module(App.Core)
+  rule(bad)
+    when isReady()
+      emit not.valid.event
+    end
+  end
+end
+"#;
+  let module = parse_source(src).expect("parse ok");
+  let diagnostics = validate_module(&module);
+  assert!(diagnostics.iter().any(|d| d.code == "R204"));
+  assert!(diagnostics.iter().any(|d| d.code == "R205"));
+}
+
+#[test]
+fn catches_duplicate_satisfy_constraints() {
+  let src = r#"module(App.Core)
+  nd(plan)
+    propose any()
+    satisfy(
+      valid(),
+      valid()
+    )
+  end
+end
+"#;
+  let module = parse_source(src).expect("parse ok");
+  let diagnostics = validate_module(&module);
+  assert!(diagnostics.iter().any(|d| d.code == "N304"));
 }

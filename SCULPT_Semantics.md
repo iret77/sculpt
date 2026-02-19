@@ -89,6 +89,7 @@ Recommended deterministic rule:
 
 ### 4.4 `satisfy(...)` Conflicts
 - All constraints in `satisfy(...)` are hard constraints.
+- Duplicate constraint calls in one `satisfy(...)` list **MUST** fail semantic validation.
 - If constraint set is unsatisfiable, compile **MUST** fail with ND constraint error.
 
 ### 4.5 `run` and `terminate`
@@ -114,19 +115,23 @@ Recommended deterministic rule:
 
 ## 5.3 Rules
 - `R201` Duplicate rule name.
-- `R202` Rule has no trigger (`on`/`when`).
+- `R202` Rule has no effect body.
 - `R203` `emit` used outside rule.
+- `R204` `when` expression is not a supported comparison form.
+- `R205` `emit` event name is invalid.
 
 ## 5.4 ND
 - `N301` ND block has no `propose`.
 - `N302` ND block has no `satisfy`.
 - `N303` Empty `satisfy(...)`.
-- `N304` Unsatisfiable ND constraints.
+- `N304` Duplicate/invalid ND constraint set in `satisfy(...)`.
 - `N305` `nd_budget=0` used while ND blocks exist.
 
 ## 5.5 Runtime/Binding
 - `B401` `run` references unknown flow.
 - `B402` Invalid `terminate` placement.
+- `B403` Multiple `run` targets in one state.
+- `B404` `run` without explicit `on done > ...` return path.
 
 ## 5.6 Namespace/Scope
 - `NS501` Invalid namespace segment.
