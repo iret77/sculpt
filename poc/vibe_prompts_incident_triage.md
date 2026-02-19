@@ -1,3 +1,6 @@
+Raw iteration files are archived in:
+`poc/artifacts/incident_triage_raw_runs.zip`
+
 ## Iteration 1
 
 ### Prompt
@@ -15,7 +18,7 @@ Constraints:
 
 ### Response file
 
-`poc/vibe_run/iter1_response.ts`
+`vibe_run/iter1_response.ts` (inside archive)
 
 ### Latency
 
@@ -35,7 +38,7 @@ Output full updated code only.
 
 ### Response file
 
-`poc/vibe_run/iter2_response.ts`
+`vibe_run/iter2_response.ts` (inside archive)
 
 ### Latency
 
@@ -55,7 +58,7 @@ Return full updated TypeScript file only.
 
 ### Response file
 
-`poc/vibe_run/iter3_response.ts`
+`vibe_run/iter3_response.ts` (inside archive)
 
 ### Latency
 
@@ -80,7 +83,7 @@ TS2580 Cannot find name process
 
 ### Response file
 
-`poc/vibe_run/iter4_response.ts`
+`vibe_run/iter4_response.ts` (inside archive)
 
 ### Latency
 
@@ -103,7 +106,7 @@ If previous code already satisfies this, return cleaned code only.
 
 ### Response file
 
-`poc/vibe_run/iter5_response.ts`
+`vibe_run/iter5_response.ts` (inside archive)
 
 ### Latency
 
@@ -123,7 +126,7 @@ Return code only.
 
 ### Response file
 
-`poc/vibe_run/iter6_response.ts`
+`vibe_run/iter6_response.ts` (inside archive)
 
 ### Latency
 

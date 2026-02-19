@@ -1,6 +1,0 @@
-Change request 1:
-Extend the same TypeScript file with option 4 = security incident.
-- severity SEV-1
-- 4 concrete response steps.
-Keep all previous behavior.
-Output full updated code only.

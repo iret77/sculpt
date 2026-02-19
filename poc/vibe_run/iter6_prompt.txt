@@ -1,6 +1,0 @@
-TypeScript compile error: Cannot find module readline (no @types/node).
-Fix this by removing ES import and using CommonJS require via declared any:
-- add declare function require(name: string): any;
-- use const readline = require("readline");
-Keep all behavior unchanged.
-Return code only.

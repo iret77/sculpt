@@ -26,6 +26,9 @@
 Reusable template for future runs:
 - [SCULPT vs Vibe Case Study Template](templates/SCULPT_vs_Vibe_Case_Study_Template.md)
 
+## POC Folder Guide
+- [POC README](README.md)
+
 ## Next Scenario Placeholders
 Use these placeholders before running the next benchmark:
 

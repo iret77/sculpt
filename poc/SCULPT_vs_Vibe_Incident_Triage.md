@@ -42,6 +42,7 @@ Actual artifacts:
 - Iteration latency metrics: [poc/vibe_metrics.json](vibe_metrics.json)
 - Reproducibility runs: [poc/vibe_repro_metrics.json](vibe_repro_metrics.json)
 - Final generated source: [poc/vibe_incident_triage.ts](vibe_incident_triage.ts)
+- Raw iteration archive: [poc/artifacts/incident_triage_raw_runs.zip](artifacts/incident_triage_raw_runs.zip)
 
 ## 4) Hard Metrics
 
