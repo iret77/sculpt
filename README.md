@@ -52,6 +52,7 @@ To keep documentation consistent, each document has one clear purpose:
 - [SCULPT Handbook](SCULPT_Handbook.md): practical guide to compiler workflow and language usage.
 - [SCULPT Syntax Manifest](SCULPT_Syntax_Manifest.md): syntax only (grammar-level rules).
 - [SCULPT Semantics](SCULPT_Semantics.md): runtime/validation semantics and diagnostic model.
+- [SCULPT Target References](SCULPT_Targets_Reference.md): target-specific functions, events, and practical limits for `cli`, `gui`, and `web`.
 - [SCULPT Namespaces and Scopes](SCULPT_Namespaces_And_Scopes.md): namespace model, symbol resolution, and scope policy.
 - [SCULPT Target Model](SCULPT_Target_Model.md): intent/runtime/provider architecture for future-proof targets.
 - [SCULPT Professional-Grade Blueprint](SCULPT_Professional_Grade_Blueprint.md): roadmap for large multi-team systems.

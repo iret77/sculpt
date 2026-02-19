@@ -247,6 +247,7 @@ For larger projects:
 ## 11) Where To Go Next
 - Syntax reference: [SCULPT Syntax Manifest](SCULPT_Syntax_Manifest.md)
 - Semantics reference: [SCULPT Semantics](SCULPT_Semantics.md)
+- Target-specific source reference: [SCULPT Target References](SCULPT_Targets_Reference.md)
 - Namespace/scopes: [SCULPT Namespaces and Scopes](SCULPT_Namespaces_And_Scopes.md)
 - Target architecture: [SCULPT Target Model](SCULPT_Target_Model.md)
 - Professional-grade roadmap: [SCULPT Professional-Grade Blueprint](SCULPT_Professional_Grade_Blueprint.md)

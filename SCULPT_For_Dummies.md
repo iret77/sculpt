@@ -161,5 +161,6 @@ sculpt gate check poc/gates/incident_triage_vibe_gate.json
 ## 10) Where To Go Next
 - If you want quick setup: [SCULPT Quick Start](SCULPT_Quick_Start.md)
 - If you want full usage details: [SCULPT Handbook](SCULPT_Handbook.md)
+- If you want target-specific functions/events: [SCULPT Target References](SCULPT_Targets_Reference.md)
 - If you need exact language rules: [SCULPT Syntax Manifest](SCULPT_Syntax_Manifest.md)
 - If you need semantic rules and diagnostics: [SCULPT Semantics](SCULPT_Semantics.md)
