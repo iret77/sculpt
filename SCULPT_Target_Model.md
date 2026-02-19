@@ -6,7 +6,7 @@
 Provide a future-proof target architecture that scales beyond current platforms:
 - desktop apps,
 - web applications,
-- server workloads,
+- backend services,
 - game engines/consoles,
 - wearables, TVs, and IoT devices,
 - frameworks that do not exist yet.
@@ -44,7 +44,7 @@ Execution environment:
 ### 2.3 Platform Layer (`platform` / `os` / `device`)
 Optional concrete constraints:
 - OS: `windows`, `macos`, `linux`, `ios`, `android`, `tvos`, `watchos`, ...
-- Device classes: `xbox`, `playstation`, `nintendo`, custom embedded targets, etc.
+- Device classes: `desktop-workstation`, `industrial-panel`, `kiosk-terminal`, `smart-tv`, `wearable`, `single-board-computer`, custom embedded device.
 
 ### 2.4 Provider Layer
 Concrete implementation and build runtime:
@@ -123,4 +123,3 @@ This mapping is transitional and keeps current scripts working.
   - game engine providers,
   - enterprise runtime providers,
   - wearable/TV/console providers.
-
