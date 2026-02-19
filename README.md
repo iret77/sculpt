@@ -2,10 +2,10 @@
 
 (C) 2026 byte5 GmbH
 
-**SCULPT — a convergent programming language.**
+**SCULPT — an intent-oriented, AI-native convergent programming language.**
 
-SCULPT is an AI-first compiler and language for convergent programming.
-You write structured non-deterministic code, the compiler narrows it via constraints, an LLM generates target IR, and target providers build deterministic outputs.
+SCULPT lets developers shape software through structured non-deterministic code instead of prose prompts.
+The compiler narrows solution space through constraints, compiles via LLM to target IR, and target providers produce deterministic build artifacts.
 
 **AI‑first, but human‑centered:** built *by* AI, built *with* AI, built *for* humans.
 
