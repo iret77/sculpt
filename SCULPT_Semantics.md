@@ -145,6 +145,12 @@ Recommended deterministic rule:
 - `M701` Invalid `nd_budget` (must be integer `0..100`).
 - `M702` Invalid `confidence` (must be number `0.0..1.0`).
 
+## 5.8 Target Contract Validation
+- `C901` Invalid `@meta` value for declared contract type/range.
+- `C902` Required capability missing on selected target contract.
+- `C903` Unknown `@meta` key not declared in contract (except `x_` extension keys).
+- `C904` `layout=explicit` requested but target lacks `layout.explicit` capability.
+
 ## 6. LLM Contract Implications
 - Parser + semantic validator produce canonical IR only for valid programs.
 - ND constraints are passed as hard requirements in the LLM compile request.

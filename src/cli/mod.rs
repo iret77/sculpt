@@ -11,6 +11,7 @@ use clap::{Parser, Subcommand};
 
 use crate::ai::{generate_target_ir, AiProvider, DebugCapture, TargetSpec};
 use crate::build_meta::{dist_dir_for_input, now_unix_ms, write_build_meta, BuildMeta, TokenUsage};
+use crate::contracts::{parse_target_contract, validate_module_against_contract};
 use crate::freeze::{create_lock, read_lock, verify_lock, write_lock};
 use crate::ir::{from_ast, to_pretty_json, IrModule};
 use crate::parser::parse_source;
@@ -494,7 +495,10 @@ fn build(
   fs::write(dist_dir.join("ir.json"), ir_json)?;
   fs::write(dist_dir.join("nondet.report"), &nondet)?;
 
-  let spec = build_target_spec(&target)?;
+  let target_descriptor = describe_target(&target)?;
+  let contract = parse_target_contract(&target_descriptor)?;
+  validate_module_against_contract(&ir, &target, &contract)?;
+  let spec = build_target_spec_from_value(&target_descriptor)?;
   let debug_level = parse_debug(debug);
   let (ai_provider, provider_info) = select_ai_provider(provider, model, strict)?;
   print_unified_header("Build", &target, input, Some(&provider_info));
@@ -620,7 +624,10 @@ fn freeze(
   let layout_required = enforce_meta(&ir, &target)?;
   let nondet = generate_report(&ir);
 
-  let spec = build_target_spec(&target)?;
+  let target_descriptor = describe_target(&target)?;
+  let contract = parse_target_contract(&target_descriptor)?;
+  validate_module_against_contract(&ir, &target, &contract)?;
+  let spec = build_target_spec_from_value(&target_descriptor)?;
   let debug_level = parse_debug(debug);
   let (ai_provider, provider_info) = select_ai_provider(provider.clone(), model.clone(), strict)?;
   print_unified_header("Freeze", &target, input, Some(&provider_info));
@@ -1314,8 +1321,7 @@ fn select_ai_provider(
   }
 }
 
-fn build_target_spec(target: &str) -> Result<TargetSpec> {
-  let spec = describe_target(target)?;
+fn build_target_spec_from_value(spec: &Value) -> Result<TargetSpec> {
   let standard_ir = spec.get("standard_ir").and_then(|v| v.as_str()).unwrap_or("").to_string();
   let schema = spec.get("schema").cloned().unwrap_or(Value::Null);
   let extensions = spec.get("extensions").cloned().unwrap_or_else(|| Value::Object(serde_json::Map::new()));

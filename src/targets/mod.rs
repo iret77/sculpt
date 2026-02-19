@@ -444,16 +444,45 @@ pub fn describe_target(name: &str) -> Result<Value> {
     TargetKind::Web => builtin_spec(
       "web-ir",
       include_str!("../../ir-schemas/web-ir.json"),
+      Some(vec![
+        "runtime.web",
+        "render.text",
+        "input.key",
+        "flow.state_machine",
+      ]),
+      Some(json!({
+        "layout": { "type": "enum", "values": ["default"] }
+      })),
       Some(json!({ "runtime": ["browser"] })),
     ),
     TargetKind::Cli => builtin_spec(
       "cli-ir",
       include_str!("../../ir-schemas/cli-ir.json"),
+      Some(vec![
+        "runtime.cli",
+        "render.text",
+        "input.key",
+        "flow.state_machine",
+      ]),
+      Some(json!({
+        "layout": { "type": "enum", "values": ["default"] }
+      })),
       Some(json!({ "runtime": ["desktop", "server"] })),
     ),
     TargetKind::Gui => builtin_spec(
       "gui-ir",
       include_str!("../../ir-schemas/gui-ir.json"),
+      Some(vec![
+        "runtime.gui",
+        "render.text",
+        "input.key",
+        "flow.state_machine",
+        "layout.explicit",
+        "ui.modal.ok",
+      ]),
+      Some(json!({
+        "layout": { "type": "enum", "values": ["default", "explicit"] }
+      })),
       Some(json!({
         "runtime": ["desktop"],
         "backends": {
@@ -467,12 +496,44 @@ pub fn describe_target(name: &str) -> Result<Value> {
   }
 }
 
-fn builtin_spec(standard_ir: &str, schema: &str, support: Option<Value>) -> Result<Value> {
+fn builtin_spec(
+  standard_ir: &str,
+  schema: &str,
+  capabilities: Option<Vec<&str>>,
+  target_meta: Option<Value>,
+  support: Option<Value>,
+) -> Result<Value> {
   let schema_json: Value = serde_json::from_str(schema)?;
+  let mut meta = json!({
+    "target": { "type": "string" },
+    "strict_scopes": { "type": "bool" },
+    "nd_budget": { "type": "int", "min": 0, "max": 100 },
+    "confidence": { "type": "float", "min": 0.0, "max": 1.0 },
+    "requires": { "type": "capability_list" },
+    "max_iterations": { "type": "int", "min": 1, "max": 10000 },
+    "fallback": { "type": "enum", "values": ["fail", "stub", "replay"] }
+  });
+  if let Some(target_meta) = target_meta {
+    if let (Some(meta_obj), Some(target_obj)) = (meta.as_object_mut(), target_meta.as_object()) {
+      for (k, v) in target_obj {
+        meta_obj.insert(k.clone(), v.clone());
+      }
+    }
+  }
   let mut value = json!({
     "standard_ir": standard_ir,
     "schema": schema_json,
-    "extensions": {}
+    "extensions": {},
+    "contract": {
+      "version": 1,
+      "capabilities": capabilities
+        .unwrap_or_default()
+        .into_iter()
+        .map(|s| Value::String(s.to_string()))
+        .collect::<Vec<_>>(),
+      "meta": meta,
+      "extensions_schema": {}
+    }
   });
   if let Some(support) = support {
     value["support"] = support;

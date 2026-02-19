@@ -3,6 +3,7 @@ pub mod ai;
 pub mod build_meta;
 pub mod cli;
 pub mod codegen;
+pub mod contracts;
 pub mod freeze;
 pub mod ir;
 pub mod lexer;
