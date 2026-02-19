@@ -40,6 +40,7 @@ SCULPT targets that gap:
 
 ## Start Here
 - [SCULPT Quick Start](SCULPT_Quick_Start.md)
+- [SCULPT For Dummies](SCULPT_For_Dummies.md)
 - [SCULPT Handbook](SCULPT_Handbook.md)
 - [SCULPT Case Studies Overview](poc/SCULPT_Case_Studies_Overview.md)
 
@@ -47,6 +48,7 @@ SCULPT targets that gap:
 To keep documentation consistent, each document has one clear purpose:
 
 - [SCULPT Quick Start](SCULPT_Quick_Start.md): installation, first build, first run.
+- [SCULPT For Dummies](SCULPT_For_Dummies.md): practical cookbook-style guide for fast productive usage.
 - [SCULPT Handbook](SCULPT_Handbook.md): practical guide to compiler workflow and language usage.
 - [SCULPT Syntax Manifest](SCULPT_Syntax_Manifest.md): syntax only (grammar-level rules).
 - [SCULPT Semantics](SCULPT_Semantics.md): runtime/validation semantics and diagnostic model.
