@@ -4,6 +4,7 @@ use anyhow::{bail, Result};
 use serde_json::{json, Value};
 
 use crate::build_meta::TokenUsage;
+use crate::convergence::ConvergenceControls;
 use crate::llm_ir::{compact_schema_for, normalize_llm_ir};
 
 pub enum AiProvider {
@@ -33,18 +34,22 @@ pub fn generate_target_ir(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
   layout_required: bool,
+  controls: &ConvergenceControls,
 ) -> Result<(Value, Option<DebugCapture>)> {
   match provider {
     AiProvider::OpenAI { api_key, model } => {
-      let (value, debug) = openai_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir, layout_required)?;
+      let (value, debug) =
+        openai_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir, layout_required, controls)?;
       Ok((value, Some(debug)))
     }
     AiProvider::Anthropic { api_key, model } => {
-      let (value, debug) = anthropic_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir, layout_required)?;
+      let (value, debug) =
+        anthropic_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir, layout_required, controls)?;
       Ok((value, Some(debug)))
     }
     AiProvider::Gemini { api_key, model } => {
-      let (value, debug) = gemini_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir, layout_required)?;
+      let (value, debug) =
+        gemini_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir, layout_required, controls)?;
       Ok((value, Some(debug)))
     }
     AiProvider::Stub => Ok((stub_generate(target_spec), None)),
@@ -78,10 +83,19 @@ fn openai_generate(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
   layout_required: bool,
+  controls: &ConvergenceControls,
 ) -> Result<(Value, DebugCapture)> {
   let compact_schema = compact_schema_for(&target_spec.standard_ir)
     .ok_or_else(|| anyhow::anyhow!("No compact LLM schema for {}", target_spec.standard_ir))?;
-  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir, layout_required)?;
+  let input = build_prompt(
+    sculpt_ir,
+    target_spec,
+    &compact_schema,
+    nondet_report,
+    previous_target_ir,
+    layout_required,
+    controls,
+  )?;
 
   let body = json!({
     "model": model,
@@ -154,10 +168,19 @@ fn anthropic_generate(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
   layout_required: bool,
+  controls: &ConvergenceControls,
 ) -> Result<(Value, DebugCapture)> {
   let compact_schema = compact_schema_for(&target_spec.standard_ir)
     .ok_or_else(|| anyhow::anyhow!("No compact LLM schema for {}", target_spec.standard_ir))?;
-  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir, layout_required)?;
+  let input = build_prompt(
+    sculpt_ir,
+    target_spec,
+    &compact_schema,
+    nondet_report,
+    previous_target_ir,
+    layout_required,
+    controls,
+  )?;
   let body = json!({
     "model": model,
     "max_tokens": 2048,
@@ -209,10 +232,19 @@ fn gemini_generate(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
   layout_required: bool,
+  controls: &ConvergenceControls,
 ) -> Result<(Value, DebugCapture)> {
   let compact_schema = compact_schema_for(&target_spec.standard_ir)
     .ok_or_else(|| anyhow::anyhow!("No compact LLM schema for {}", target_spec.standard_ir))?;
-  let input = build_prompt(sculpt_ir, target_spec, &compact_schema, nondet_report, previous_target_ir, layout_required)?;
+  let input = build_prompt(
+    sculpt_ir,
+    target_spec,
+    &compact_schema,
+    nondet_report,
+    previous_target_ir,
+    layout_required,
+    controls,
+  )?;
   let body = json!({
     "contents": [
       { "role": "user", "parts": [ { "text": input } ] }
@@ -263,6 +295,7 @@ fn build_prompt(
   nondet_report: &str,
   previous_target_ir: Option<&Value>,
   layout_required: bool,
+  controls: &ConvergenceControls,
 ) -> Result<String> {
   let mut input = String::new();
   input.push_str("You are the Sculpt compiler AI. Generate target IR JSON that conforms to the provided schema.\n");
@@ -278,6 +311,20 @@ fn build_prompt(
   if layout_required {
     input.push_str("Layout is REQUIRED: include l with explicit layout for each view.\n\n");
   }
+  input.push_str("CONVERGENCE_CONTROLS:\n");
+  input.push_str(&format!(
+    "nd_budget={}\nconfidence={}\nmax_iterations={}\nfallback={:?}\n\n",
+    controls
+      .nd_budget
+      .map(|v| v.to_string())
+      .unwrap_or_else(|| "unset".to_string()),
+    controls
+      .confidence
+      .map(|v| format!("{v:.2}"))
+      .unwrap_or_else(|| "unset".to_string()),
+    controls.max_iterations,
+    controls.fallback.as_str()
+  ));
   input.push_str("STANDARD_IR:\n");
   input.push_str(&target_spec.standard_ir);
   input.push_str("\n\nLLM_IR_SCHEMA_JSON:\n");

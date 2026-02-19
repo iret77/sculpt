@@ -161,6 +161,8 @@ You can set one key per line, or multiple key-value pairs in one line:
 - `strict_scopes`: enables stricter shadowing checks in semantic validation.
 - `nd_budget`: convergence budget in range `0..100` (lower means stricter ND tolerance).
 - `confidence`: expected convergence confidence in range `0.0..1.0`.
+- `max_iterations`: maximum LLM compile retries before fallback.
+- `fallback`: fallback policy when LLM compile keeps failing (`fail`, `stub`, `replay`).
 - `requires`: comma-separated capability requirements checked against the selected target contract.
 
 ### 6.2 How Meta Interacts With CLI Flags

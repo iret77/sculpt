@@ -6,6 +6,8 @@ use sculpt::report::generate_report;
 fn report_includes_summary_and_budget_status() {
   let src = r#"@meta nd_budget=30
 @meta confidence=0.85
+@meta max_iterations=3
+@meta fallback=stub
 module(App)
   nd(layout)
     propose grid()
@@ -23,7 +25,8 @@ end
   assert!(report.contains("Convergence Report"));
   assert!(report.contains("nd_budget: 30"));
   assert!(report.contains("confidence: 0.85"));
+  assert!(report.contains("max_iterations: 3"));
+  assert!(report.contains("fallback: stub"));
   assert!(report.contains("overall_nd_score:"));
   assert!(report.contains("overall_budget_status:"));
 }
-

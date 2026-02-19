@@ -12,6 +12,7 @@ use clap::{Parser, Subcommand};
 use crate::ai::{generate_target_ir, AiProvider, DebugCapture, TargetSpec};
 use crate::build_meta::{dist_dir_for_input, now_unix_ms, write_build_meta, BuildMeta, TokenUsage};
 use crate::contracts::{parse_target_contract, validate_module_against_contract};
+use crate::convergence::{ConvergenceControls, FallbackMode};
 use crate::freeze::{create_lock, read_lock, verify_lock, write_lock};
 use crate::ir::{from_ast, to_pretty_json, IrModule};
 use crate::parser::parse_source;
@@ -485,6 +486,7 @@ fn build(
 ) -> Result<()> {
   let started = Instant::now();
   let ir = load_ir(input)?;
+  let controls = ConvergenceControls::from_meta(&ir.meta);
   let target = resolve_target_from_meta(target, &ir)?;
   let layout_required = enforce_meta(&ir, &target)?;
   let ir_json = to_pretty_json(&ir)?;
@@ -500,20 +502,24 @@ fn build(
   validate_module_against_contract(&ir, &target, &contract)?;
   let spec = build_target_spec_from_value(&target_descriptor)?;
   let debug_level = parse_debug(debug);
-  let (ai_provider, provider_info) = select_ai_provider(provider, model, strict)?;
+  let (ai_provider, provider_info) = select_ai_provider(provider.clone(), model.clone(), strict)?;
   print_unified_header("Build", &target, input, Some(&provider_info));
   print_step("1", "Parse & Validate", "ok");
   let sculpt_ir_value = serde_json::to_value(&ir)?;
   let previous_target_ir = read_previous_target_ir(input);
 
   let spinner = start_spinner("2", "LLM Compile");
-  let target_ir_result = generate_target_ir(
+  let target_ir_result = generate_with_convergence(
     ai_provider,
+    provider.clone(),
+    model.clone(),
+    strict,
     &sculpt_ir_value,
     &spec,
     &nondet,
     previous_target_ir.as_ref(),
     layout_required,
+    &controls,
   );
   stop_spinner(spinner);
   if target_ir_result.is_ok() {
@@ -620,6 +626,7 @@ fn freeze(
 ) -> Result<()> {
   let started = Instant::now();
   let ir = load_ir(input)?;
+  let controls = ConvergenceControls::from_meta(&ir.meta);
   let target = resolve_target_from_meta(target, &ir)?;
   let layout_required = enforce_meta(&ir, &target)?;
   let nondet = generate_report(&ir);
@@ -636,13 +643,17 @@ fn freeze(
   let previous_target_ir = read_previous_target_ir(input);
 
   let spinner = start_spinner("2", "LLM Compile");
-  let target_ir_result = generate_target_ir(
+  let target_ir_result = generate_with_convergence(
     ai_provider,
+    provider.clone(),
+    model.clone(),
+    strict,
     &sculpt_ir_value,
     &spec,
     &nondet,
     previous_target_ir.as_ref(),
     layout_required,
+    &controls,
   );
   stop_spinner(spinner);
   if target_ir_result.is_ok() {
@@ -1329,6 +1340,92 @@ fn build_target_spec_from_value(spec: &Value) -> Result<TargetSpec> {
     bail!("Target describe missing standard_ir or schema");
   }
   Ok(TargetSpec { standard_ir, schema, extensions })
+}
+
+fn generate_with_convergence(
+  ai_provider: AiProvider,
+  provider: Option<String>,
+  model: Option<String>,
+  strict: bool,
+  sculpt_ir_value: &Value,
+  spec: &TargetSpec,
+  nondet: &str,
+  previous_target_ir: Option<&Value>,
+  layout_required: bool,
+  controls: &ConvergenceControls,
+) -> Result<(Value, Option<DebugCapture>)> {
+  let mut attempt = 1u32;
+  let mut provider_once = Some(ai_provider);
+  let mut last_error: Option<anyhow::Error> = None;
+
+  while attempt <= controls.max_iterations {
+    let provider_for_attempt = if let Some(p) = provider_once.take() {
+      p
+    } else {
+      select_ai_provider(provider.clone(), model.clone(), strict)?.0
+    };
+    match generate_target_ir(
+      provider_for_attempt,
+      sculpt_ir_value,
+      spec,
+      nondet,
+      previous_target_ir,
+      layout_required,
+      controls,
+    ) {
+      Ok(result) => return Ok(result),
+      Err(err) => {
+        last_error = Some(err);
+        attempt += 1;
+      }
+    }
+  }
+
+  match controls.fallback {
+    FallbackMode::Fail => {
+      let err_text = last_error
+        .map(|e| e.to_string())
+        .unwrap_or_else(|| "unknown error".to_string());
+      bail!(
+        "LLM compile failed after {} attempt(s) and fallback=fail: {}",
+        controls.max_iterations,
+        err_text
+      );
+    }
+    FallbackMode::Stub => {
+      eprintln!(
+        "Warning: LLM compile failed after {} attempt(s). Applying fallback=stub.",
+        controls.max_iterations
+      );
+      generate_target_ir(
+        AiProvider::Stub,
+        sculpt_ir_value,
+        spec,
+        nondet,
+        previous_target_ir,
+        layout_required,
+        controls,
+      )
+    }
+    FallbackMode::Replay => {
+      if let Some(prev) = previous_target_ir {
+        eprintln!(
+          "Warning: LLM compile failed after {} attempt(s). Applying fallback=replay.",
+          controls.max_iterations
+        );
+        Ok((prev.clone(), None))
+      } else {
+        let err_text = last_error
+          .map(|e| e.to_string())
+          .unwrap_or_else(|| "unknown error".to_string());
+        bail!(
+          "LLM compile failed after {} attempt(s) and fallback=replay had no previous target IR: {}",
+          controls.max_iterations,
+          err_text
+        );
+      }
+    }
+  }
 }
 
 fn deterministic_build(

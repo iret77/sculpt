@@ -4,6 +4,7 @@ pub mod build_meta;
 pub mod cli;
 pub mod codegen;
 pub mod contracts;
+pub mod convergence;
 pub mod freeze;
 pub mod ir;
 pub mod lexer;

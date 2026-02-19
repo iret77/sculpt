@@ -242,6 +242,8 @@ fn validate_nd_blocks(nd_blocks: &[&NdBlock], diagnostics: &mut Vec<Diagnostic>)
 fn validate_convergence_meta(module: &Module, nd_blocks: &[&NdBlock], diagnostics: &mut Vec<Diagnostic>) {
   let nd_budget = module.meta.get("nd_budget").map(|v| v.trim().to_string());
   let confidence = module.meta.get("confidence").map(|v| v.trim().to_string());
+  let max_iterations = module.meta.get("max_iterations").map(|v| v.trim().to_string());
+  let fallback = module.meta.get("fallback").map(|v| v.trim().to_ascii_lowercase());
 
   if let Some(raw) = nd_budget {
     match raw.parse::<i32>() {
@@ -267,6 +269,25 @@ fn validate_convergence_meta(module: &Module, nd_blocks: &[&NdBlock], diagnostic
         "M702",
         format!("Invalid confidence '{}': expected number in range 0.0..1.0", raw),
       )),
+    }
+  }
+
+  if let Some(raw) = max_iterations {
+    match raw.parse::<u32>() {
+      Ok(value) if (1..=10_000).contains(&value) => {}
+      _ => diagnostics.push(Diagnostic::new(
+        "M703",
+        format!("Invalid max_iterations '{}': expected integer in range 1..10000", raw),
+      )),
+    }
+  }
+
+  if let Some(raw) = fallback {
+    if !matches!(raw.as_str(), "fail" | "stub" | "replay") {
+      diagnostics.push(Diagnostic::new(
+        "M704",
+        format!("Invalid fallback '{}': expected one of fail|stub|replay", raw),
+      ));
     }
   }
 }

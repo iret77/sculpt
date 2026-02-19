@@ -144,6 +144,8 @@ Recommended deterministic rule:
 ## 5.7 Meta/Convergence Controls
 - `M701` Invalid `nd_budget` (must be integer `0..100`).
 - `M702` Invalid `confidence` (must be number `0.0..1.0`).
+- `M703` Invalid `max_iterations` (must be integer `1..10000`).
+- `M704` Invalid `fallback` (must be one of `fail|stub|replay`).
 
 ## 5.8 Target Contract Validation
 - `C901` Invalid `@meta` value for declared contract type/range.

@@ -113,6 +113,8 @@ end
 fn validates_convergence_meta_ranges() {
   let src = r#"@meta nd_budget=500
 @meta confidence=1.5
+@meta max_iterations=0
+@meta fallback=oops
 module(App.Core)
   nd(plan)
     propose any()
@@ -124,6 +126,8 @@ end
   let diagnostics = validate_module(&module);
   assert!(diagnostics.iter().any(|d| d.code == "M701"));
   assert!(diagnostics.iter().any(|d| d.code == "M702"));
+  assert!(diagnostics.iter().any(|d| d.code == "M703"));
+  assert!(diagnostics.iter().any(|d| d.code == "M704"));
 }
 
 #[test]

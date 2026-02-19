@@ -5,6 +5,8 @@ pub fn generate_report(ir: &IrModule) -> String {
   let mut out = String::new();
   let budget = ir.meta.get("nd_budget").and_then(|v| v.parse::<i32>().ok());
   let confidence = ir.meta.get("confidence").and_then(|v| v.parse::<f64>().ok());
+  let max_iterations = ir.meta.get("max_iterations").and_then(|v| v.parse::<u32>().ok());
+  let fallback = ir.meta.get("fallback").cloned();
   let mut block_scores: Vec<f64> = Vec::new();
 
   out.push_str("Convergence Report\n");
@@ -18,6 +20,16 @@ pub fn generate_report(ir: &IrModule) -> String {
     out.push_str(&format!("confidence: {:.2}\n", c));
   } else {
     out.push_str("confidence: (not set)\n");
+  }
+  if let Some(max_it) = max_iterations {
+    out.push_str(&format!("max_iterations: {}\n", max_it));
+  } else {
+    out.push_str("max_iterations: (not set)\n");
+  }
+  if let Some(fb) = fallback {
+    out.push_str(&format!("fallback: {}\n", fb));
+  } else {
+    out.push_str("fallback: (not set)\n");
   }
   out.push('\n');
 
