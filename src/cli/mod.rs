@@ -10,7 +10,7 @@ use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 
 use crate::ai::{generate_target_ir, AiProvider, DebugCapture, TargetSpec};
-use crate::build_meta::{dist_dir_for_input, now_unix_ms, write_build_meta, BuildMeta};
+use crate::build_meta::{dist_dir_for_input, now_unix_ms, write_build_meta, BuildMeta, TokenUsage};
 use crate::freeze::{create_lock, read_lock, verify_lock, write_lock};
 use crate::ir::{from_ast, to_pretty_json, IrModule};
 use crate::parser::parse_source;
@@ -575,6 +575,7 @@ fn build(
 
   let total_ms = started.elapsed().as_millis();
   let llm_ms = debug_capture.as_ref().map(|c| c.llm_ms);
+  let token_usage = debug_capture.as_ref().and_then(|c| c.token_usage.clone());
   write_build_meta(
     &dist_dir,
     &BuildMeta {
@@ -590,15 +591,18 @@ fn build(
       total_ms,
       timestamp_unix_ms: now_unix_ms(),
       status: "ok".to_string(),
-      token_usage: None,
+      token_usage: token_usage.clone(),
     },
   )?;
 
-  print_unified_footer(&[
+  print_unified_footer(
+    &[
     &format!("{}/target.ir.json", dist_dir.display()),
     &format!("{}/ir.json", dist_dir.display()),
     &format!("{}/nondet.report", dist_dir.display()),
-  ]);
+  ],
+    token_usage.as_ref(),
+  );
   Ok(())
 }
 
@@ -705,6 +709,7 @@ fn freeze(
 
   let total_ms = started.elapsed().as_millis();
   let llm_ms = debug_capture.as_ref().map(|c| c.llm_ms);
+  let token_usage = debug_capture.as_ref().and_then(|c| c.token_usage.clone());
   write_build_meta(
     &dist_dir,
     &BuildMeta {
@@ -720,16 +725,19 @@ fn freeze(
       total_ms,
       timestamp_unix_ms: now_unix_ms(),
       status: "ok".to_string(),
-      token_usage: None,
+      token_usage: token_usage.clone(),
     },
   )?;
 
-  print_unified_footer(&[
+  print_unified_footer(
+    &[
     "sculpt.lock",
     &format!("{}/target.ir.json", dist_dir.display()),
     &format!("{}/ir.json", dist_dir.display()),
     &format!("{}/nondet.report", dist_dir.display()),
-  ]);
+  ],
+    token_usage.as_ref(),
+  );
   Ok(())
 }
 
@@ -784,11 +792,14 @@ fn replay(input: &Path, target: Option<&str>) -> Result<()> {
   fs::write(dist_dir.join("ir.json"), to_pretty_json(&ir)?)?;
   fs::write(dist_dir.join("nondet.report"), generate_report(&ir))?;
 
-  print_unified_footer(&[
+  print_unified_footer(
+    &[
     &format!("{}/target.ir.json", dist_dir.display()),
     &format!("{}/ir.json", dist_dir.display()),
     &format!("{}/nondet.report", dist_dir.display()),
-  ]);
+  ],
+    None,
+  );
   Ok(())
 }
 
@@ -997,11 +1008,21 @@ fn print_unified_header(action: &str, target: &str, input: &Path, provider: Opti
   println!("{}", style_divider());
 }
 
-fn print_unified_footer(artifacts: &[&str]) {
+fn print_unified_footer(artifacts: &[&str], token_usage: Option<&TokenUsage>) {
   println!();
   println!("{}", style_accent("Artifacts"));
   for a in artifacts {
     println!("  {}", style_dim(a));
+  }
+  println!();
+  println!("{}", style_accent("Tokens"));
+  if let Some(tokens) = token_usage {
+    let input = tokens.input_tokens.map(|v| v.to_string()).unwrap_or_else(|| "unknown".to_string());
+    let output = tokens.output_tokens.map(|v| v.to_string()).unwrap_or_else(|| "unknown".to_string());
+    let total = tokens.total_tokens.map(|v| v.to_string()).unwrap_or_else(|| "unknown".to_string());
+    println!("  {}", style_dim(&format!("input={} output={} total={}", input, output, total)));
+  } else {
+    println!("  {}", style_dim("unavailable"));
   }
   println!("{}", style_divider());
 }

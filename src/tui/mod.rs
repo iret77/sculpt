@@ -238,24 +238,31 @@ impl AppState {
     can_run_for_selected(self)
   }
 
+  fn sync_selected_from_cursor(&mut self) -> Result<()> {
+    let Some(idx) = self.file_state.selected() else {
+      self.clear_preview();
+      return Ok(());
+    };
+    let Some(entry) = self.entries.get(idx) else {
+      self.clear_preview();
+      return Ok(());
+    };
+    if entry.is_sculpt {
+      self.set_selected_file(entry.path.clone())?;
+    } else {
+      self.clear_preview();
+    }
+    Ok(())
+  }
+
   fn run_command(&mut self, cmd: &str, args: &[String]) -> Result<()> {
     self.status = format!("Running: {} {}", cmd, args.join(" "));
     let started = Instant::now();
     let output = Command::new(cmd).args(args).output()?;
     let duration = started.elapsed();
     self.log.push(format!("$ {} {}", cmd, args.join(" ")));
-    if !output.stdout.is_empty() {
-      let out = String::from_utf8_lossy(&output.stdout);
-      for line in out.lines() {
-        self.log.push(line.to_string());
-      }
-    }
-    if !output.stderr.is_empty() {
-      let out = String::from_utf8_lossy(&output.stderr);
-      for line in out.lines() {
-        self.log.push(line.to_string());
-      }
-    }
+    self.log.extend(normalize_log_output(&output.stdout));
+    self.log.extend(normalize_log_output(&output.stderr));
     let ok = output.status.success();
     let (provider, model) = extract_provider_model(&output);
     let target = extract_target(args);
@@ -329,6 +336,7 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
       }
     }
     KeyCode::Char('b') => {
+      state.sync_selected_from_cursor()?;
       if state.selected_file.is_some() {
         state.pending_action = PendingAction::BuildOnly;
         if state.meta_target.is_some() {
@@ -337,9 +345,12 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
           state.modal_open = true;
           state.modal_focus = ModalFocus::Targets;
         }
+      } else {
+        state.info_modal = Some("Select a .sculpt file first.".to_string());
       }
     }
     KeyCode::Char('r') => {
+      state.sync_selected_from_cursor()?;
       if state.selected_file.is_some() {
         state.pending_action = PendingAction::RunOnly;
         if state.meta_target.is_some() {
@@ -348,19 +359,28 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
           state.modal_open = true;
           state.modal_focus = ModalFocus::Targets;
         }
+      } else {
+        state.info_modal = Some("Select a .sculpt file first.".to_string());
       }
     }
     KeyCode::Char('f') => {
+      state.sync_selected_from_cursor()?;
       if state.selected_file.is_some() {
         let _ = state.run_command("sculpt", &build_args(state, "freeze"));
+      } else {
+        state.info_modal = Some("Select a .sculpt file first.".to_string());
       }
     }
     KeyCode::Char('p') => {
+      state.sync_selected_from_cursor()?;
       if state.selected_file.is_some() {
         let _ = state.run_command("sculpt", &build_args(state, "replay"));
+      } else {
+        state.info_modal = Some("Select a .sculpt file first.".to_string());
       }
     }
     KeyCode::Char('c') => {
+      state.sync_selected_from_cursor()?;
       if state.selected_file.is_some() {
         let _ = state.run_command("sculpt", &build_args(state, "clean"));
         state.update_preview_from_selection();
@@ -641,7 +661,7 @@ fn render_details(state: &AppState) -> Vec<Line<'_>> {
     let dist_dir = dist_dir_for(path);
     let has_cli = dist_dir.join("main.js").exists();
     let has_web = dist_dir.join("index.html").exists();
-    let has_gui = dist_dir.join("gui/.build/release/SculptGui").exists();
+    let has_gui = dist_dir.join("gui/.build/release/SculptGui").exists() || dist_dir.join("gui/main.py").exists();
     let has_lock = Path::new("sculpt.lock").exists();
     let build_ok = match target.as_str() {
       "cli" => has_cli,
@@ -693,6 +713,21 @@ fn render_details(state: &AppState) -> Vec<Line<'_>> {
         Span::styled("build_ms ", Style::default().fg(state.theme.dim)),
         Span::styled(meta.build_ms.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string()), Style::default().fg(state.theme.fg)),
       ]));
+      if let Some(tokens) = meta.token_usage.clone() {
+        lines.push(Line::from(vec![
+          Span::styled("  tokens in/out/total ", Style::default().fg(state.theme.dim)),
+          Span::styled(tokens.input_tokens.map(|v| v.to_string()).unwrap_or_else(|| "unknown".to_string()), Style::default().fg(state.theme.fg)),
+          Span::raw("/"),
+          Span::styled(tokens.output_tokens.map(|v| v.to_string()).unwrap_or_else(|| "unknown".to_string()), Style::default().fg(state.theme.fg)),
+          Span::raw("/"),
+          Span::styled(tokens.total_tokens.map(|v| v.to_string()).unwrap_or_else(|| "unknown".to_string()), Style::default().fg(state.theme.fg)),
+        ]));
+      } else {
+        lines.push(Line::from(vec![
+          Span::styled("  tokens ", Style::default().fg(state.theme.dim)),
+          Span::styled("unavailable", Style::default().fg(state.theme.dim)),
+        ]));
+      }
       lines.push(Line::from(vec![
         Span::styled("  total_ms ", Style::default().fg(state.theme.dim)),
         Span::styled(meta.total_ms.to_string(), Style::default().fg(state.theme.fg)),
@@ -817,7 +852,7 @@ fn can_run_for_selected(state: &AppState) -> bool {
   match target.as_str() {
     "cli" => dist_dir.join("main.js").exists(),
     "web" => dist_dir.join("index.html").exists(),
-    "gui" => dist_dir.join("gui/.build/release/SculptGui").exists(),
+    "gui" => dist_dir.join("gui/.build/release/SculptGui").exists() || dist_dir.join("gui/main.py").exists(),
     _ => true,
   }
 }
@@ -849,6 +884,40 @@ fn header_line(state: &AppState, width: u16) -> Line<'static> {
     spans.push(Span::styled(right_plain, Style::default().fg(state.theme.dim)));
   }
   Line::from(spans)
+}
+
+fn normalize_log_output(bytes: &[u8]) -> Vec<String> {
+  if bytes.is_empty() {
+    return Vec::new();
+  }
+  String::from_utf8_lossy(bytes)
+    .lines()
+    .map(strip_ansi_and_controls)
+    .filter(|line| !line.trim().is_empty())
+    .collect()
+}
+
+fn strip_ansi_and_controls(input: &str) -> String {
+  let mut out = String::new();
+  let mut chars = input.chars().peekable();
+  while let Some(ch) = chars.next() {
+    if ch == '\u{1b}' {
+      if let Some('[') = chars.peek().copied() {
+        let _ = chars.next();
+        for c in chars.by_ref() {
+          if ('@'..='~').contains(&c) {
+            break;
+          }
+        }
+      }
+      continue;
+    }
+    if ch.is_control() {
+      continue;
+    }
+    out.push(ch);
+  }
+  out
 }
 
 fn render_modal(f: &mut ratatui::Frame, state: &mut AppState) {
@@ -938,4 +1007,21 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: ratatui::layout::Rect) -> ra
       .as_ref(),
     )
     .split(popup_layout[1])[1]
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn strip_ansi_sequences() {
+    let input = "\u{1b}[38;2;234;81;114mError:\u{1b}[0m failed";
+    assert_eq!(strip_ansi_and_controls(input), "Error: failed");
+  }
+
+  #[test]
+  fn normalize_output_sanitizes_lines() {
+    let bytes = b"\x1b[31mError\x1b[0m\nok\n";
+    assert_eq!(normalize_log_output(bytes), vec!["Error".to_string(), "ok".to_string()]);
+  }
 }

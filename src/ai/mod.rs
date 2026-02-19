@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Result};
 use serde_json::{json, Value};
 
+use crate::build_meta::TokenUsage;
 use crate::llm_ir::{compact_schema_for, normalize_llm_ir};
 
 pub enum AiProvider {
@@ -22,6 +23,7 @@ pub struct DebugCapture {
   pub prompt: String,
   pub raw_output: String,
   pub llm_ms: u128,
+  pub token_usage: Option<TokenUsage>,
 }
 
 pub fn generate_target_ir(
@@ -122,6 +124,7 @@ fn openai_generate(
       prompt: input,
       raw_output: text,
       llm_ms: started.elapsed().as_millis(),
+      token_usage: extract_openai_token_usage(&value),
     },
   ))
 }
@@ -193,6 +196,7 @@ fn anthropic_generate(
       prompt: input,
       raw_output: text,
       llm_ms: started.elapsed().as_millis(),
+      token_usage: extract_anthropic_token_usage(&value),
     },
   ))
 }
@@ -247,6 +251,7 @@ fn gemini_generate(
       prompt: input,
       raw_output: text,
       llm_ms: started.elapsed().as_millis(),
+      token_usage: extract_gemini_token_usage(&value),
     },
   ))
 }
@@ -315,6 +320,54 @@ fn extract_gemini_text(value: &Value) -> Option<String> {
   if text.is_empty() { None } else { Some(text) }
 }
 
+fn extract_openai_token_usage(value: &Value) -> Option<TokenUsage> {
+  let usage = value.get("usage")?;
+  let input_tokens = usage.get("input_tokens").and_then(Value::as_u64);
+  let output_tokens = usage.get("output_tokens").and_then(Value::as_u64);
+  let total_tokens = usage.get("total_tokens").and_then(Value::as_u64);
+  if input_tokens.is_none() && output_tokens.is_none() && total_tokens.is_none() {
+    return None;
+  }
+  Some(TokenUsage {
+    input_tokens,
+    output_tokens,
+    total_tokens,
+  })
+}
+
+fn extract_anthropic_token_usage(value: &Value) -> Option<TokenUsage> {
+  let usage = value.get("usage")?;
+  let input_tokens = usage.get("input_tokens").and_then(Value::as_u64);
+  let output_tokens = usage.get("output_tokens").and_then(Value::as_u64);
+  let total_tokens = match (input_tokens, output_tokens) {
+    (Some(i), Some(o)) => Some(i + o),
+    _ => None,
+  };
+  if input_tokens.is_none() && output_tokens.is_none() {
+    return None;
+  }
+  Some(TokenUsage {
+    input_tokens,
+    output_tokens,
+    total_tokens,
+  })
+}
+
+fn extract_gemini_token_usage(value: &Value) -> Option<TokenUsage> {
+  let usage = value.get("usageMetadata")?;
+  let input_tokens = usage.get("promptTokenCount").and_then(Value::as_u64);
+  let output_tokens = usage.get("candidatesTokenCount").and_then(Value::as_u64);
+  let total_tokens = usage.get("totalTokenCount").and_then(Value::as_u64);
+  if input_tokens.is_none() && output_tokens.is_none() && total_tokens.is_none() {
+    return None;
+  }
+  Some(TokenUsage {
+    input_tokens,
+    output_tokens,
+    total_tokens,
+  })
+}
+
 fn parse_json_response(text: &str) -> Result<Value> {
   let trimmed = text.trim();
   if let Ok(parsed) = serde_json::from_str::<Value>(trimmed) {
@@ -354,4 +407,44 @@ fn http_client() -> Result<reqwest::blocking::Client> {
       .timeout(Duration::from_secs(120))
       .build()?,
   )
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn extracts_openai_usage() {
+    let value = json!({
+      "usage": { "input_tokens": 10, "output_tokens": 15, "total_tokens": 25 }
+    });
+    let usage = extract_openai_token_usage(&value).expect("usage");
+    assert_eq!(usage.input_tokens, Some(10));
+    assert_eq!(usage.output_tokens, Some(15));
+    assert_eq!(usage.total_tokens, Some(25));
+  }
+
+  #[test]
+  fn extracts_anthropic_usage_with_computed_total() {
+    let value = json!({
+      "usage": { "input_tokens": 7, "output_tokens": 9 }
+    });
+    let usage = extract_anthropic_token_usage(&value).expect("usage");
+    assert_eq!(usage.total_tokens, Some(16));
+  }
+
+  #[test]
+  fn extracts_gemini_usage() {
+    let value = json!({
+      "usageMetadata": {
+        "promptTokenCount": 5,
+        "candidatesTokenCount": 6,
+        "totalTokenCount": 11
+      }
+    });
+    let usage = extract_gemini_token_usage(&value).expect("usage");
+    assert_eq!(usage.input_tokens, Some(5));
+    assert_eq!(usage.output_tokens, Some(6));
+    assert_eq!(usage.total_tokens, Some(11));
+  }
 }
