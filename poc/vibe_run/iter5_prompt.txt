@@ -1,0 +1,9 @@
+Return ONLY valid TypeScript code. No explanation. No markdown fences.
+Requirements:
+- single file
+- no external dependencies
+- interactive mode using readline
+- supports --simulate <1|2|3|4> with JSON output
+- include owner_hint and next_update_minutes fields
+- include declare const process:any;
+If previous code already satisfies this, return cleaned code only.

@@ -1,0 +1,42 @@
+{
+  "model": "gemini-2.5-pro",
+  "prompt": "Generate a single TypeScript CLI file for an Incident Triage Assistant.\nRequirements:\n- options: 1 service down, 2 error spike, 3 latency increase, 4 security incident\n- each option includes severity and exactly 4 actionable steps\n- include owner_hint and next_update_minutes in result output\n- supports --simulate <1|2|3|4> to print JSON\n- without --simulate, run interactive mode in terminal\n- no external dependencies\n- include declare const process:any and declare function require(name:string):any\n- use readline via require(\"readline\")\nReturn only valid TypeScript code.",
+  "runs": [
+    {
+      "run": 1,
+      "seconds": 39.81,
+      "hash": "34c9657f99866442712b54ab2a8f0294c9821ba58cbed29124a15949198a1bf6",
+      "compile_ok": true,
+      "chars": 6196
+    },
+    {
+      "run": 2,
+      "seconds": 27.8,
+      "hash": "d2989968cfb8d2008a6f3d22ff0b1f992b237bfe982d44a11cf97993d15ef6f6",
+      "compile_ok": true,
+      "chars": 6075
+    },
+    {
+      "run": 3,
+      "seconds": 29.08,
+      "hash": "457ddc9240d74ed2bb2acd2fd36591e85f687dff5bd2732cac0fd0b49b9544b9",
+      "compile_ok": true,
+      "chars": 4553
+    },
+    {
+      "run": 4,
+      "seconds": 35.5,
+      "hash": "af76223933ba02b07345fca4ced9bc8b6e1d5e3a8b844037dd04ee26f1fd2264",
+      "compile_ok": true,
+      "chars": 5743
+    },
+    {
+      "run": 5,
+      "seconds": 36.96,
+      "hash": "5d1afe264326d4653e6301f7da1463398b69153e858a236cca36d6ef67834287",
+      "compile_ok": true,
+      "chars": 5523
+    }
+  ],
+  "unique_hashes": 5
+}

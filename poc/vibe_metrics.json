@@ -1,0 +1,35 @@
+{
+  "model": "gemini-2.5-pro",
+  "iterations": [
+    {
+      "iter": 1,
+      "seconds": 29.64,
+      "chars": 5251
+    },
+    {
+      "iter": 2,
+      "seconds": 21.01,
+      "chars": 6103
+    },
+    {
+      "iter": 3,
+      "seconds": 22.78,
+      "chars": 6618
+    },
+    {
+      "iter": 4,
+      "seconds": 25.86,
+      "chars": 7180
+    },
+    {
+      "iter": 5,
+      "seconds": 20.65,
+      "chars": 7089
+    },
+    {
+      "iter": 6,
+      "seconds": 37.72,
+      "chars": 7222
+    }
+  ]
+}

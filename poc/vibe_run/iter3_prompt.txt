@@ -1,0 +1,6 @@
+Change request 2:
+Extend output schema for --simulate mode and interactive decision output:
+- add owner_hint (string)
+- add next_update_minutes (number)
+- keep deterministic behavior.
+Return full updated TypeScript file only.
