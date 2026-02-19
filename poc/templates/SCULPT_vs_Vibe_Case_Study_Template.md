@@ -2,6 +2,16 @@
 
 (C) 2026 byte5 GmbH
 
+## Scenario Placeholders (Fill First)
+- Scenario ID: `SCENARIO_<YYYYMMDD>_<slug>`
+- Scenario Name: `<clear task name>`
+- Scenario Category: `<workflow | data-heavy | GUI app | API/backend | mixed>`
+- Business Context: `<one sentence>`
+- Primary User: `<who uses the result>`
+- Main Inputs: `<key input artifacts/data>`
+- Expected Outputs: `<what must be produced for users>`
+- Out of Scope: `<explicit non-goals>`
+
 ## Purpose
 Test whether SCULPT is clearly superior to prompt-first vibe coding for a real development task.
 
@@ -11,8 +21,8 @@ If SCULPT does not show a strong advantage and no realistic improvement path exi
 ## 1) Experiment Scope
 
 ### Task
-- Name:
-- Description:
+- Name: `<scenario name>`
+- Description: `<what must be solved end-to-end>`
 - Functional acceptance criteria:
   - [ ]
   - [ ]
@@ -104,4 +114,3 @@ If one or more fail:
 - Outcome: `Go` / `Conditional Go` / `No-Go`
 - Rationale:
 - Next actions:
-
