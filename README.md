@@ -21,6 +21,16 @@ LLM cost and speed are not static. We expect a trajectory similar to bandwidth o
 as models become faster and cheaper, what is possible expands dramatically. SCULPT therefore optimizes
 for today’s constraints without sacrificing tomorrow’s capability.
 
+## Extended Thesis
+In mainstream software delivery, fully hand-written code is becoming the exception.
+AI-assisted development is the default direction, but prose-prompt workflows remain hard to control and hard to scale in teams.
+
+SCULPT targets that gap:
+- code-native instead of prose-native,
+- intent-oriented instead of prompt-chaotic,
+- convergent instead of drift-prone,
+- reproducible instead of ephemeral.
+
 ## Status
 - CLI compiler with LLM-backed build pipeline.
 - Built-in targets: `cli`, `gui`, `web`.
@@ -31,6 +41,7 @@ for today’s constraints without sacrificing tomorrow’s capability.
 ## Start Here
 - `SCULPT_Quick_Start.md`
 - `SCULPT_Handbook.md`
+- `poc/POC_Incident_Triage_Report.md`
 
 ## Documentation Map
 To keep documentation consistent, each document has one clear purpose:

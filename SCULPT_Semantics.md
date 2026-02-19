@@ -122,6 +122,7 @@ Recommended deterministic rule:
 - `N302` ND block has no `satisfy`.
 - `N303` Empty `satisfy(...)`.
 - `N304` Unsatisfiable ND constraints.
+- `N305` `nd_budget=0` used while ND blocks exist.
 
 ## 5.5 Runtime/Binding
 - `B401` `run` references unknown flow.
@@ -134,6 +135,10 @@ Recommended deterministic rule:
 - `NS504` Illegal cross-namespace reference without contract/import.
 - `NS505` Forbidden shadowing in strict mode.
 - `NS506` Ambiguous unqualified symbol reference.
+
+## 5.7 Meta/Convergence Controls
+- `M701` Invalid `nd_budget` (must be integer `0..100`).
+- `M702` Invalid `confidence` (must be number `0.0..1.0`).
 
 ## 6. LLM Contract Implications
 - Parser + semantic validator produce canonical IR only for valid programs.

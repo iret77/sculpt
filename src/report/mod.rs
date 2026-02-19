@@ -3,6 +3,24 @@ use crate::ir::IrModule;
 
 pub fn generate_report(ir: &IrModule) -> String {
   let mut out = String::new();
+  let budget = ir.meta.get("nd_budget").and_then(|v| v.parse::<i32>().ok());
+  let confidence = ir.meta.get("confidence").and_then(|v| v.parse::<f64>().ok());
+  let mut block_scores: Vec<f64> = Vec::new();
+
+  out.push_str("Convergence Report\n");
+  out.push_str("==================\n");
+  if let Some(b) = budget {
+    out.push_str(&format!("nd_budget: {}\n", b));
+  } else {
+    out.push_str("nd_budget: (not set)\n");
+  }
+  if let Some(c) = confidence {
+    out.push_str(&format!("confidence: {:.2}\n", c));
+  } else {
+    out.push_str("confidence: (not set)\n");
+  }
+  out.push('\n');
+
   for (idx, nd) in ir.nd_blocks.iter().enumerate() {
     let nd_id = format!("{}#{}", nd.name, idx);
     out.push_str(&format!("ND: {} at {}\n", format_call(&nd.propose), nd_id));
@@ -11,11 +29,60 @@ pub fn generate_report(ir: &IrModule) -> String {
       .iter()
       .filter(|c| is_measurable_call(c))
       .count();
-    out.push_str(&format!("constraints: {}, measurable: {}\n", nd.constraints.len(), measurable));
+    let constraints = nd.constraints.len();
+    out.push_str(&format!("constraints: {}, measurable: {}\n", constraints, measurable));
+    let measurability_ratio = if constraints == 0 {
+      0.0
+    } else {
+      measurable as f64 / constraints as f64
+    };
+    out.push_str(&format!("measurability_ratio: {:.2}\n", measurability_ratio));
     let unconstrained = nd.constraints.is_empty() || measurable == 0;
     out.push_str(&format!("unconstrained: {}\n\n", if unconstrained { "yes" } else { "no" }));
+    let nd_score = estimate_nd_score(constraints, measurable);
+    block_scores.push(nd_score);
+    out.push_str(&format!("nd_score: {:.0}/100\n", nd_score));
+    out.push_str(&format!("risk: {}\n", classify_risk(nd_score)));
+    if let Some(b) = budget {
+      let status = if nd_score <= b as f64 { "within_budget" } else { "over_budget" };
+      out.push_str(&format!("budget_status: {} (budget={}, score={:.0})\n", status, b, nd_score));
+    }
+    out.push('\n');
+  }
+
+  let overall_nd = if block_scores.is_empty() {
+    0.0
+  } else {
+    block_scores.iter().sum::<f64>() / block_scores.len() as f64
+  };
+  out.push_str("Summary\n");
+  out.push_str("-------\n");
+  out.push_str(&format!("nd_blocks: {}\n", ir.nd_blocks.len()));
+  out.push_str(&format!("overall_nd_score: {:.0}/100\n", overall_nd));
+  out.push_str(&format!("overall_risk: {}\n", classify_risk(overall_nd)));
+  if let Some(b) = budget {
+    let status = if overall_nd <= b as f64 { "within_budget" } else { "over_budget" };
+    out.push_str(&format!("overall_budget_status: {}\n", status));
   }
   out
+}
+
+fn estimate_nd_score(constraints: usize, measurable: usize) -> f64 {
+  if constraints == 0 {
+    return 100.0;
+  }
+  let meas = measurable as f64 / constraints as f64;
+  ((1.0 - meas) * 100.0).clamp(0.0, 100.0)
+}
+
+fn classify_risk(score: f64) -> &'static str {
+  if score >= 70.0 {
+    "high"
+  } else if score >= 35.0 {
+    "medium"
+  } else {
+    "low"
+  }
 }
 
 fn is_measurable_call(call: &Call) -> bool {

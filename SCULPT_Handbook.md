@@ -159,6 +159,8 @@ You can set one key per line, or multiple key-value pairs in one line:
 - `target`: default target for this script (`cli`, `gui`, `web`).
 - `layout`: currently `explicit` is used for GUI flows that require explicit layout data.
 - `strict_scopes`: enables stricter shadowing checks in semantic validation.
+- `nd_budget`: convergence budget in range `0..100` (lower means stricter ND tolerance).
+- `confidence`: expected convergence confidence in range `0.0..1.0`.
 
 ### 6.2 How Meta Interacts With CLI Flags
 - CLI flags have highest priority (for example `--target` overrides `@meta target=...`).
@@ -173,6 +175,9 @@ You can set one key per line, or multiple key-value pairs in one line:
   - `@meta layout=explicit`
 - Strict validation for critical modules:
   - `@meta strict_scopes=true`
+- Convergence controls:
+  - `@meta nd_budget=35`
+  - `@meta confidence=0.80`
 
 ## 7) Providers
 

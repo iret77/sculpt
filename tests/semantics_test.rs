@@ -107,3 +107,35 @@ end
   let diagnostics = validate_module(&module);
   assert!(diagnostics.iter().any(|d| d.code == "NS505"));
 }
+
+#[test]
+fn validates_convergence_meta_ranges() {
+  let src = r#"@meta nd_budget=500
+@meta confidence=1.5
+module(App.Core)
+  nd(plan)
+    propose any()
+    satisfy(valid())
+  end
+end
+"#;
+  let module = parse_source(src).expect("parse ok");
+  let diagnostics = validate_module(&module);
+  assert!(diagnostics.iter().any(|d| d.code == "M701"));
+  assert!(diagnostics.iter().any(|d| d.code == "M702"));
+}
+
+#[test]
+fn catches_zero_budget_with_nd() {
+  let src = r#"@meta nd_budget=0
+module(App.Core)
+  nd(plan)
+    propose any()
+    satisfy(valid())
+  end
+end
+"#;
+  let module = parse_source(src).expect("parse ok");
+  let diagnostics = validate_module(&module);
+  assert!(diagnostics.iter().any(|d| d.code == "N305"));
+}

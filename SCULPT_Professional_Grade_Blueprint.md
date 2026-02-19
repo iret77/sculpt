@@ -6,6 +6,16 @@
 Define what SCULPT needs to support real-world, large-scale software projects
 (ERP, commercial games, multi-team platforms) with predictable quality.
 
+## Extended Thesis
+At scale, fully hand-written code is no longer the expected default workflow.
+AI-assisted development is becoming standard, but pure prompting is weak in structure, reproducibility, and team governance.
+
+SCULPT is designed as a stronger model for developers who think in code:
+- intent-oriented,
+- AI-native,
+- convergent,
+- contract- and policy-ready for production environments.
+
 ## 1) Language Foundations
 
 ### 1.0 Domain-First Structure (DDD-light)

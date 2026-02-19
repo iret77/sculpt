@@ -48,6 +48,7 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
   validate_flows(&flows, &mut diagnostics);
   validate_rules(&rules, &mut diagnostics);
   validate_nd_blocks(&nd_blocks, &mut diagnostics);
+  validate_convergence_meta(module, &nd_blocks, &mut diagnostics);
   validate_run_targets(&flows, &mut diagnostics);
   validate_symbol_references(module, &flows, &rules, &known_fqns, &mut diagnostics);
   validate_shadowing(module, &rules, &mut diagnostics);
@@ -200,6 +201,38 @@ fn validate_nd_blocks(nd_blocks: &[&NdBlock], diagnostics: &mut Vec<Diagnostic>)
     }
     if nd.constraints.is_empty() {
       diagnostics.push(Diagnostic::new("N303", format!("ND '{}' has empty satisfy()", nd.name)));
+    }
+  }
+}
+
+fn validate_convergence_meta(module: &Module, nd_blocks: &[&NdBlock], diagnostics: &mut Vec<Diagnostic>) {
+  let nd_budget = module.meta.get("nd_budget").map(|v| v.trim().to_string());
+  let confidence = module.meta.get("confidence").map(|v| v.trim().to_string());
+
+  if let Some(raw) = nd_budget {
+    match raw.parse::<i32>() {
+      Ok(value) if (0..=100).contains(&value) => {
+        if !nd_blocks.is_empty() && value == 0 {
+          diagnostics.push(Diagnostic::new(
+            "N305",
+            "nd_budget=0 is incompatible with ND blocks; remove ND or increase budget",
+          ));
+        }
+      }
+      _ => diagnostics.push(Diagnostic::new(
+        "M701",
+        format!("Invalid nd_budget '{}': expected integer in range 0..100", raw),
+      )),
+    }
+  }
+
+  if let Some(raw) = confidence {
+    match raw.parse::<f64>() {
+      Ok(value) if (0.0..=1.0).contains(&value) => {}
+      _ => diagnostics.push(Diagnostic::new(
+        "M702",
+        format!("Invalid confidence '{}': expected number in range 0.0..1.0", raw),
+      )),
     }
   }
 }
@@ -381,8 +414,8 @@ fn call_signature(call: &Call) -> String {
 
 fn expr_kind(expr: &Expr) -> String {
   match expr {
-    Expr::Number(_) => "number".to_string(),
-    Expr::String(_) => "string".to_string(),
+    Expr::Number(n) => format!("number:{n}"),
+    Expr::String(s) => format!("string:{s}"),
     Expr::Null => "null".to_string(),
     Expr::Ident(s) => format!("ident:{s}"),
     Expr::Call(c) => format!("call:{}", call_signature(c)),
