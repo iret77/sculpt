@@ -1,29 +1,29 @@
-# SCULPT Syntax‑Manifest v0.2 (Entwurf)
+# SCULPT Syntax Manifest v0.2 (Draft)
 
 (C) 2026 byte5 GmbH
 
-## 1) Ziel
-SCULPT ist eine **konvergente** Sprache:
-Mehr Code → kleinere Lösungsmenge → deterministischer, aber nie vollständig deterministisch.
+## 1) Goal
+SCULPT is a **convergent** language:
+more code narrows the solution space and increases predictability, while remaining non-fully-deterministic by design.
 
-**Leitprinzipien**
-- **Nicht‑Whitespace‑sensitiv.** Whitespaces dienen der Lesbarkeit, niemals der Syntax.
-- **Strukturelle Klarheit durch Symbole.** Syntax soll visuell gliedern, ohne zu „schreien“.
-- **Einheitlichkeit:** Gleicher Aufbau für alle Blocktypen.
-- **Skalierbarkeit:** Wir optimieren für heutige LLM‑Constraints ohne die Zukunftsfähigkeit zu opfern.
+**Design principles**
+- **Not whitespace-sensitive.** Whitespace improves readability, never syntax.
+- **Structural clarity through symbols.** Code should be visually structured without noisy syntax.
+- **Uniform block shape.** Core constructs follow one predictable pattern.
+- **Scalable for AI pipelines.** Designed for current LLM limits without blocking future growth.
 
-## 2) Block‑Form
-**Jeder Block ist eine Funktionssignatur.**  
-Whitespace dient nur der Lesbarkeit und ist **niemals** Syntax.
+## 2) Block Form
+**Every block uses a function-style signature.**  
+Whitespace is for readability only and is **never** part of syntax.
 
-**Meta‑Header (optional, nicht Teil der Logik):**
+**Meta header (optional, non-logic):**
 ```
 @meta target=gui layout=explicit
 @meta author="team"
 ```
 
-**Hinweis (GUI‑Action‑Semantik):**
-Für einfache OK‑Modals nutzt der Compiler die Action‑Kennung:
+**Note (GUI action semantics):**
+For a simple OK modal action, the compiler uses:
 `action="modal.ok"`
 
 ```
@@ -32,7 +32,7 @@ Für einfache OK‑Modals nutzt der Compiler die Action‑Kennung:
 end
 ```
 
-Beispiele:
+Examples:
 ```
 module(App)
 flow(Game)
@@ -42,28 +42,32 @@ rule(tick)
 nd(chooseLayout, level)
 ```
 
-Vorteil: konsequente, logische Form, unabhängig von Sprache.
+Benefit: consistent and logical form, language-independent.
 
-## 3) Transition‑Syntax
-**Transitions verwenden ein einziges Symbol:** `>`
+**Note (namespace path):**
+`module(...)` may be dot-qualified, e.g.:
+`module(Billing.Account.Invoice)`
+
+## 3) Transition Syntax
+**Transitions use one symbol:** `>`
 
 ```
 start > Title
 on key(Enter) > Play
 ```
 
-`>` ist minimal, leicht zu tippen (Shift+.) und visuell eindeutig.
+`>` is compact, easy to type, and visually clear.
 
-## 4) Primäre Blocktypen
-- `module(name)` → Root‑Block (pflichtig, genau 1 pro Datei)
-- `flow(name)` → Zustands‑Ablauf
-- `state(name)` → Zustand
-- `state()` → globaler Zustand (ohne Namen)
-- `rule(name)` → deterministische Regeln
-- `nd(name, ...)` → nicht‑deterministische Lösungsräume
+## 4) Primary Block Types
+- `module(name)` -> root block (required, exactly one per file)
+- `flow(name)` -> state flow
+- `state(name)` -> named state
+- `state()` -> global state block (unnamed)
+- `rule(name)` -> deterministic rule block
+- `nd(name, ...)` -> non-deterministic solution block
 
-## 5) Statements im State
-- **Render‑Calls** (Bedeutung kommt aus dem Target‑Vertrag):
+## 5) Statements Inside `state(...)`
+- **Render calls** (meaning comes from the selected target contract):
   ```
   render text("Hello", color: "yellow")
   ```
@@ -71,7 +75,7 @@ on key(Enter) > Play
   ```
   on key(Enter) > Play
   ```
-- **Run Flow:**
+- **Run flow:**
   ```
   run Loop
   ```
@@ -80,7 +84,7 @@ on key(Enter) > Play
   terminate
   ```
 
-## 6) Rule‑Syntax
+## 6) Rule Syntax
 ```
 rule(tick)
   on tick
@@ -89,7 +93,7 @@ rule(tick)
 end
 ```
 
-oder
+or
 
 ```
 rule(finish)
@@ -99,7 +103,7 @@ rule(finish)
 end
 ```
 
-## 7) ND‑Syntax
+## 7) ND Syntax
 ```
 nd(chooseLayout, level)
   propose layout(type: "rooms")
@@ -111,14 +115,14 @@ nd(chooseLayout, level)
 end
 ```
 
-## 8) Expressions (aktuell)
-- Literale: numbers, strings, null
+## 8) Expressions (Current)
+- Literals: numbers, strings, null
 - Identifiers: `counter`
 - Calls: `key(Enter)`
 - Assignment: `=`, `+=`
 - Compare: `>=`
 
-## 9) Visual Rhythm (Beispiel)
+## 9) Visual Rhythm (Example)
 ```
 module(App)
   flow(Main)
@@ -141,16 +145,16 @@ module(App)
 end
 ```
 
-## 10) Kommentare (non‑syntax)
-Kommentare beginnen mit `#` oder `;` und können beliebigen Text enthalten.
+## 10) Comments (Non-Syntax)
+Comments start with `#` or `;` and may contain arbitrary text.
 
 ```
 # UI
 ; Logic
 ```
 
-## Entscheidungen (festgelegt)
-1. Block‑Form ist verbindlich: `block(name, params...)`
-2. Transition‑Symbol ist `>`
-3. Global State wird über `state()` definiert
-4. Mehrere ND‑Parameter: `nd(name, param1, param2)`
+## Fixed Decisions
+1. Block form is mandatory: `block(name, params...)`
+2. Transition symbol is `>`
+3. Global state is represented by `state()`
+4. Multiple ND parameters are supported: `nd(name, param1, param2)`

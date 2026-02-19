@@ -9,6 +9,7 @@ pub mod lexer;
 pub mod llm_ir;
 pub mod parser;
 pub mod report;
+pub mod semantics;
 pub mod tui;
 pub mod targets;
 pub mod target_ir;

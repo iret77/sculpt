@@ -3,8 +3,7 @@ use anyhow::Result;
 fn main() -> Result<()> {
   // (C) 2026 byte5 GmbH
   let args: Vec<String> = std::env::args().collect();
-  if args.len() == 2 && args[1] == "help" {
-    print_help_tui();
+  if maybe_print_custom_help(&args) {
     return Ok(());
   }
   if args.len() == 1 {
@@ -13,22 +12,24 @@ fn main() -> Result<()> {
   sculpt::cli::run()
 }
 
-fn print_help_tui() {
-  let c = "\x1b[0m";
-  let dim = "\x1b[38;2;150;160;170m";
-  let accent = "\x1b[1;38;2;0;255;255m"; // byte5 cyan
-  let accent2 = "\x1b[1;38;2;234;81;114m"; // byte5 pink
+fn maybe_print_custom_help(args: &[String]) -> bool {
+  if args.len() == 2 && matches!(args[1].as_str(), "help" | "--help" | "-h") {
+    print_help_tui();
+    return true;
+  }
+  if args.len() == 3 && matches!(args[2].as_str(), "--help" | "-h") {
+    return print_subcommand_help(&args[1]);
+  }
+  if args.len() == 3 && args[1] == "help" {
+    return print_subcommand_help(&args[2]);
+  }
+  false
+}
 
-  println!();
-  let left_plain = format!("SCULPT Compiler {}", env!("CARGO_PKG_VERSION"));
-  let right_plain = "(C) 2026 byte5 GmbH";
-  let content_width: usize = 64;
-  let spacer = " ".repeat(content_width.saturating_sub(left_plain.len() + right_plain.len()));
-  println!(
-    "{accent2}SCULPT{c} {accent}Compiler {version}{c}{spacer}{dim}{right}{c}",
-    version = env!("CARGO_PKG_VERSION"),
-    right = right_plain
-  );
+fn print_help_tui() {
+  print_header();
+  let c = "\x1b[0m";
+  let accent2 = "\x1b[1;38;2;234;81;114m"; // byte5 pink
   print_box(
     "Usage",
     &[" sculpt <command> [options]", " sculpt help <command>"],
@@ -51,7 +52,11 @@ fn print_help_tui() {
   );
   print_box(
     "Options",
-    &[" -h, --help        show built-in help", " -V, --version     show version"],
+    &[
+      " -h, --help        show built-in help",
+      " -V, --version     show version",
+      " --debug=...       build/freeze option (see command help)",
+    ],
     accent2,
     c,
   );
@@ -69,21 +74,168 @@ fn print_help_tui() {
     "Tips",
     &[
       " TUI: run `sculpt` with no arguments",
-      " Debug: add --debug=compact|raw|all|json",
+      " Command details: sculpt <command> --help",
     ],
     accent2,
     c,
   );
 }
 
-fn print_box(title: &str, lines: &[&str], accent2: &str, c: &str) {
-  const WIDTH: usize = 62;
-  println!("┌{}┐", "─".repeat(WIDTH));
-  print_padded(&format!(" {accent2}{title}{c}"), WIDTH);
-  for line in lines {
-    print_padded(line, WIDTH);
+fn print_subcommand_help(cmd: &str) -> bool {
+  let c = "\x1b[0m";
+  let accent2 = "\x1b[1;38;2;234;81;114m"; // byte5 pink
+  match cmd {
+    "build" => {
+      print_header();
+      print_box(
+        "Usage",
+        &[" sculpt build <input.sculpt> [--target <cli|gui|web>] [options]"],
+        accent2,
+        c,
+      );
+      print_box(
+        "Options",
+        &[
+          " --target <name>         override target (meta target is preferred)",
+          " --provider <name>       llm provider (default from config)",
+          " --model <name>          model override",
+          " --strict-provider       fail if provider auth/config is missing",
+          " --debug[=compact|raw|all|json]",
+        ],
+        accent2,
+        c,
+      );
+      print_box(
+        "Examples",
+        &[
+          " sculpt build examples/hello_world.sculpt --target cli",
+          " sculpt build examples/native_window.sculpt --target gui",
+        ],
+        accent2,
+        c,
+      );
+      true
+    }
+    "freeze" => {
+      print_header();
+      print_box(
+        "Usage",
+        &[" sculpt freeze <input.sculpt> [--target <cli|gui|web>] [options]"],
+        accent2,
+        c,
+      );
+      print_box(
+        "Options",
+        &[
+          " --target <name>         override target",
+          " --provider <name>       llm provider (default from config)",
+          " --model <name>          model override",
+          " --strict-provider       fail if provider auth/config is missing",
+          " --debug[=compact|raw|all|json]",
+        ],
+        accent2,
+        c,
+      );
+      print_box(
+        "Behavior",
+        &[
+          " Generates target IR and writes sculpt.lock for deterministic replay.",
+          " Build artifacts are written to dist/<script_name>/.",
+        ],
+        accent2,
+        c,
+      );
+      true
+    }
+    "replay" => {
+      print_header();
+      print_box(
+        "Usage",
+        &[" sculpt replay <input.sculpt> [--target <cli|gui|web>]"],
+        accent2,
+        c,
+      );
+      print_box(
+        "Behavior",
+        &[
+          " Rebuilds deterministically from sculpt.lock (no LLM call).",
+          " Fails if lock data is missing/incompatible.",
+        ],
+        accent2,
+        c,
+      );
+      true
+    }
+    "run" => {
+      print_header();
+      print_box(
+        "Usage",
+        &[" sculpt run <input.sculpt> [--target <cli|gui|web>]"],
+        accent2,
+        c,
+      );
+      print_box(
+        "Behavior",
+        &[
+          " Runs the last successful build for the selected script.",
+          " Reads artifacts from dist/<script_name>/.",
+        ],
+        accent2,
+        c,
+      );
+      true
+    }
+    "clean" => {
+      print_header();
+      print_box(
+        "Usage",
+        &[" sculpt clean <input.sculpt>", " sculpt clean --all"],
+        accent2,
+        c,
+      );
+      print_box(
+        "Behavior",
+        &[
+          " clean <input>: removes dist/<script_name>/",
+          " clean --all  : removes entire dist/ directory",
+        ],
+        accent2,
+        c,
+      );
+      true
+    }
+    _ => false,
   }
-  println!("└{}┘", "─".repeat(WIDTH));
+}
+
+fn print_header() {
+  let c = "\x1b[0m";
+  let dim = "\x1b[38;2;150;160;170m";
+  let accent = "\x1b[1;38;2;0;255;255m"; // byte5 cyan
+  let accent2 = "\x1b[1;38;2;234;81;114m"; // byte5 pink
+
+  println!();
+  let left_plain = format!("SCULPT Compiler {}", env!("CARGO_PKG_VERSION"));
+  let right_plain = "(C) 2026 byte5 GmbH";
+  let content_width: usize = 64;
+  let spacer = " ".repeat(content_width.saturating_sub(left_plain.len() + right_plain.len()));
+  println!(
+    "{accent2}SCULPT{c} {accent}Compiler {version}{c}{spacer}{dim}{right}{c}",
+    version = env!("CARGO_PKG_VERSION"),
+    right = right_plain
+  );
+}
+
+fn print_box(title: &str, lines: &[&str], accent2: &str, c: &str) {
+  let title_len = visible_len(title) + 1;
+  let max_line_len = lines.iter().map(|line| visible_len(line)).max().unwrap_or(0);
+  let width = usize::max(62, usize::max(title_len, max_line_len));
+  println!("┌{}┐", "─".repeat(width));
+  print_padded(&format!(" {accent2}{title}{c}"), width);
+  for line in lines {
+    print_padded(line, width);
+  }
+  println!("└{}┘", "─".repeat(width));
 }
 
 fn print_padded(line: &str, width: usize) {

@@ -1,0 +1,206 @@
+# SCULPT Handbook (v0.1)
+
+(C) 2026 byte5 GmbH
+
+This handbook explains how to work with SCULPT as a developer:
+- what the compiler does,
+- how language constructs fit together,
+- how to build, freeze, replay, and run programs,
+- how to structure projects for team-scale software.
+
+This is a practical guide.  
+For strict normative rules, see the dedicated specification documents listed in `/Users/cwendler/Dev/App/sculpt/README.md`.
+
+## 1) Mental Model
+SCULPT is a convergent language:
+- You define intent and constraints.
+- Non-deterministic regions (`nd`) define a solution space.
+- The compiler produces compact IR and calls an LLM.
+- Target providers validate/build deterministic output artifacts.
+
+Think of SCULPT as **code-driven shaping** of solution space, not prose prompting.
+
+## 2) Compiler Pipeline
+For `sculpt build`:
+1. Parse source code into AST.
+2. Run semantic validation.
+3. Convert to SCULPT IR.
+4. Generate compact LLM IR.
+5. Call selected LLM provider.
+6. Validate target IR.
+7. Run deterministic target build.
+8. Write build artifacts and metadata.
+
+### Artifacts
+Each script gets an isolated output directory:
+- `dist/<script_name>/ir.json`
+- `dist/<script_name>/target.ir.json`
+- `dist/<script_name>/nondet.report`
+- `dist/<script_name>/build.meta.json`
+
+This isolation avoids cross-script collisions and enables clean per-script run/replay behavior.
+
+## 3) Command Guide
+
+### `sculpt examples`
+Writes curated examples into `examples/`.
+
+### `sculpt build <file.sculpt> --target <cli|gui|web>`
+Runs full compile pipeline and produces artifacts.
+
+### `sculpt run <file.sculpt> [--target ...]`
+Runs the latest build output for the selected script.
+
+### `sculpt freeze <file.sculpt> [--target ...]`
+Builds and writes `sculpt.lock` to lock deterministic replay input.
+
+### `sculpt replay <file.sculpt> [--target ...]`
+Rebuilds using `sculpt.lock` without a fresh LLM generation.
+
+### `sculpt clean <file.sculpt>` / `sculpt clean --all`
+Removes script-specific artifacts or the whole `dist/`.
+
+### `sculpt auth check --provider <name> [--verify]`
+Checks provider auth configuration, optionally verifies with API call.
+
+## 4) Build vs Freeze vs Replay
+- **Build**: regular compile path, typically LLM-backed.
+- **Freeze**: build + lock deterministic replay input.
+- **Replay**: deterministic rebuild from lock, useful for CI and reproducibility.
+
+If you need reproducibility across machines and team members, use freeze + replay.
+
+## 5) Language Guide
+
+### 5.1 Required Root
+Every script starts with:
+
+```sculpt
+module(App)
+  ...
+end
+```
+
+Dot-qualified module paths are supported for domain namespacing:
+
+```sculpt
+module(Billing.Account.Invoice)
+```
+
+### 5.2 Core Blocks
+- `flow(name)`: state flow graph
+- `state(name)`: named state inside a flow
+- `state()`: global state storage
+- `rule(name, ...)`: deterministic rule block
+- `nd(name, ...)`: non-deterministic solution block
+
+### 5.3 State Transitions
+
+```sculpt
+start > Title
+on key(Enter) > Menu
+```
+
+The transition symbol is always `>`.
+
+### 5.4 Rules
+Rules use `on ...` or `when ...` triggers and deterministic actions:
+
+```sculpt
+rule(tick)
+  on tick
+    counter += 1
+  end
+end
+```
+
+### 5.5 ND Blocks
+ND blocks define candidate generation and hard constraints:
+
+```sculpt
+nd(layoutPlan)
+  propose layout(type: "rooms")
+  satisfy(
+    insideBounds(width: 10, height: 5),
+    noOverlap(),
+    reachablePathExists()
+  )
+end
+```
+
+`propose` expands the space; `satisfy` narrows it.
+
+## 6) Meta Configuration In Code
+Use `@meta` for non-logic compile hints:
+
+```sculpt
+@meta target=gui
+@meta layout=explicit
+@meta strict_scopes=true
+```
+
+Typical uses:
+- target defaults
+- layout mode requirements
+- strict scope checks
+
+## 7) Providers
+
+### 7.1 LLM Providers
+Supported providers:
+- `openai`
+- `anthropic`
+- `gemini`
+- `stub`
+
+Provider selection order:
+1. CLI flag (`--provider`)
+2. `sculpt.config.json` default provider
+
+`--model` overrides provider default model.
+
+### 7.2 Target Providers
+Built-in targets:
+- `cli`
+- `gui`
+- `web`
+
+Target providers are responsible for deterministic build execution and run descriptor behavior.
+
+## 8) Debugging
+Use:
+
+```bash
+sculpt build app.sculpt --target cli --debug
+```
+
+Levels:
+- `compact`
+- `raw`
+- `all`
+- `json`
+
+`--debug` helps inspect IR flow and provider output when build quality is not as expected.
+
+## 9) Team-Scale Conventions
+For larger projects:
+- Use domain-first module paths (`Billing.*`, `Gameplay.*`, `UI.*`).
+- Keep flows focused and avoid monolithic scripts.
+- Lock important builds with `freeze`.
+- Use replay in CI to verify deterministic regeneration.
+- Enforce strict scopes (`@meta strict_scopes=true`) in critical modules.
+
+## 10) Recommended Workflow
+1. Start from a small deterministic baseline.
+2. Introduce ND blocks only where useful.
+3. Add constraints early to keep ND bounded.
+4. Build frequently and inspect `nondet.report`.
+5. Freeze stable milestones.
+6. Replay in CI and before release.
+
+## 11) Where To Go Next
+- Syntax reference: `/Users/cwendler/Dev/App/sculpt/SCULPT_Syntax_Manifest.md`
+- Semantics reference: `/Users/cwendler/Dev/App/sculpt/SCULPT_Semantics.md`
+- Namespace/scopes: `/Users/cwendler/Dev/App/sculpt/SCULPT_Namespaces_And_Scopes.md`
+- Professional-grade roadmap: `/Users/cwendler/Dev/App/sculpt/SCULPT_Professional_Grade_Blueprint.md`
+- Active backlog: `/Users/cwendler/Dev/App/sculpt/SCULPT_Backlog.md`

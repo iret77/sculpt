@@ -21,7 +21,7 @@ impl Parser {
     let meta = self.parse_meta_headers()?;
     self.expect_keyword(Keyword::Module)?;
     self.expect(TokenKind::LParen)?;
-    let name = self.expect_ident()?;
+    let name = self.parse_qualified_ident()?;
     self.expect(TokenKind::RParen)?;
     let mut items = Vec::new();
     self.consume_newlines();
@@ -109,7 +109,7 @@ impl Parser {
   fn parse_flow(&mut self) -> Result<Flow> {
     self.expect_keyword(Keyword::Flow)?;
     self.expect(TokenKind::LParen)?;
-    let name = self.expect_ident()?;
+    let name = self.parse_qualified_ident()?;
     self.expect(TokenKind::RParen)?;
     let mut start = None;
     let mut states = Vec::new();
@@ -119,7 +119,7 @@ impl Parser {
       if self.check_keyword(Keyword::Start) {
         self.expect_keyword(Keyword::Start)?;
         self.expect_transition()?;
-        let target = self.expect_ident()?;
+        let target = self.parse_qualified_ident()?;
         start = Some(target);
       } else if self.check_keyword(Keyword::State) {
         states.push(self.parse_state_block(true)?);
@@ -187,11 +187,11 @@ impl Parser {
         self.expect_keyword(Keyword::On)?;
         let event = self.parse_call()?;
         self.expect_transition()?;
-        let target = self.expect_ident()?;
+        let target = self.parse_qualified_ident()?;
         statements.push(StateStmt::On { event, target });
       } else if allow_actions && self.check_keyword(Keyword::Run) {
         self.expect_keyword(Keyword::Run)?;
-        let flow = self.expect_ident()?;
+        let flow = self.parse_qualified_ident()?;
         statements.push(StateStmt::Run { flow });
       } else if allow_actions && self.check_keyword(Keyword::Terminate) {
         self.expect_keyword(Keyword::Terminate)?;
@@ -229,7 +229,7 @@ impl Parser {
       }
       if self.check_keyword(Keyword::Emit) {
         self.expect_keyword(Keyword::Emit)?;
-        let event = self.expect_ident()?;
+        let event = self.parse_qualified_ident()?;
         body.push(RuleStmt::Emit { event });
       } else {
         let stmt = self.parse_rule_assignment()?;
@@ -256,11 +256,15 @@ impl Parser {
     self.expect_keyword(Keyword::Satisfy)?;
     self.expect(TokenKind::LParen)?;
     let mut constraints = Vec::new();
+    self.consume_newlines();
     if !self.check(TokenKind::RParen) {
       loop {
+        self.consume_newlines();
         constraints.push(self.parse_call()?);
+        self.consume_newlines();
         if self.check(TokenKind::Comma) {
           self.advance();
+          self.consume_newlines();
           continue;
         }
         break;
@@ -353,7 +357,7 @@ impl Parser {
   }
 
   fn parse_call_or_ident(&mut self) -> Result<Expr> {
-    let name = self.expect_ident()?;
+    let name = self.parse_qualified_ident()?;
     if self.check(TokenKind::LParen) {
       let args = self.parse_arg_list()?;
       Ok(Expr::Call(Call { name, args }))
@@ -363,7 +367,7 @@ impl Parser {
   }
 
   fn parse_call(&mut self) -> Result<Call> {
-    let name = self.expect_ident()?;
+    let name = self.parse_qualified_ident()?;
     let args = if self.check(TokenKind::LParen) {
       self.parse_arg_list()?
     } else {
@@ -373,7 +377,7 @@ impl Parser {
   }
 
   fn parse_command_call(&mut self) -> Result<Call> {
-    let name = self.expect_ident()?;
+    let name = self.parse_qualified_ident()?;
     if self.check(TokenKind::LParen) {
       let args = self.parse_arg_list()?;
       return Ok(Call { name, args });
@@ -401,7 +405,7 @@ impl Parser {
 
   fn parse_named_param_list(&mut self) -> Result<(String, Vec<String>)> {
     self.expect(TokenKind::LParen)?;
-    let name = self.expect_ident()?;
+    let name = self.parse_qualified_ident()?;
     let mut params = Vec::new();
     if self.check(TokenKind::Comma) {
       self.advance();
@@ -416,6 +420,17 @@ impl Parser {
     }
     self.expect(TokenKind::RParen)?;
     Ok((name, params))
+  }
+
+  fn parse_qualified_ident(&mut self) -> Result<String> {
+    let mut name = self.expect_ident()?;
+    while self.check(TokenKind::Dot) {
+      self.advance();
+      let segment = self.expect_ident()?;
+      name.push('.');
+      name.push_str(&segment);
+    }
+    Ok(name)
   }
 
   fn parse_arg_list(&mut self) -> Result<Vec<CallArg>> {

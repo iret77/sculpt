@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.1.0
-- Initial research compiler
+- Initial compiler release
 - Parser + AST for SCULPT syntax
 - AI-backed build pipeline with target IR
 - Built-in targets: cli, gui, web

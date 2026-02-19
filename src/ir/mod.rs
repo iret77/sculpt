@@ -6,6 +6,8 @@ use serde_json::{Map, Value};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IrModule {
   pub name: String,
+  pub namespace: Vec<String>,
+  pub fqns: Vec<String>,
   pub meta: std::collections::HashMap<String, String>,
   pub flows: Vec<IrFlow>,
   pub global_state: Vec<ast::StateStmt>,
@@ -21,25 +23,54 @@ pub struct IrFlow {
 }
 
 pub fn from_ast(module: ast::Module) -> IrModule {
+  let module_name = module.name.clone();
   let mut flows = Vec::new();
   let mut global_state = Vec::new();
   let mut rules = Vec::new();
   let mut nd_blocks = Vec::new();
+  let mut fqns = Vec::new();
+  fqns.push(module_name.clone());
 
   for item in module.items {
     match item {
       ast::Item::Flow(flow) => {
+        let flow_fqn = format!("{}.{}", module_name, flow.name);
+        fqns.push(flow_fqn.clone());
+        for state in &flow.states {
+          if let Some(name) = &state.name {
+            fqns.push(format!("{flow_fqn}.{}", name));
+          }
+        }
         flows.push(IrFlow { name: flow.name, start: flow.start, states: flow.states });
       }
       ast::Item::GlobalState(state) => {
+        for stmt in &state.statements {
+          if let ast::StateStmt::Assign { target, .. } = stmt {
+            fqns.push(format!("{}.global.{}", module_name, target));
+          }
+        }
         global_state.extend(state.statements);
       }
-      ast::Item::Rule(rule) => rules.push(rule),
+      ast::Item::Rule(rule) => {
+        fqns.push(format!("{}.{}", module_name, rule.name));
+        rules.push(rule)
+      }
       ast::Item::Nd(nd) => nd_blocks.push(nd),
     }
   }
+  fqns.sort();
+  fqns.dedup();
 
-  IrModule { name: module.name, meta: module.meta, flows, global_state, rules, nd_blocks }
+  IrModule {
+    name: module.name.clone(),
+    namespace: module.name.split('.').map(|s| s.to_string()).collect(),
+    fqns,
+    meta: module.meta,
+    flows,
+    global_state,
+    rules,
+    nd_blocks,
+  }
 }
 
 pub fn canonical_json(value: &Value) -> Value {

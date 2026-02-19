@@ -15,6 +15,7 @@ pub enum TokenKind {
   RParen,
   Comma,
   Colon,
+  Dot,
   Newline,
   Eof,
 }
@@ -121,6 +122,11 @@ pub fn lex(input: &str) -> Result<Vec<Token>> {
       ',' => {
         chars.next();
         tokens.push(Token { kind: TokenKind::Comma, line, col });
+        col += 1;
+      }
+      '.' => {
+        chars.next();
+        tokens.push(Token { kind: TokenKind::Dot, line, col });
         col += 1;
       }
       ':' => {

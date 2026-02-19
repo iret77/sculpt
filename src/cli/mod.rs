@@ -15,6 +15,7 @@ use crate::freeze::{create_lock, read_lock, verify_lock, write_lock};
 use crate::ir::{from_ast, to_pretty_json, IrModule};
 use crate::parser::parse_source;
 use crate::report::generate_report;
+use crate::semantics::{format_diagnostics, validate_module};
 use crate::target_ir::{from_json_value, TargetIr};
 use crate::targets::{
   emit_cli,
@@ -482,9 +483,7 @@ fn build(
   debug: Option<String>,
 ) -> Result<()> {
   let started = Instant::now();
-  let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
-  let module = parse_source(&src)?;
-  let ir = from_ast(module);
+  let ir = load_ir(input)?;
   let target = resolve_target_from_meta(target, &ir)?;
   let layout_required = enforce_meta(&ir, &target)?;
   let ir_json = to_pretty_json(&ir)?;
@@ -612,9 +611,7 @@ fn freeze(
   debug: Option<String>,
 ) -> Result<()> {
   let started = Instant::now();
-  let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
-  let module = parse_source(&src)?;
-  let ir = from_ast(module);
+  let ir = load_ir(input)?;
   let target = resolve_target_from_meta(target, &ir)?;
   let layout_required = enforce_meta(&ir, &target)?;
   let nondet = generate_report(&ir);
@@ -738,9 +735,7 @@ fn freeze(
 
 fn replay(input: &Path, target: Option<&str>) -> Result<()> {
   let started = Instant::now();
-  let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
-  let module = parse_source(&src)?;
-  let ir = from_ast(module);
+  let ir = load_ir(input)?;
   let target = resolve_target_from_meta(target, &ir)?;
   let layout_required = enforce_meta(&ir, &target)?;
   print_unified_header("Replay", &target, input, None);
@@ -1206,6 +1201,10 @@ fn auth_check(provider: &str, verify: bool) -> Result<()> {
 fn load_ir(input: &Path) -> Result<crate::ir::IrModule> {
   let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
   let module = parse_source(&src)?;
+  let diagnostics = validate_module(&module);
+  if !diagnostics.is_empty() {
+    bail!("Semantic validation failed:\n{}", format_diagnostics(&diagnostics));
+  }
   Ok(from_ast(module))
 }
 
