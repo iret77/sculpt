@@ -49,6 +49,10 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Command {
   Examples,
+  Gate {
+    #[command(subcommand)]
+    cmd: GateCommand,
+  },
   Auth {
     #[command(subcommand)]
     cmd: AuthCommand,
@@ -110,6 +114,13 @@ pub enum TargetCommand {
 }
 
 #[derive(Subcommand)]
+pub enum GateCommand {
+  Check {
+    gate_file: PathBuf,
+  },
+}
+
+#[derive(Subcommand)]
 pub enum AuthCommand {
   Check {
     #[arg(long, default_value = "openai")]
@@ -149,6 +160,9 @@ pub fn run() -> Result<()> {
   let cli = Cli::parse();
   match cli.cmd {
     Command::Examples => write_examples(),
+    Command::Gate { cmd } => match cmd {
+      GateCommand::Check { gate_file } => gate_check(&gate_file),
+    },
     Command::Auth { cmd } => match cmd {
       AuthCommand::Check { provider, verify } => auth_check(&provider, verify),
     },
@@ -166,6 +180,23 @@ pub fn run() -> Result<()> {
     Command::Run { input, target } => run_cmd(&input, target.as_deref()),
     Command::Clean { input, all } => clean_cmd(input.as_deref(), all),
   }
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GateSpec {
+  name: String,
+  study: Option<String>,
+  criteria: Vec<GateCriterion>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GateCriterion {
+  id: String,
+  description: String,
+  sculpt: f64,
+  vibe: f64,
+  operator: String,
+  min_delta: Option<f64>,
 }
 
 fn write_examples() -> Result<()> {
@@ -1124,6 +1155,114 @@ fn target_list() -> Result<()> {
   Ok(())
 }
 
+fn gate_check(gate_file: &Path) -> Result<()> {
+  let raw = fs::read_to_string(gate_file)
+    .with_context(|| format!("Failed to read gate file {}", gate_file.display()))?;
+  let spec: GateSpec = serde_json::from_str(&raw)
+    .with_context(|| format!("Invalid gate JSON in {}", gate_file.display()))?;
+
+  println!();
+  println!(
+    "{} {}",
+    style_title("SCULPT"),
+    style_title(&format!("Gate Check {}", env!("CARGO_PKG_VERSION")))
+  );
+  println!("{} {}", style_dim("Gate: "), style_dim(&spec.name));
+  println!("{} {}", style_dim("File: "), style_dim(&gate_file.display().to_string()));
+  if let Some(study) = &spec.study {
+    println!("{} {}", style_dim("Study:"), style_dim(study));
+  }
+  println!("{}", style_divider());
+
+  let mut failed = 0usize;
+  for c in &spec.criteria {
+    let result = evaluate_gate_criterion(c)?;
+    let status = if result.passed { style_title("PASS") } else { style_accent("FAIL") };
+    println!(
+      "{} {} sculpt={:.3} vibe={:.3} op={} {}",
+      style_dim(&format!("[{}]", c.id)),
+      style_dim(&c.description),
+      c.sculpt,
+      c.vibe,
+      c.operator,
+      status
+    );
+    if let Some(delta) = c.min_delta {
+      println!("  {} {:.3}", style_dim("min_delta:"), delta);
+    }
+    println!("  {} {}", style_dim("detail:"), style_dim(&result.detail));
+    if !result.passed {
+      failed += 1;
+    }
+  }
+
+  println!("{}", style_divider());
+  if failed == 0 {
+    println!("{} {}", style_title("Gate Result:"), style_title("PASS"));
+    Ok(())
+  } else {
+    bail!("Gate Result: FAIL ({} criteria failed)", failed)
+  }
+}
+
+struct GateEvalResult {
+  passed: bool,
+  detail: String,
+}
+
+fn evaluate_gate_criterion(c: &GateCriterion) -> Result<GateEvalResult> {
+  let min_delta = c.min_delta.unwrap_or(0.0);
+  let (passed, detail) = match c.operator.as_str() {
+    "sculpt_gt_vibe" => {
+      let delta = c.sculpt - c.vibe;
+      let ok = c.sculpt > c.vibe && delta >= min_delta;
+      (
+        ok,
+        format!("delta={:.3}, requires sculpt>vibe and delta>={:.3}", delta, min_delta),
+      )
+    }
+    "sculpt_gte_vibe" => {
+      let delta = c.sculpt - c.vibe;
+      let ok = c.sculpt >= c.vibe && delta >= min_delta;
+      (
+        ok,
+        format!("delta={:.3}, requires sculpt>=vibe and delta>={:.3}", delta, min_delta),
+      )
+    }
+    "sculpt_lt_vibe" => {
+      let delta = c.vibe - c.sculpt;
+      let ok = c.sculpt < c.vibe && delta >= min_delta;
+      (
+        ok,
+        format!("delta={:.3}, requires sculpt<vibe and delta>={:.3}", delta, min_delta),
+      )
+    }
+    "sculpt_lte_vibe" => {
+      let delta = c.vibe - c.sculpt;
+      let ok = c.sculpt <= c.vibe && delta >= min_delta;
+      (
+        ok,
+        format!("delta={:.3}, requires sculpt<=vibe and delta>={:.3}", delta, min_delta),
+      )
+    }
+    "equal" => {
+      let tolerance = c.min_delta.unwrap_or(0.0);
+      let diff = (c.sculpt - c.vibe).abs();
+      let ok = diff <= tolerance;
+      (
+        ok,
+        format!("abs_diff={:.3}, requires abs_diff<={:.3}", diff, tolerance),
+      )
+    }
+    other => bail!(
+      "Unsupported gate operator '{}' in criterion '{}'",
+      other,
+      c.id
+    ),
+  };
+  Ok(GateEvalResult { passed, detail })
+}
+
 fn target_describe(target: &str) -> Result<()> {
   let spec = describe_target(target)?;
   println!("{}", serde_json::to_string_pretty(&spec)?);
@@ -1512,5 +1651,33 @@ mod tests {
     assert!(ws.join("dist/b").exists());
 
     let _ = fs::remove_dir_all(ws);
+  }
+
+  #[test]
+  fn gate_eval_handles_lower_is_better_with_delta() {
+    let criterion = GateCriterion {
+      id: "G1".to_string(),
+      description: "regression count".to_string(),
+      sculpt: 1.0,
+      vibe: 4.0,
+      operator: "sculpt_lt_vibe".to_string(),
+      min_delta: Some(2.0),
+    };
+    let eval = evaluate_gate_criterion(&criterion).expect("eval");
+    assert!(eval.passed);
+  }
+
+  #[test]
+  fn gate_eval_fails_equal_when_values_differ() {
+    let criterion = GateCriterion {
+      id: "G2".to_string(),
+      description: "quality parity".to_string(),
+      sculpt: 1.0,
+      vibe: 0.0,
+      operator: "equal".to_string(),
+      min_delta: None,
+    };
+    let eval = evaluate_gate_criterion(&criterion).expect("eval");
+    assert!(!eval.passed);
   }
 }

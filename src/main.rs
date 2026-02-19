@@ -40,6 +40,7 @@ fn print_help_tui() {
     "Commands",
     &[
       " examples   write curated examples into ./examples",
+      " gate       evaluate release quality gates",
       " build      compile .sculpt to target output",
       " freeze     compile + lock deterministic output",
       " replay     build from sculpt.lock (no LLM)",
@@ -111,6 +112,31 @@ fn print_subcommand_help(cmd: &str) -> bool {
           " sculpt build examples/hello_world.sculpt --target cli",
           " sculpt build examples/native_window.sculpt --target gui",
         ],
+        accent2,
+        c,
+      );
+      true
+    }
+    "gate" => {
+      print_header();
+      print_box(
+        "Usage",
+        &[" sculpt gate check <gate.json>"],
+        accent2,
+        c,
+      );
+      print_box(
+        "Behavior",
+        &[
+          " Evaluates pre-registered quality criteria from JSON gate files.",
+          " Exits non-zero if one or more criteria fail.",
+        ],
+        accent2,
+        c,
+      );
+      print_box(
+        "Example",
+        &[" sculpt gate check poc/gates/incident_triage_vibe_gate.json"],
         accent2,
         c,
       );

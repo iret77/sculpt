@@ -110,3 +110,8 @@ If one or more fail:
   - Add token usage metrics to make cost comparison explicit.
   - Repeat this benchmark with one data-heavy task to test boundary conditions.
   - Expand case-study set and keep strict pre-registered gates.
+
+## 8) Gate Artifact
+- Gate file: [poc/gates/incident_triage_vibe_gate.json](gates/incident_triage_vibe_gate.json)
+- Verification command:
+  - `sculpt gate check poc/gates/incident_triage_vibe_gate.json`

@@ -19,6 +19,7 @@
 ## Current Takeaway
 - The first case study validates that SCULPT can produce practical results on real workflow tasks.
 - The strict SCULPT-vs-vibe benchmark shows a clear SCULPT advantage for this workflow-centric case.
+- The benchmark now has a machine-checkable release gate file for reproducibility and strict pass/fail validation.
 - Next validation step should challenge SCULPT with a more data-heavy task before broader claims.
 
 ## Method Template

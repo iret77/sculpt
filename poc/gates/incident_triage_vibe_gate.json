@@ -1,0 +1,45 @@
+{
+  "name": "incident_triage_vibe_gate_v1",
+  "study": "poc/SCULPT_vs_Vibe_Incident_Triage.md",
+  "criteria": [
+    {
+      "id": "G1",
+      "description": "Reproducibility is clearly higher",
+      "sculpt": 5,
+      "vibe": 0,
+      "operator": "sculpt_gt_vibe",
+      "min_delta": 1
+    },
+    {
+      "id": "G2",
+      "description": "Regression count is lower",
+      "sculpt": 0,
+      "vibe": 3,
+      "operator": "sculpt_lt_vibe",
+      "min_delta": 1
+    },
+    {
+      "id": "G3",
+      "description": "Iterations to accepted result are lower",
+      "sculpt": 3,
+      "vibe": 6,
+      "operator": "sculpt_lt_vibe",
+      "min_delta": 1
+    },
+    {
+      "id": "G4",
+      "description": "Developer UX score is clearly better",
+      "sculpt": 36,
+      "vibe": 21,
+      "operator": "sculpt_gt_vibe",
+      "min_delta": 5
+    },
+    {
+      "id": "G5",
+      "description": "Final acceptance quality is at least equal",
+      "sculpt": 1,
+      "vibe": 1,
+      "operator": "sculpt_gte_vibe"
+    }
+  ]
+}

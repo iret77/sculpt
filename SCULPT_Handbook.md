@@ -63,6 +63,9 @@ Removes script-specific artifacts or the whole `dist/`.
 ### `sculpt auth check --provider <name> [--verify]`
 Checks provider auth configuration, optionally verifies with API call.
 
+### `sculpt gate check <gate.json>`
+Evaluates pre-registered release quality gates and returns non-zero on failure.
+
 ## 4) Build vs Freeze vs Replay
 - **Build**: regular compile path, typically LLM-backed.
 - **Freeze**: build + lock deterministic replay input.
