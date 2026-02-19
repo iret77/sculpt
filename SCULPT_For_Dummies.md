@@ -9,7 +9,7 @@ It is a practical "how do I get useful results fast?" guide for developers.
 - You do not write every implementation detail.
 - You write intent, flow, and constraints.
 - SCULPT compiles that into target IR with an LLM.
-- Target providers build deterministic output.
+- Target providers build a stable, runnable result.
 
 Think: less "how to code each line", more "what this software must do and how strict it should be."
 
@@ -20,24 +20,27 @@ Use SCULPT when:
 - You want clear constraints instead of long prose prompts.
 
 Do not start with SCULPT when:
-- You need very low-level deterministic control from line 1.
-- You already have a stable, mature deterministic codebase for the exact same task.
+- You need very low-level, exact step-by-step control from line 1.
+- You already have a stable, mature codebase for the exact same task.
 
 ## 3) Mental Workflow
 Use this loop every time:
 1. Define the module and flow.
 2. Add only essential states and transitions.
-3. Add rules for deterministic updates.
+3. Add rules for clear, predictable updates.
 4. Add ND blocks only where needed.
 5. Add constraints early.
 6. Build, run, inspect, refine.
 7. Freeze when stable.
 
+`ND` means: you do not force one exact implementation.
+You define what must be true, and SCULPT+LLM find a valid solution within those limits.
+
 ## 4) Minimal Building Blocks
 - `module(...)`: root container.
 - `flow(...)`: app flow (screens/states).
 - `state(...)`: one step/screen.
-- `rule(...)`: deterministic logic.
+- `rule(...)`: clear, predictable logic.
 - `nd(...)`: controlled non-determinism.
 - `@meta`: compile-time controls (`target`, convergence, strictness).
 
