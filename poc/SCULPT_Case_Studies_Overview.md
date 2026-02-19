@@ -7,7 +7,7 @@
 | Case Study | Comparison Type | Fairness (Apple-vs-Apple) | SCULPT Pros (Condensed) | SCULPT Cons (Condensed) | Verdict | Details |
 |---|---|---|---|---|---|---|
 | Incident Triage Assistant (Completed) | SCULPT vs classical TypeScript implementation | Medium | Strong flow modeling, compact intent expression, convergence reporting (`nd_budget`, `confidence`, ND score) | Depends on LLM compile quality/latency, less direct low-level deterministic control | Useful but not universal: good for flow-centric workflows, weaker for implementation-heavy deterministic logic | [POC Incident Triage Report](POC_Incident_Triage_Report.md) |
-| Incident Triage Assistant (Strict rerun completed) | SCULPT vs prompt-first vibe coding | High (target benchmark for SCULPT category) | Clear reproducibility lead (`5/5` stable output hash), fewer corrective iterations, stronger control/readability in dev workflow | Still depends on LLM compile latency; token-cost comparison not complete yet | **Go**: SCULPT clearly outperformed vibe coding on this task | [SCULPT vs Vibe: Incident Triage](SCULPT_vs_Vibe_Incident_Triage.md) |
+| Incident Triage Assistant (Strict rerun completed) | SCULPT vs prompt-first vibe coding | High (target benchmark for SCULPT category) | Clear reproducibility lead (`5/5` stable output hash), fewer corrective iterations, stronger control/readability, much smaller source (`76` vs `204` LOC) | Still depends on LLM compile latency; token-cost comparison not complete yet | **Go**: SCULPT clearly outperformed vibe coding on this task | [SCULPT vs Vibe: Incident Triage](SCULPT_vs_Vibe_Incident_Triage.md) |
 
 ## Fairness Note
 

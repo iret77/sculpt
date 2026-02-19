@@ -47,6 +47,7 @@ Actual artifacts:
 
 | Metric | SCULPT | Vibe | Winner | Notes |
 |---|---:|---:|---|---|
+| Source size (lines of code) | 76 | 204 | SCULPT | SCULPT script is ~2.7x shorter for this accepted solution scope. |
 | Time to first working version (min) | 0.48 | 2.62 | SCULPT | SCULPT first successful build in 28.78s. Vibe required 6 prompt iterations to compile cleanly. |
 | Time to accepted final version (min) | 1.82 | 2.62 | SCULPT | SCULPT baseline + CR1 + CR2 build cycles. Vibe reached accepted code after iterative fixes. |
 | Iterations until accepted | 3 | 6 | SCULPT | SCULPT: baseline + 2 change passes. Vibe: 6 LLM code iterations. |
@@ -94,6 +95,7 @@ If one or more fail:
 
 ### Why SCULPT Won / Lost
 - SCULPT won on determinism, consistency, and structured refinement.
+- SCULPT also won on implementation compactness (`76` vs `204` lines), reducing authoring/editing surface.
 - Vibe coding was competitive for quick change injection, but weaker on output stability.
 
 ### Concrete Learnings
