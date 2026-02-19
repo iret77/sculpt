@@ -27,19 +27,19 @@ for today’s constraints without sacrificing tomorrow’s capability.
   - `gui` currently generates a macOS SwiftUI app via SwiftPM.
 
 ## Start Here
-- `/Users/cwendler/Dev/App/sculpt/SCULPT_Quick_Start.md`
-- `/Users/cwendler/Dev/App/sculpt/SCULPT_Handbook.md`
+- `SCULPT_Quick_Start.md`
+- `SCULPT_Handbook.md`
 
 ## Documentation Map
 To keep documentation consistent, each document has one clear purpose:
 
-- `/Users/cwendler/Dev/App/sculpt/SCULPT_Quick_Start.md`: installation, first build, first run.
-- `/Users/cwendler/Dev/App/sculpt/SCULPT_Handbook.md`: practical guide to compiler workflow and language usage.
-- `/Users/cwendler/Dev/App/sculpt/SCULPT_Syntax_Manifest.md`: syntax only (grammar-level rules).
-- `/Users/cwendler/Dev/App/sculpt/SCULPT_Semantics.md`: runtime/validation semantics and diagnostic model.
-- `/Users/cwendler/Dev/App/sculpt/SCULPT_Namespaces_And_Scopes.md`: namespace model, symbol resolution, and scope policy.
-- `/Users/cwendler/Dev/App/sculpt/SCULPT_Professional_Grade_Blueprint.md`: roadmap for large multi-team systems.
-- `/Users/cwendler/Dev/App/sculpt/SCULPT_Backlog.md`: prioritized implementation backlog.
+- `SCULPT_Quick_Start.md`: installation, first build, first run.
+- `SCULPT_Handbook.md`: practical guide to compiler workflow and language usage.
+- `SCULPT_Syntax_Manifest.md`: syntax only (grammar-level rules).
+- `SCULPT_Semantics.md`: runtime/validation semantics and diagnostic model.
+- `SCULPT_Namespaces_And_Scopes.md`: namespace model, symbol resolution, and scope policy.
+- `SCULPT_Professional_Grade_Blueprint.md`: roadmap for large multi-team systems.
+- `SCULPT_Backlog.md`: prioritized implementation backlog.
 
 ## License
 MIT

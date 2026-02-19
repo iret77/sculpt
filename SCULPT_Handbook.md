@@ -9,7 +9,7 @@ This handbook explains how to work with SCULPT as a developer:
 - how to structure projects for team-scale software.
 
 This is a practical guide.  
-For strict normative rules, see the dedicated specification documents listed in `/Users/cwendler/Dev/App/sculpt/README.md`.
+For strict normative rules, see the dedicated specification documents listed in `README.md`.
 
 ## 1) Mental Model
 SCULPT is a convergent language:
@@ -199,8 +199,8 @@ For larger projects:
 6. Replay in CI and before release.
 
 ## 11) Where To Go Next
-- Syntax reference: `/Users/cwendler/Dev/App/sculpt/SCULPT_Syntax_Manifest.md`
-- Semantics reference: `/Users/cwendler/Dev/App/sculpt/SCULPT_Semantics.md`
-- Namespace/scopes: `/Users/cwendler/Dev/App/sculpt/SCULPT_Namespaces_And_Scopes.md`
-- Professional-grade roadmap: `/Users/cwendler/Dev/App/sculpt/SCULPT_Professional_Grade_Blueprint.md`
-- Active backlog: `/Users/cwendler/Dev/App/sculpt/SCULPT_Backlog.md`
+- Syntax reference: `SCULPT_Syntax_Manifest.md`
+- Semantics reference: `SCULPT_Semantics.md`
+- Namespace/scopes: `SCULPT_Namespaces_And_Scopes.md`
+- Professional-grade roadmap: `SCULPT_Professional_Grade_Blueprint.md`
+- Active backlog: `SCULPT_Backlog.md`

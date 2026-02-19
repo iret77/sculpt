@@ -38,7 +38,7 @@ Use one of:
 - `ANTHROPIC_API_KEY`
 
 Optional config file:
-`/Users/cwendler/Dev/App/sculpt/sculpt.config.json`
+`sculpt.config.json`
 
 Example:
 
@@ -97,4 +97,4 @@ sculpt build <file.sculpt> --target cli --debug=all
 ```
 
 For full command reference and workflow details, see:
-- `/Users/cwendler/Dev/App/sculpt/SCULPT_Handbook.md`
+- `SCULPT_Handbook.md`
