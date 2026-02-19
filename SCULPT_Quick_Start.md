@@ -99,4 +99,4 @@ sculpt build <file.sculpt> --target cli --debug=all
 ```
 
 For full command reference and workflow details, see:
-- `SCULPT_Handbook.md`
+- [SCULPT Handbook](SCULPT_Handbook.md)

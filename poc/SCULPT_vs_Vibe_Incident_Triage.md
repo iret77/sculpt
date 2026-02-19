@@ -33,15 +33,15 @@
   - `sculpt run examples/incident_triage_assistant.sculpt --target cli`
 
 ### B) Vibe Coding (Prompt-First)
-- Prompt log path: `poc/vibe_prompts_incident_triage.md` (to be created during run)
+- Prompt log path: [poc/vibe_prompts_incident_triage.md](vibe_prompts_incident_triage.md) (to be created during run)
 - Generated code path: `poc/vibe_incident_triage_*` (to be captured during run)
 - Build/run commands: `(captured during run)`
 
 Actual artifacts:
-- Prompt + iteration history: `poc/vibe_prompts_incident_triage.md`
-- Iteration latency metrics: `poc/vibe_metrics.json`
-- Reproducibility runs: `poc/vibe_repro_metrics.json`
-- Final generated source: `poc/vibe_incident_triage.ts`
+- Prompt + iteration history: [poc/vibe_prompts_incident_triage.md](vibe_prompts_incident_triage.md)
+- Iteration latency metrics: [poc/vibe_metrics.json](vibe_metrics.json)
+- Reproducibility runs: [poc/vibe_repro_metrics.json](vibe_repro_metrics.json)
+- Final generated source: [poc/vibe_incident_triage.ts](vibe_incident_triage.ts)
 
 ## 4) Hard Metrics
 
