@@ -42,6 +42,9 @@ Use one of:
 Optional config file:
 `sculpt.config.json`
 
+You can start from:
+`sculpt.config.example.json`
+
 Example:
 
 ```json

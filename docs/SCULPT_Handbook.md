@@ -9,7 +9,7 @@ This handbook explains how to work with SCULPT as a developer:
 - how to structure projects for team-scale software.
 
 This is a practical guide.  
-For strict normative rules, see the dedicated specification documents listed in [README](README.md).
+For strict normative rules, see the dedicated specification documents listed in [Docs Index](README.md).
 
 ## 1) Mental Model
 SCULPT is a convergent language:

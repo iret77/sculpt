@@ -39,24 +39,14 @@ SCULPT targets that gap:
     - Windows/Linux: Python Tkinter desktop app (MVP parity path)
 
 ## Start Here
-- [SCULPT Quick Start](SCULPT_Quick_Start.md)
-- [SCULPT For Dummies](SCULPT_For_Dummies.md)
-- [SCULPT Handbook](SCULPT_Handbook.md)
+- [SCULPT Quick Start](docs/SCULPT_Quick_Start.md)
+- [SCULPT For Dummies](docs/SCULPT_For_Dummies.md)
+- [SCULPT Handbook](docs/SCULPT_Handbook.md)
 - [SCULPT Case Studies Overview](poc/SCULPT_Case_Studies_Overview.md)
 
 ## Documentation Map
-To keep documentation consistent, each document has one clear purpose:
-
-- [SCULPT Quick Start](SCULPT_Quick_Start.md): installation, first build, first run.
-- [SCULPT For Dummies](SCULPT_For_Dummies.md): practical cookbook-style guide for fast productive usage.
-- [SCULPT Handbook](SCULPT_Handbook.md): practical guide to compiler workflow and language usage.
-- [SCULPT Syntax Manifest](SCULPT_Syntax_Manifest.md): syntax only (grammar-level rules).
-- [SCULPT Semantics](SCULPT_Semantics.md): runtime/validation semantics and diagnostic model.
-- [SCULPT Target References](SCULPT_Targets_Reference.md): target-specific functions, events, and practical limits for `cli`, `gui`, and `web`.
-- [SCULPT Namespaces and Scopes](SCULPT_Namespaces_And_Scopes.md): namespace model, symbol resolution, and scope policy.
-- [SCULPT Target Model](SCULPT_Target_Model.md): intent/runtime/provider architecture for future-proof targets.
-- [SCULPT Professional-Grade Blueprint](SCULPT_Professional_Grade_Blueprint.md): roadmap for large multi-team systems.
-- [SCULPT Backlog](SCULPT_Backlog.md): prioritized implementation backlog.
+Documentation has been moved under `/docs` for easier navigation:
+- [Docs Index](docs/README.md)
 
 ## License
 MIT
