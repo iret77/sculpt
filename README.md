@@ -42,6 +42,9 @@ SCULPT targets that gap:
 - `SCULPT_Quick_Start.md`
 - `SCULPT_Handbook.md`
 - `poc/POC_Incident_Triage_Report.md`
+- `poc/SCULPT_Case_Studies_Overview.md`
+- `poc/SCULPT_vs_Vibe_Case_Study_Template.md`
+- `poc/SCULPT_vs_Vibe_Incident_Triage.md`
 
 ## Documentation Map
 To keep documentation consistent, each document has one clear purpose:
