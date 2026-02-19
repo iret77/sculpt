@@ -7,7 +7,7 @@
 SCULPT is an AI-first compiler and language for convergent programming.
 You write structured non-deterministic code, the compiler narrows it via constraints, an LLM generates target IR, and target providers build deterministic outputs.
 
-**AI‑first, but human‑centered:** build *by* AI, build *with* AI, build *for* humans.
+**AI‑first, but human‑centered:** built *by* AI, built *with* AI, built *for* humans.
 
 ## What This Repository Contains
 - Rust CLI compiler (`sculpt`)
