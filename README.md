@@ -24,7 +24,9 @@ for today’s constraints without sacrificing tomorrow’s capability.
 ## Status
 - CLI compiler with LLM-backed build pipeline.
 - Built-in targets: `cli`, `gui`, `web`.
-  - `gui` currently generates a macOS SwiftUI app via SwiftPM.
+  - `gui` builds:
+    - macOS: native SwiftUI app (SwiftPM)
+    - Windows/Linux: Python Tkinter desktop app (MVP parity path)
 
 ## Start Here
 - `SCULPT_Quick_Start.md`
@@ -38,6 +40,7 @@ To keep documentation consistent, each document has one clear purpose:
 - `SCULPT_Syntax_Manifest.md`: syntax only (grammar-level rules).
 - `SCULPT_Semantics.md`: runtime/validation semantics and diagnostic model.
 - `SCULPT_Namespaces_And_Scopes.md`: namespace model, symbol resolution, and scope policy.
+- `SCULPT_Target_Model.md`: intent/runtime/provider architecture for future-proof targets.
 - `SCULPT_Professional_Grade_Blueprint.md`: roadmap for large multi-team systems.
 - `SCULPT_Backlog.md`: prioritized implementation backlog.
 

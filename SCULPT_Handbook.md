@@ -130,6 +130,16 @@ end
 
 `propose` expands the space; `satisfy` narrows it.
 
+### 5.6 Comments
+SCULPT supports line comments with `#` or `;`.
+
+```sculpt
+# This is a comment
+; This is also a comment
+```
+
+Use comments for intent and constraints, not for repeating obvious code.
+
 ## 6) Meta Configuration In Code
 Use `@meta` for non-logic compile hints:
 
@@ -139,10 +149,30 @@ Use `@meta` for non-logic compile hints:
 @meta strict_scopes=true
 ```
 
-Typical uses:
-- target defaults
-- layout mode requirements
-- strict scope checks
+You can set one key per line, or multiple key-value pairs in one line:
+
+```sculpt
+@meta target=gui layout=explicit
+```
+
+### 6.1 Supported Meta Keys (Current)
+- `target`: default target for this script (`cli`, `gui`, `web`).
+- `layout`: currently `explicit` is used for GUI flows that require explicit layout data.
+- `strict_scopes`: enables stricter shadowing checks in semantic validation.
+
+### 6.2 How Meta Interacts With CLI Flags
+- CLI flags have highest priority (for example `--target` overrides `@meta target=...`).
+- If `--target` is omitted, the compiler uses `@meta target` when present.
+- If neither is set, build commands fail with a target-required error.
+
+### 6.3 Practical Examples
+- Stable script-level target:
+  - `@meta target=cli`
+- GUI-specific constraint:
+  - `@meta target=gui`
+  - `@meta layout=explicit`
+- Strict validation for critical modules:
+  - `@meta strict_scopes=true`
 
 ## 7) Providers
 
@@ -166,6 +196,10 @@ Built-in targets:
 - `web`
 
 Target providers are responsible for deterministic build execution and run descriptor behavior.
+
+Current `gui` backend by OS:
+- macOS: native SwiftUI build via SwiftPM.
+- Windows/Linux: Python Tkinter desktop build (initial cross-platform parity path).
 
 ## 8) Debugging
 Use:
@@ -202,5 +236,6 @@ For larger projects:
 - Syntax reference: `SCULPT_Syntax_Manifest.md`
 - Semantics reference: `SCULPT_Semantics.md`
 - Namespace/scopes: `SCULPT_Namespaces_And_Scopes.md`
+- Target architecture: `SCULPT_Target_Model.md`
 - Professional-grade roadmap: `SCULPT_Professional_Grade_Blueprint.md`
 - Active backlog: `SCULPT_Backlog.md`

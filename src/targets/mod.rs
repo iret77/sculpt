@@ -11,6 +11,15 @@ use crate::codegen::web::generate_web_js;
 use crate::ir::{to_pretty_json, IrModule};
 use crate::target_ir::TargetIr;
 
+struct GuiViewData {
+  text_views: Vec<(String, String, Option<String>)>,
+  button_label: String,
+  show_ok_modal: bool,
+  window_title: String,
+  width: i64,
+  height: i64,
+}
+
 pub enum TargetKind {
   Cli,
   Web,
@@ -91,6 +100,14 @@ pub fn emit_web(target: &TargetIr, out_dir: &Path) -> Result<()> {
 }
 
 pub fn emit_gui(target: &TargetIr, out_dir: &Path) -> Result<()> {
+  let data = extract_gui_view_data(target);
+  match std::env::consts::OS {
+    "macos" => emit_gui_macos_swift(target, out_dir, &data),
+    _ => emit_gui_tkinter(out_dir, &data),
+  }
+}
+
+fn emit_gui_macos_swift(target: &TargetIr, out_dir: &Path, data: &GuiViewData) -> Result<()> {
   let app_dir = out_dir.join("gui");
   let sources_dir = app_dir.join("Sources");
   std::fs::create_dir_all(&sources_dir)?;
@@ -112,40 +129,10 @@ let package = Package(
   std::fs::write(app_dir.join("Package.swift"), package)?;
 
   let view_name = target.flow.start.clone();
-  let items = target.views.get(&view_name).cloned().unwrap_or_default();
-  let mut text_views: Vec<(String, String, Option<String>)> = Vec::new();
-  let mut button_label = None;
-  let mut button_action = None;
-
-  for item in items {
-    match item.kind.as_str() {
-      "text" => {
-        if let Some(text) = item.text {
-          let color = item.color.unwrap_or_else(|| "primary".to_string());
-          text_views.push((text, color, item.style));
-        }
-      }
-      "button" => {
-        button_label = item.text.or(Some("OK".to_string()));
-        if let Some(action) = item.action {
-          button_action = Some(action);
-        }
-      }
-      _ => {}
-    }
-  }
-
-  if button_label.is_none() {
-    button_label = Some("OK".to_string());
-  }
-
-  let window_title = target
-    .window
-    .as_ref()
-    .and_then(|w| w.title.clone())
-    .unwrap_or_else(|| "SCULPT".to_string());
-  let width = target.window.as_ref().and_then(|w| w.width).unwrap_or(420);
-  let height = target.window.as_ref().and_then(|w| w.height).unwrap_or(260);
+  let text_views = &data.text_views;
+  let window_title = &data.window_title;
+  let width = data.width;
+  let height = data.height;
   let layout = target
     .layout
     .as_ref()
@@ -161,7 +148,7 @@ let package = Package(
   swift.push_str("  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }\n");
   swift.push_str("}\n\n");
   swift.push_str("struct ContentView: View {\n");
-  let show_alert = matches!(button_action.as_deref(), Some("modal.ok"));
+  let show_alert = data.show_ok_modal;
   if show_alert {
     swift.push_str("  @State private var showAlert = false\n\n");
   }
@@ -179,7 +166,7 @@ let package = Package(
   let button_action_code = if show_alert { "{ showAlert = true }" } else { "{}" };
   swift.push_str(&format!(
     "      Button(\"{}\") {}\n",
-    escape_swift(button_label.as_deref().unwrap_or("OK")),
+    escape_swift(&data.button_label),
     button_action_code
   ));
   swift.push_str("        .buttonStyle(.borderedProminent)\n");
@@ -222,7 +209,91 @@ let package = Package(
   Ok(())
 }
 
+fn emit_gui_tkinter(out_dir: &Path, data: &GuiViewData) -> Result<()> {
+  let gui_dir = out_dir.join("gui");
+  std::fs::create_dir_all(&gui_dir)?;
+  let mut py = String::new();
+  py.push_str("import tkinter as tk\n");
+  py.push_str("from tkinter import messagebox\n\n");
+  py.push_str("root = tk.Tk()\n");
+  py.push_str(&format!("root.title(\"{}\")\n", escape_py(&data.window_title)));
+  py.push_str(&format!("root.geometry(\"{}x{}\")\n", data.width, data.height));
+  py.push_str("root.resizable(False, False)\n\n");
+  py.push_str("frame = tk.Frame(root, padx=24, pady=24)\n");
+  py.push_str("frame.pack(fill='both', expand=True)\n\n");
+
+  for (idx, (text, color, style)) in data.text_views.iter().enumerate() {
+    let font = map_tk_font(style.as_deref(), idx);
+    let fg = map_tk_color(color);
+    py.push_str(&format!(
+      "tk.Label(frame, text=\"{}\", fg=\"{}\", font={}).pack(anchor='w', pady=(0, 8))\n",
+      escape_py(text),
+      fg,
+      font
+    ));
+  }
+
+  if data.show_ok_modal {
+    py.push_str(&format!(
+      "tk.Button(frame, text=\"{}\", command=lambda: messagebox.showinfo(\"OK\", \"OK\")).pack(anchor='w', pady=(10, 0))\n",
+      escape_py(&data.button_label)
+    ));
+  } else {
+    py.push_str(&format!(
+      "tk.Button(frame, text=\"{}\", command=lambda: None).pack(anchor='w', pady=(10, 0))\n",
+      escape_py(&data.button_label)
+    ));
+  }
+  py.push_str("\nroot.mainloop()\n");
+
+  std::fs::write(gui_dir.join("main.py"), py)?;
+  Ok(())
+}
+
+fn extract_gui_view_data(target: &TargetIr) -> GuiViewData {
+  let view_name = target.flow.start.clone();
+  let items = target.views.get(&view_name).cloned().unwrap_or_default();
+  let mut text_views: Vec<(String, String, Option<String>)> = Vec::new();
+  let mut button_label = None;
+  let mut button_action = None;
+
+  for item in items {
+    match item.kind.as_str() {
+      "text" => {
+        if let Some(text) = item.text {
+          let color = item.color.unwrap_or_else(|| "primary".to_string());
+          text_views.push((text, color, item.style));
+        }
+      }
+      "button" => {
+        button_label = item.text.or(Some("OK".to_string()));
+        if let Some(action) = item.action {
+          button_action = Some(action);
+        }
+      }
+      _ => {}
+    }
+  }
+
+  GuiViewData {
+    text_views,
+    button_label: button_label.unwrap_or_else(|| "OK".to_string()),
+    show_ok_modal: matches!(button_action.as_deref(), Some("modal.ok")),
+    window_title: target
+      .window
+      .as_ref()
+      .and_then(|w| w.title.clone())
+      .unwrap_or_else(|| "SCULPT".to_string()),
+    width: target.window.as_ref().and_then(|w| w.width).unwrap_or(420),
+    height: target.window.as_ref().and_then(|w| w.height).unwrap_or(260),
+  }
+}
+
 fn escape_swift(input: &str) -> String {
+  input.replace('\\', "\\\\").replace('\"', "\\\"")
+}
+
+fn escape_py(input: &str) -> String {
   input.replace('\\', "\\\\").replace('\"', "\\\"")
 }
 
@@ -296,11 +367,29 @@ pub fn run_web(out_dir: &Path) -> Result<()> {
 }
 
 pub fn run_gui(out_dir: &Path) -> Result<()> {
-  let exe = out_dir.join("gui").join(".build").join("release").join("SculptGui");
-  if !exe.exists() {
-    bail!("{} not found. Run `sculpt build --target gui <file>` first.", exe.display());
+  if std::env::consts::OS == "macos" {
+    let exe = out_dir.join("gui").join(".build").join("release").join("SculptGui");
+    if !exe.exists() {
+      bail!("{} not found. Run `sculpt build --target gui <file>` first.", exe.display());
+    }
+    let status = Command::new(exe).status()?;
+    if !status.success() {
+      bail!("gui run failed with status {:?}", status.code());
+    }
+    return Ok(());
   }
-  let status = Command::new(exe).status()?;
+
+  let script = out_dir.join("gui").join("main.py");
+  if !script.exists() {
+    bail!("{} not found. Run `sculpt build --target gui <file>` first.", script.display());
+  }
+
+  let status = if std::env::consts::OS == "windows" {
+    Command::new("py").arg(&script).status()
+  } else {
+    Command::new("python3").arg(&script).status()
+  }
+  .with_context(|| format!("Failed to run gui target ({})", script.display()))?;
   if !status.success() {
     bail!("gui run failed with status {:?}", status.code());
   }
@@ -352,20 +441,43 @@ pub fn list_targets() -> Result<Vec<String>> {
 
 pub fn describe_target(name: &str) -> Result<Value> {
   match resolve_target(name) {
-    TargetKind::Web => builtin_spec("web-ir", include_str!("../../ir-schemas/web-ir.json")),
-    TargetKind::Cli => builtin_spec("cli-ir", include_str!("../../ir-schemas/cli-ir.json")),
-    TargetKind::Gui => builtin_spec("gui-ir", include_str!("../../ir-schemas/gui-ir.json")),
+    TargetKind::Web => builtin_spec(
+      "web-ir",
+      include_str!("../../ir-schemas/web-ir.json"),
+      Some(json!({ "runtime": ["browser"] })),
+    ),
+    TargetKind::Cli => builtin_spec(
+      "cli-ir",
+      include_str!("../../ir-schemas/cli-ir.json"),
+      Some(json!({ "runtime": ["desktop", "server"] })),
+    ),
+    TargetKind::Gui => builtin_spec(
+      "gui-ir",
+      include_str!("../../ir-schemas/gui-ir.json"),
+      Some(json!({
+        "runtime": ["desktop"],
+        "backends": {
+          "macos": "swiftui-swiftpm",
+          "windows": "python-tkinter",
+          "linux": "python-tkinter"
+        }
+      })),
+    ),
     TargetKind::External(t) => external_describe(&t),
   }
 }
 
-fn builtin_spec(standard_ir: &str, schema: &str) -> Result<Value> {
+fn builtin_spec(standard_ir: &str, schema: &str, support: Option<Value>) -> Result<Value> {
   let schema_json: Value = serde_json::from_str(schema)?;
-  Ok(json!({
+  let mut value = json!({
     "standard_ir": standard_ir,
     "schema": schema_json,
     "extensions": {}
-  }))
+  });
+  if let Some(support) = support {
+    value["support"] = support;
+  }
+  Ok(value)
 }
 
 fn external_describe(target: &str) -> Result<Value> {
@@ -379,4 +491,33 @@ fn external_describe(target: &str) -> Result<Value> {
   }
   let value: Value = serde_json::from_slice(&output.stdout)?;
   Ok(value)
+}
+
+fn map_tk_color(color: &str) -> &'static str {
+  match color.to_lowercase().as_str() {
+    "yellow" => "#ffd60a",
+    "blue" => "#0a84ff",
+    "green" => "#30d158",
+    "red" => "#ff453a",
+    "black" => "#000000",
+    "white" => "#ffffff",
+    "secondary" => "#6e6e73",
+    _ => "#111111",
+  }
+}
+
+fn map_tk_font(style: Option<&str>, index: usize) -> &'static str {
+  match style.unwrap_or("") {
+    "title" => "(\"Arial\", 18, \"bold\")",
+    "subtitle" => "(\"Arial\", 14, \"bold\")",
+    "caption" => "(\"Arial\", 11)",
+    "body" => "(\"Arial\", 12)",
+    _ => {
+      if index == 0 {
+        "(\"Arial\", 18, \"bold\")"
+      } else {
+        "(\"Arial\", 12)"
+      }
+    }
+  }
 }

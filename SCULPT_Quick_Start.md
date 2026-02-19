@@ -7,7 +7,9 @@ This guide is for developers who want to run SCULPT locally in a few minutes.
 ## 1) Prerequisites
 - Rust + Cargo installed
 - Node.js installed (for `cli`/`web` target run helpers)
-- macOS with Xcode command line tools for `gui` target
+- `gui` target requirements:
+  - macOS: Xcode command line tools (Swift build)
+  - Windows/Linux: Python (Tkinter)
 
 ## 2) Install
 From the repository root:
