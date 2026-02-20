@@ -3,12 +3,12 @@
 
 @meta target=gui layout=explicit
 
-module(NativeWindow)
+module(NativeWindow):
 
-  flow(App)
+  flow(App):
     start > Main
 
-    state(Main)
+    state(Main):
       render text("SCULPT Native Demo", color: "yellow")
       render text("Click the button to open an OK modal", color: "blue")
       render button("Open OK", action: "modal.ok")

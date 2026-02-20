@@ -1,19 +1,19 @@
 # Business/Web Example: Invoice Review
 # Goal: clear business UI with minimal ND.
 
-module(InvoiceReview)
+module(InvoiceReview):
 
-  flow(App)
+  flow(App):
     start > List
 
-    state(List)
+    state(List):
       render text("Invoices", color: "yellow")
       render text("Enter = Open First, Esc = Quit", color: "blue")
       on key(Enter) > Detail
       on key(Esc)   > Exit
     end
 
-    state(Detail)
+    state(Detail):
       render text("Invoice #2024-001", color: "yellow")
       render text("Amount: 1,250 EUR", color: "blue")
       render text("Status: Pending", color: "blue")
@@ -22,29 +22,29 @@ module(InvoiceReview)
       on key(Esc) > List
     end
 
-    state(Approve)
+    state(Approve):
       render text("Approved", color: "green")
       on key(Enter) > List
     end
 
-    state(Reject)
+    state(Reject):
       render text("Rejected", color: "red")
       on key(Enter) > List
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
-  state()
+  state():
     speedMs = 400
     selectedInvoice = "2024-001"
     totalInvoices = 24
   end
 
   # Tiny ND: layout theme only, business logic is explicit
-  nd(theme)
+  nd(theme):
     propose dashboardTheme("clean")
     satisfy(
       highContrast(),

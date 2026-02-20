@@ -59,6 +59,8 @@ pub enum Command {
         input: PathBuf,
         #[arg(long)]
         target: Option<String>,
+        #[arg(long = "nd-policy", value_parser = ["strict", "magic"])]
+        nd_policy: Option<String>,
         #[arg(long)]
         provider: Option<String>,
         #[arg(long, help = "Override model (defaults to provider config)")]
@@ -70,6 +72,8 @@ pub enum Command {
     },
     Freeze {
         input: PathBuf,
+        #[arg(long = "nd-policy", value_parser = ["strict", "magic"])]
+        nd_policy: Option<String>,
         #[arg(long)]
         provider: Option<String>,
         #[arg(long, help = "Override model (defaults to provider config)")]
@@ -165,6 +169,7 @@ pub fn run() -> Result<()> {
         Command::Build {
             input,
             target,
+            nd_policy,
             provider,
             model,
             strict_provider,
@@ -172,6 +177,7 @@ pub fn run() -> Result<()> {
         } => build(
             &input,
             target.as_deref(),
+            nd_policy,
             provider,
             model,
             strict_provider,
@@ -179,6 +185,7 @@ pub fn run() -> Result<()> {
         ),
         Command::Freeze {
             input,
+            nd_policy,
             provider,
             model,
             strict_provider,
@@ -186,6 +193,7 @@ pub fn run() -> Result<()> {
             debug,
         } => freeze(
             &input,
+            nd_policy,
             provider,
             model,
             strict_provider,
@@ -216,38 +224,42 @@ struct GateCriterion {
 }
 
 fn write_examples() -> Result<()> {
-  let examples_dir = Path::new("examples");
-  fs::create_dir_all(examples_dir)?;
+    let examples_dir = Path::new("examples");
+    fs::create_dir_all(examples_dir)?;
 
-  let files: &[(&str, &str)] = &[
-    ("getting-started/hello_world.sculpt", r#"# Hello World (tradition kept)
+    let files: &[(&str, &str)] = &[
+        (
+            "getting-started/hello_world.sculpt",
+            r#"# Hello World (tradition kept)
 # Minimal deterministic example with no ND.
 
-module(HelloWorld)
+module(HelloWorld):
 
-  flow(App)
+  flow(App):
     start > Show
 
-    state(Show)
+    state(Show):
       render text("Hallo", color: "yellow")
       render text("Welt", color: "blue")
-      terminate
     end
   end
 
 end
-"#),
-    ("getting-started/native_window.sculpt", r#"# Native Window Demo (macOS GUI)
+"#,
+        ),
+        (
+            "getting-started/native_window.sculpt",
+            r#"# Native Window Demo (macOS GUI)
 # Goal: show a real window with text + button.
 
 @meta target=gui layout=explicit
 
-module(NativeWindow)
+module(NativeWindow):
 
-  flow(App)
+  flow(App):
     start > Main
 
-    state(Main)
+    state(Main):
       render text("SCULPT Native Demo", color: "yellow")
       render text("Click the button to open an OK modal", color: "blue")
       render button("Open OK", action: "modal.ok")
@@ -256,59 +268,62 @@ module(NativeWindow)
   end
 
 end
-"#),
-    ("games/snake_high_nd.sculpt", r#"# Snake (High ND)
+"#,
+        ),
+        (
+            "games/snake_high_nd.sculpt",
+            r#"# Snake (High ND)
 # Goal: minimal code, large solution space.
 # Most of the game design is delegated to the LLM.
 
-module(SnakeHighND)
+module(SnakeHighND):
 
   # Main flow
-  flow(Game)
+  flow(Game):
     start > Title
 
-    state(Title)
+    state(Title):
       render text("SNAKE", color: "yellow")
       render text("Press Enter", color: "blue")
       on key(Enter) > Play
       on key(Esc)   > Exit
     end
 
-    state(Play)
+    state(Play):
       run Loop
       on done > Title
     end
 
-    state(Loop)
+    state(Loop):
       on tick > Loop
       on key(Esc) > Exit
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
   # Minimal state (intentionally sparse)
-  state()
+  state():
     speedMs = 160
     score = 0
   end
 
-  rule(tick)
-    on tick
+  rule(tick):
+    on tick:
       score += 1
     end
   end
 
-  rule(finish)
-    when score >= 10
+  rule(finish):
+    when score >= 10:
       emit done
     end
   end
 
   # High-ND block: most of the game definition is delegated to the LLM
-  nd(designSnake)
+  nd(designSnake):
     propose game("snake", size: 10)
     satisfy(
       playable(),
@@ -318,41 +333,44 @@ module(SnakeHighND)
     )
   end
 end
-"#),
-    ("games/snake_low_nd.sculpt", r#"# Snake (Low ND)
+"#,
+        ),
+        (
+            "games/snake_low_nd.sculpt",
+            r#"# Snake (Low ND)
 # Goal: highly specified rules so the solution space is narrow.
 # ND is reduced to a tiny UI-theme choice.
 
-module(SnakeLowND)
+module(SnakeLowND):
 
   # Main flow
-  flow(Game)
+  flow(Game):
     start > Title
 
-    state(Title)
+    state(Title):
       render text("SNAKE", color: "yellow")
       render text("Enter = Start, Esc = Quit", color: "blue")
       on key(Enter) > Play
       on key(Esc)   > Exit
     end
 
-    state(Play)
+    state(Play):
       run Loop
       on done > Title
     end
 
-    state(Loop)
+    state(Loop):
       on tick > Loop
       on key(Esc) > Exit
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
   # Deterministic configuration and initial game state
-  state()
+  state():
     width = 16
     height = 12
     speedMs = 120
@@ -366,49 +384,49 @@ module(SnakeLowND)
   end
 
   # Deterministic tick progression
-  rule(tick)
-    on tick
+  rule(tick):
+    on tick:
       score += 1
       stepIndex += 1
     end
   end
 
   # Deterministic input handling
-  rule(inputUp)
-    on key(W)
+  rule(inputUp):
+    on key(W):
       pendingDirection = "up"
     end
   end
 
-  rule(inputDown)
-    on key(S)
+  rule(inputDown):
+    on key(S):
       pendingDirection = "down"
     end
   end
 
-  rule(inputLeft)
-    on key(A)
+  rule(inputLeft):
+    on key(A):
       pendingDirection = "left"
     end
   end
 
-  rule(inputRight)
-    on key(D)
+  rule(inputRight):
+    on key(D):
       pendingDirection = "right"
     end
   end
 
   # Deterministic movement and food handling
-  rule(applyDirection)
-    on tick
+  rule(applyDirection):
+    on tick:
       direction = pendingDirection
       snake = moveSnake(snake, direction)
       food = nextFood(foodSequence, stepIndex)
     end
   end
 
-  rule(checkCollision)
-    on tick
+  rule(checkCollision):
+    on tick:
       when hitWall(snake, width, height)
         emit done
       end
@@ -419,14 +437,14 @@ module(SnakeLowND)
   end
 
   # Deterministic finish condition
-  rule(finish)
-    when score >= 25
+  rule(finish):
+    when score >= 25:
       emit done
     end
   end
 
   # Tiny ND for cosmetics only
-  nd(theme)
+  nd(theme):
     propose theme("classic")
     satisfy(
       exact("classic"),
@@ -434,45 +452,48 @@ module(SnakeLowND)
     )
   end
 end
-"#),
-    ("games/breakout_cli.sculpt", r#"# Breakout (CLI)
+"#,
+        ),
+        (
+            "games/breakout_cli.sculpt",
+            r#"# Breakout (CLI)
 # Demonstrates a playable arcade loop with clear game-state rules and constrained ND for level layout.
 
 @meta target=cli
 @meta nd_budget=24
 @meta confidence=0.9
 
-module(BreakoutCLI)
+module(BreakoutCLI):
 
-  flow(Game)
+  flow(Game):
     start > Title
 
-    state(Title)
+    state(Title):
       render text("BREAKOUT", color: "yellow")
       render text("A/D move paddle, Space launch, Esc quit", color: "blue")
       on key(Enter) > Play
       on key(Esc) > Exit
     end
 
-    state(Play)
+    state(Play):
       on tick > Play
       on done > GameOver
       on key(Esc) > Exit
     end
 
-    state(GameOver)
+    state(GameOver):
       render text("Game Over", color: "red")
       render text("Enter restart, Esc quit", color: "blue")
       on key(Enter) > Title
       on key(Esc) > Exit
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
-  state()
+  state():
     width = 40
     height = 22
     paddleX = 18
@@ -491,26 +512,26 @@ module(BreakoutCLI)
     hitBottom = 0
   end
 
-  rule(launchBall)
-    on key(Space)
+  rule(launchBall):
+    on key(Space):
       launched = 1
     end
   end
 
-  rule(moveLeft)
-    on key(A)
+  rule(moveLeft):
+    on key(A):
       paddleX = movePaddle(paddleX, "left", width, paddleWidth)
     end
   end
 
-  rule(moveRight)
-    on key(D)
+  rule(moveRight):
+    on key(D):
       paddleX = movePaddle(paddleX, "right", width, paddleWidth)
     end
   end
 
-  rule(tick)
-    on tick
+  rule(tick):
+    on tick:
       ball = stepBallIfLaunched(ball, velocity, launched)
       score += 1
       hitLeft = detectHitLeft(ball)
@@ -521,32 +542,32 @@ module(BreakoutCLI)
     end
   end
 
-  rule(wallBounceLeft)
-    when hitLeft >= 1
+  rule(wallBounceLeft):
+    when hitLeft >= 1:
       velocity = bounceX(velocity)
     end
   end
 
-  rule(wallBounceRight)
-    when hitRight >= 1
+  rule(wallBounceRight):
+    when hitRight >= 1:
       velocity = bounceX(velocity)
     end
   end
 
-  rule(wallBounceTop)
-    when hitTop >= 1
+  rule(wallBounceTop):
+    when hitTop >= 1:
       velocity = bounceY(velocity)
     end
   end
 
-  rule(paddleBounce)
-    when hitPaddle >= 1
+  rule(paddleBounce):
+    when hitPaddle >= 1:
       velocity = bounceY(velocity)
     end
   end
 
-  rule(bottomOut)
-    when hitBottom >= 1
+  rule(bottomOut):
+    when hitBottom >= 1:
       lives = dec(lives)
       launched = 0
       ball = resetBallNearPaddle(paddleX)
@@ -554,13 +575,13 @@ module(BreakoutCLI)
     end
   end
 
-  rule(finish)
-    when 0 >= lives
+  rule(finish):
+    when 0 >= lives:
       emit done
     end
   end
 
-  nd(levelLayout)
+  nd(levelLayout):
     propose brickLayout(rows: 5, cols: 10, style: "classic")
     satisfy(
       fullyInsideBounds(width: 40, height: 12),
@@ -571,23 +592,26 @@ module(BreakoutCLI)
   end
 
 end
-"#),
-    ("business/invoice_review.sculpt", r#"# Business/Web Example: Invoice Review
+"#,
+        ),
+        (
+            "business/invoice_review.sculpt",
+            r#"# Business/Web Example: Invoice Review
 # Goal: clear business UI with minimal ND.
 
-module(InvoiceReview)
+module(InvoiceReview):
 
-  flow(App)
+  flow(App):
     start > List
 
-    state(List)
+    state(List):
       render text("Invoices", color: "yellow")
       render text("Enter = Open First, Esc = Quit", color: "blue")
       on key(Enter) > Detail
       on key(Esc)   > Exit
     end
 
-    state(Detail)
+    state(Detail):
       render text("Invoice #2024-001", color: "yellow")
       render text("Amount: 1,250 EUR", color: "blue")
       render text("Status: Pending", color: "blue")
@@ -596,29 +620,29 @@ module(InvoiceReview)
       on key(Esc) > List
     end
 
-    state(Approve)
+    state(Approve):
       render text("Approved", color: "green")
       on key(Enter) > List
     end
 
-    state(Reject)
+    state(Reject):
       render text("Rejected", color: "red")
       on key(Enter) > List
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
-  state()
+  state():
     speedMs = 400
     selectedInvoice = "2024-001"
     totalInvoices = 24
   end
 
   # Tiny ND: layout theme only, business logic is explicit
-  nd(theme)
+  nd(theme):
     propose dashboardTheme("clean")
     satisfy(
       highContrast(),
@@ -626,20 +650,23 @@ module(InvoiceReview)
     )
   end
 end
-"#),
-    ("business/incident_triage_assistant.sculpt", r#"# Incident Triage Assistant (PoC)
+"#,
+        ),
+        (
+            "business/incident_triage_assistant.sculpt",
+            r#"# Incident Triage Assistant (PoC)
 # Real-world task: guide on-call engineers to a first-response action plan.
 
 @meta target=cli
 @meta nd_budget=30
 @meta confidence=0.85
 
-module(Ops.Incident.Triage)
+module(Ops.Incident.Triage):
 
-  flow(Main)
+  flow(Main):
     start > Intro
 
-    state(Intro)
+    state(Intro):
       render text("INCIDENT TRIAGE ASSISTANT", color: "yellow")
       render text("Pick incident type:", color: "blue")
       render text("1 = Service down", color: "white")
@@ -652,7 +679,7 @@ module(Ops.Incident.Triage)
       on key(esc) > Exit
     end
 
-    state(ServiceDown)
+    state(ServiceDown):
       render text("SERVICE DOWN", color: "red")
       render text("Action plan:", color: "yellow")
       render text("- Declare SEV-1", color: "white")
@@ -663,7 +690,7 @@ module(Ops.Incident.Triage)
       on key(enter) > Intro
     end
 
-    state(ErrorSpike)
+    state(ErrorSpike):
       render text("ERROR SPIKE", color: "magenta")
       render text("Action plan:", color: "yellow")
       render text("- Check top failing endpoint", color: "white")
@@ -674,7 +701,7 @@ module(Ops.Incident.Triage)
       on key(enter) > Intro
     end
 
-    state(Latency)
+    state(Latency):
       render text("LATENCY INCREASE", color: "cyan")
       render text("Action plan:", color: "yellow")
       render text("- Check DB and cache saturation", color: "white")
@@ -685,14 +712,14 @@ module(Ops.Incident.Triage)
       on key(enter) > Intro
     end
 
-    state(Exit)
+    state(Exit):
       render text("Session closed. Stay calm and log your actions.", color: "green")
       terminate
     end
   end
 
   # Constrain wording and structure for lower ND.
-  nd(incidentPlaybookShape)
+  nd(incidentPlaybookShape):
     propose responseGuide(format: "step-list", audience: "on-call")
     satisfy(
       hasClearTitle(),
@@ -703,26 +730,29 @@ module(Ops.Incident.Triage)
   end
 
 end
-"#),
-    ("business/expense_approval_workflow.sculpt", r#"# Expense Approval Workflow (Business)
+"#,
+        ),
+        (
+            "business/expense_approval_workflow.sculpt",
+            r#"# Expense Approval Workflow (Business)
 # Demonstrates a real approval flow where logic is explicit and ND is limited to message tone.
 
 @meta target=cli
 @meta nd_budget=8
 
-module(Business.Finance.ExpenseApproval)
+module(Business.Finance.ExpenseApproval):
 
-  flow(App)
+  flow(App):
     start > Inbox
 
-    state(Inbox)
+    state(Inbox):
       render text("Expense Queue", color: "yellow")
       render text("1 = Open request, Esc = Exit", color: "blue")
       on key(1) > Review
       on key(Esc) > Exit
     end
 
-    state(Review)
+    state(Review):
       render text("Request #EX-2048", color: "yellow")
       render text("Amount: 890 EUR", color: "white")
       render text("Category: Travel", color: "white")
@@ -733,40 +763,40 @@ module(Business.Finance.ExpenseApproval)
       on key(Esc) > Inbox
     end
 
-    state(Approved)
+    state(Approved):
       render text("Approved and forwarded to payout batch.", color: "green")
       on key(Enter) > Inbox
     end
 
-    state(Rejected)
+    state(Rejected):
       render text("Rejected with reason code.", color: "red")
       on key(Enter) > Inbox
     end
 
-    state(NeedInfo)
+    state(NeedInfo):
       render text("Sent request for additional receipt details.", color: "magenta")
       on key(Enter) > Inbox
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
-  state()
+  state():
     approvalLimit = 1000
     queueSize = 12
     selectedRequest = "EX-2048"
     riskScore = 18
   end
 
-  rule(policyCheck)
-    when riskScore >= 80
+  rule(policyCheck):
+    when riskScore >= 80:
       emit done
     end
   end
 
-  nd(copyStyle)
+  nd(copyStyle):
     propose reviewCopyTone(audience: "finance-team")
     satisfy(
       conciseLanguage(),
@@ -776,20 +806,23 @@ module(Business.Finance.ExpenseApproval)
   end
 
 end
-"#),
-    ("web/incident_status_dashboard.sculpt", r#"# Incident Status Dashboard (Web)
+"#,
+        ),
+        (
+            "web/incident_status_dashboard.sculpt",
+            r#"# Incident Status Dashboard (Web)
 # Demonstrates a web target with strongly defined flow and constrained ND for layout only.
 
 @meta target=web
 @meta layout=explicit
 @meta nd_budget=12
 
-module(Ops.Web.IncidentDashboard)
+module(Ops.Web.IncidentDashboard):
 
-  flow(App)
+  flow(App):
     start > Overview
 
-    state(Overview)
+    state(Overview):
       render text("Incident Status Dashboard", color: "yellow")
       render text("1 = Active incidents, 2 = Timeline, Esc = Exit", color: "blue")
       on key(1) > ActiveIncidents
@@ -797,14 +830,14 @@ module(Ops.Web.IncidentDashboard)
       on key(Esc) > Exit
     end
 
-    state(ActiveIncidents)
+    state(ActiveIncidents):
       render text("SEV-1 Checkout API", color: "red")
       render text("SEV-2 Search Latency", color: "magenta")
       render text("Enter = Back", color: "blue")
       on key(Enter) > Overview
     end
 
-    state(Timeline)
+    state(Timeline):
       render text("14:02 deploy started", color: "white")
       render text("14:07 error rate crossed SLO", color: "white")
       render text("14:10 rollback started", color: "white")
@@ -812,24 +845,24 @@ module(Ops.Web.IncidentDashboard)
       on key(Enter) > Overview
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
-  state()
+  state():
     refreshSec = 15
     showResolved = 0
     selectedIncident = "checkout-api"
   end
 
-  rule(autoRefresh)
-    on tick
+  rule(autoRefresh):
+    on tick:
       refreshSec += 0
     end
   end
 
-  nd(layout)
+  nd(layout):
     propose dashboardLayout(kind: "ops", density: "medium")
     satisfy(
       noOverlap(),
@@ -840,18 +873,19 @@ module(Ops.Web.IncidentDashboard)
   end
 
 end
-"#),
-  ];
+"#,
+        ),
+    ];
 
-  for (relative, content) in files {
-    let path = examples_dir.join(relative);
-    if let Some(parent) = path.parent() {
-      fs::create_dir_all(parent)?;
+    for (relative, content) in files {
+        let path = examples_dir.join(relative);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&path, content)?;
+        println!("Wrote {}", path.display());
     }
-    fs::write(&path, content)?;
-    println!("Wrote {}", path.display());
-  }
-  Ok(())
+    Ok(())
 }
 
 #[derive(Clone, Copy)]
@@ -878,13 +912,14 @@ fn parse_debug(level: Option<String>) -> Option<DebugLevel> {
 fn build(
     input: &Path,
     target: Option<&str>,
+    nd_policy_override: Option<String>,
     provider: Option<String>,
     model: Option<String>,
     strict: bool,
     debug: Option<String>,
 ) -> Result<()> {
     let started = Instant::now();
-    let ir = load_ir(input)?;
+    let ir = load_ir(input, nd_policy_override.as_deref())?;
     let controls = ConvergenceControls::from_meta(&ir.meta);
     let target = resolve_target_from_meta(target, &ir)?;
     let layout_required = enforce_meta(&ir, &target)?;
@@ -1024,6 +1059,7 @@ fn build(
 
 fn freeze(
     input: &Path,
+    nd_policy_override: Option<String>,
     provider: Option<String>,
     model: Option<String>,
     strict: bool,
@@ -1031,7 +1067,7 @@ fn freeze(
     debug: Option<String>,
 ) -> Result<()> {
     let started = Instant::now();
-    let ir = load_ir(input)?;
+    let ir = load_ir(input, nd_policy_override.as_deref())?;
     let controls = ConvergenceControls::from_meta(&ir.meta);
     let target = resolve_target_from_meta(target, &ir)?;
     let layout_required = enforce_meta(&ir, &target)?;
@@ -1180,7 +1216,7 @@ fn freeze(
 
 fn replay(input: &Path, target: Option<&str>) -> Result<()> {
     let started = Instant::now();
-    let ir = load_ir(input)?;
+    let ir = load_ir(input, None)?;
     let target = resolve_target_from_meta(target, &ir)?;
     let layout_required = enforce_meta(&ir, &target)?;
     print_unified_header("Replay", &target, input, None);
@@ -1328,7 +1364,7 @@ fn emit_debug(
 
 fn run_cmd(input: &Path, target: Option<&str>) -> Result<()> {
     let started = Instant::now();
-    let ir = load_ir(input)?;
+    let ir = load_ir(input, None)?;
     let target = resolve_target_from_meta(target, &ir)?;
     print_unified_header("Run", &target, input, None);
     let dist_dir = dist_dir(input);
@@ -1822,9 +1858,14 @@ fn auth_check(provider: &str, verify: bool) -> Result<()> {
     }
 }
 
-fn load_ir(input: &Path) -> Result<crate::ir::IrModule> {
+fn load_ir(input: &Path, nd_policy_override: Option<&str>) -> Result<crate::ir::IrModule> {
     let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
-    let module = parse_source(&src)?;
+    let mut module = parse_source(&src)?;
+    if let Some(value) = nd_policy_override {
+        module
+            .meta
+            .insert("nd_policy".to_string(), value.to_string());
+    }
     let diagnostics = validate_module(&module);
     if !diagnostics.is_empty() {
         bail!(
@@ -2083,7 +2124,7 @@ fn deterministic_build(
         TargetKind::External(name) => {
             run_external_target(
                 &name,
-                &load_ir(input)?,
+                &load_ir(input, None)?,
                 None,
                 Some(target_ir_value),
                 dist_dir,

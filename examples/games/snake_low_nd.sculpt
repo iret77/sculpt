@@ -2,36 +2,36 @@
 # Goal: highly specified rules so the solution space is narrow.
 # ND is reduced to a tiny UI-theme choice.
 
-module(SnakeLowND)
+module(SnakeLowND):
 
   # Main flow
-  flow(Game)
+  flow(Game):
     start > Title
 
-    state(Title)
+    state(Title):
       render text("SNAKE", color: "yellow")
       render text("Enter = Start, Esc = Quit", color: "blue")
       on key(Enter) > Play
       on key(Esc)   > Exit
     end
 
-    state(Play)
+    state(Play):
       run Loop
       on done > Title
     end
 
-    state(Loop)
+    state(Loop):
       on tick > Loop
       on key(Esc) > Exit
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
   # Deterministic configuration and initial game state
-  state()
+  state():
     width = 16
     height = 12
     speedMs = 120
@@ -45,49 +45,49 @@ module(SnakeLowND)
   end
 
   # Deterministic tick progression
-  rule(tick)
-    on tick
+  rule(tick):
+    on tick:
       score += 1
       stepIndex += 1
     end
   end
 
   # Deterministic input handling
-  rule(inputUp)
-    on key(W)
+  rule(inputUp):
+    on key(W):
       pendingDirection = "up"
     end
   end
 
-  rule(inputDown)
-    on key(S)
+  rule(inputDown):
+    on key(S):
       pendingDirection = "down"
     end
   end
 
-  rule(inputLeft)
-    on key(A)
+  rule(inputLeft):
+    on key(A):
       pendingDirection = "left"
     end
   end
 
-  rule(inputRight)
-    on key(D)
+  rule(inputRight):
+    on key(D):
       pendingDirection = "right"
     end
   end
 
   # Deterministic movement and food handling
-  rule(applyDirection)
-    on tick
+  rule(applyDirection):
+    on tick:
       direction = pendingDirection
       snake = moveSnake(snake, direction)
       food = nextFood(foodSequence, stepIndex)
     end
   end
 
-  rule(checkCollision)
-    on tick
+  rule(checkCollision):
+    on tick:
       when hitWall(snake, width, height)
         emit done
       end
@@ -98,14 +98,14 @@ module(SnakeLowND)
   end
 
   # Deterministic finish condition
-  rule(finish)
-    when score >= 25
+  rule(finish):
+    when score >= 25:
       emit done
     end
   end
 
   # Tiny ND for cosmetics only
-  nd(theme)
+  nd(theme):
     propose theme("classic")
     satisfy(
       exact("classic"),

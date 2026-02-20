@@ -2,54 +2,54 @@
 # Goal: minimal code, large solution space.
 # Most of the game design is delegated to the LLM.
 
-module(SnakeHighND)
+module(SnakeHighND):
 
   # Main flow
-  flow(Game)
+  flow(Game):
     start > Title
 
-    state(Title)
+    state(Title):
       render text("SNAKE", color: "yellow")
       render text("Press Enter", color: "blue")
       on key(Enter) > Play
       on key(Esc)   > Exit
     end
 
-    state(Play)
+    state(Play):
       run Loop
       on done > Title
     end
 
-    state(Loop)
+    state(Loop):
       on tick > Loop
       on key(Esc) > Exit
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
   # Minimal state (intentionally sparse)
-  state()
+  state():
     speedMs = 160
     score = 0
   end
 
-  rule(tick)
-    on tick
+  rule(tick):
+    on tick:
       score += 1
     end
   end
 
-  rule(finish)
-    when score >= 10
+  rule(finish):
+    when score >= 10:
       emit done
     end
   end
 
   # High-ND block: most of the game definition is delegated to the LLM
-  nd(designSnake)
+  nd(designSnake):
     propose game("snake", size: 10)
     satisfy(
       playable(),

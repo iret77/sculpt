@@ -79,7 +79,7 @@ If you need reproducibility across machines and team members, use freeze + repla
 Every script starts with:
 
 ```sculpt
-module(App)
+module(App):
   ...
 end
 ```
@@ -87,7 +87,7 @@ end
 Dot-qualified module paths are supported for domain namespacing:
 
 ```sculpt
-module(Billing.Account.Invoice)
+module(Billing.Account.Invoice):
 ```
 
 ### 5.2 Core Blocks
@@ -106,12 +106,14 @@ on key(Enter) > Menu
 
 The transition symbol is always `>`.
 
+Statements are separated by newline or `;` (same semantics).
+
 ### 5.4 Rules
 Rules use `on ...` or `when ...` triggers and deterministic actions:
 
 ```sculpt
-rule(tick)
-  on tick
+rule(tick):
+  on tick:
     counter += 1
   end
 end
@@ -121,7 +123,7 @@ end
 ND blocks define candidate generation and hard constraints:
 
 ```sculpt
-nd(layoutPlan)
+nd(layoutPlan):
   propose layout(type: "rooms")
   satisfy(
     insideBounds(width: 10, height: 5),
@@ -134,11 +136,10 @@ end
 `propose` expands the space; `satisfy` narrows it.
 
 ### 5.6 Comments
-SCULPT supports line comments with `#` or `;`.
+SCULPT supports line comments with `#`.
 
 ```sculpt
 # This is a comment
-; This is also a comment
 ```
 
 Use comments for intent and constraints, not for repeating obvious code.
@@ -162,6 +163,7 @@ You can set one key per line, or multiple key-value pairs in one line:
 - `target`: default target for this script (`cli`, `gui`, `web`).
 - `layout`: currently `explicit` is used for GUI flows that require explicit layout data.
 - `strict_scopes`: enables stricter shadowing checks in semantic validation.
+- `nd_policy`: ND token policy (`strict` or `magic`).
 - `nd_budget`: convergence budget in range `0..100` (lower means stricter ND tolerance).
 - `confidence`: expected convergence confidence in range `0.0..1.0`.
 - `max_iterations`: maximum LLM compile retries before fallback.
@@ -170,6 +172,7 @@ You can set one key per line, or multiple key-value pairs in one line:
 
 ### 6.2 How Meta Interacts With CLI Flags
 - CLI flags have highest priority (for example `--target` overrides `@meta target=...`).
+- `--nd-policy` overrides `@meta nd_policy=...`.
 - If `--target` is omitted, the compiler uses `@meta target` when present.
 - If neither is set, build commands fail with a target-required error.
 - Unknown `@meta` keys fail contract validation unless declared in the target contract (or prefixed with `x_` for extension keys).

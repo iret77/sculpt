@@ -98,6 +98,7 @@ fn print_subcommand_help(cmd: &str) -> bool {
                 "Options",
                 &[
                     " --target <name>         override target (meta target is preferred)",
+                    " --nd-policy <strict|magic> override nd_policy meta",
                     " --provider <name>       llm provider (default from config)",
                     " --model <name>          model override",
                     " --strict-provider       fail if provider auth/config is missing",
@@ -149,6 +150,7 @@ fn print_subcommand_help(cmd: &str) -> bool {
                 "Options",
                 &[
                     " --target <name>         override target",
+                    " --nd-policy <strict|magic> override nd_policy meta",
                     " --provider <name>       llm provider (default from config)",
                     " --model <name>          model override",
                     " --strict-provider       fail if provider auth/config is missing",

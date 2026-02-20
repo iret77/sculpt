@@ -126,6 +126,7 @@ Recommended deterministic rule:
 - `N303` Empty `satisfy(...)`.
 - `N304` Duplicate/invalid ND constraint set in `satisfy(...)`.
 - `N305` `nd_budget=0` used while ND blocks exist.
+- `N306` ND magicword (`?value`) used while `nd_policy=strict`.
 
 ## 5.5 Runtime/Binding
 - `B401` `run` references unknown flow.
@@ -142,6 +143,7 @@ Recommended deterministic rule:
 - `NS506` Ambiguous unqualified symbol reference.
 
 ## 5.7 Meta/Convergence Controls
+- `M705` Invalid `nd_policy` (must be one of `strict|magic`).
 - `M701` Invalid `nd_budget` (must be integer `0..100`).
 - `M702` Invalid `confidence` (must be number `0.0..1.0`).
 - `M703` Invalid `max_iterations` (must be integer `1..10000`).

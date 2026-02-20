@@ -46,17 +46,18 @@ You define what must be true, and SCULPT+LLM find a valid solution within those 
 - `state(...)`: one step/screen.
 - `rule(...)`: clear, predictable logic.
 - `nd(...)`: controlled non-determinism.
-- `@meta`: compile-time controls (`target`, convergence, strictness).
+- `@meta`: compile-time controls (`target`, `nd_policy`, convergence, strictness).
+- Newline and `;` are equivalent statement separators.
 
 ## 5) Copy-Paste Starter Patterns
 
 ### Pattern A: Deterministic Hello World
 ```sculpt
 @meta target=cli
-module(HelloWorld)
-  flow(App)
+module(HelloWorld):
+  flow(App):
     start > Show
-    state(Show)
+    state(Show):
       render text("Hello", color: "yellow")
       terminate
     end
@@ -67,14 +68,14 @@ end
 ### Pattern B: Workflow Screen to Screen
 ```sculpt
 @meta target=gui
-module(SimpleFlow)
-  flow(App)
+module(SimpleFlow):
+  flow(App):
     start > Start
-    state(Start)
+    state(Start):
       render text("Press Enter", color: "blue")
       on key(Enter) > Done
     end
-    state(Done)
+    state(Done):
       render text("Completed", color: "green")
       terminate
     end
@@ -84,13 +85,13 @@ end
 
 ### Pattern C: Rule-Based Update
 ```sculpt
-module(Counter)
-  state()
+module(Counter):
+  state():
     value = 0
   end
 
-  rule(tickRule)
-    on tick
+  rule(tickRule):
+    on tick:
       value += 1
     end
   end
@@ -101,8 +102,8 @@ end
 ```sculpt
 @meta nd_budget=25
 @meta confidence=0.9
-module(LayoutPlan)
-  nd(layout)
+module(LayoutPlan):
+  nd(layout):
     propose layout(kind: "dashboard")
     satisfy(
       hasHeader(),
@@ -118,10 +119,10 @@ end
 @meta target=gui
 @meta max_iterations=3
 @meta fallback=replay
-module(StableGui)
-  flow(App)
+module(StableGui):
+  flow(App):
     start > Main
-    state(Main)
+    state(Main):
       render text("Stable path", color: "white")
       terminate
     end

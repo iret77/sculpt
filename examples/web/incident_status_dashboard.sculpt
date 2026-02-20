@@ -5,12 +5,12 @@
 @meta layout=explicit
 @meta nd_budget=12
 
-module(Ops.Web.IncidentDashboard)
+module(Ops.Web.IncidentDashboard):
 
-  flow(App)
+  flow(App):
     start > Overview
 
-    state(Overview)
+    state(Overview):
       render text("Incident Status Dashboard", color: "yellow")
       render text("1 = Active incidents, 2 = Timeline, Esc = Exit", color: "blue")
       on key(1) > ActiveIncidents
@@ -18,14 +18,14 @@ module(Ops.Web.IncidentDashboard)
       on key(Esc) > Exit
     end
 
-    state(ActiveIncidents)
+    state(ActiveIncidents):
       render text("SEV-1 Checkout API", color: "red")
       render text("SEV-2 Search Latency", color: "magenta")
       render text("Enter = Back", color: "blue")
       on key(Enter) > Overview
     end
 
-    state(Timeline)
+    state(Timeline):
       render text("14:02 deploy started", color: "white")
       render text("14:07 error rate crossed SLO", color: "white")
       render text("14:10 rollback started", color: "white")
@@ -33,24 +33,24 @@ module(Ops.Web.IncidentDashboard)
       on key(Enter) > Overview
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
-  state()
+  state():
     refreshSec = 15
     showResolved = 0
     selectedIncident = "checkout-api"
   end
 
-  rule(autoRefresh)
-    on tick
+  rule(autoRefresh):
+    on tick:
       refreshSec += 0
     end
   end
 
-  nd(layout)
+  nd(layout):
     propose dashboardLayout(kind: "ops", density: "medium")
     satisfy(
       noOverlap(),

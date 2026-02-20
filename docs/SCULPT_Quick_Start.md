@@ -62,6 +62,12 @@ Build:
 sculpt build examples/getting-started/hello_world.sculpt --target cli
 ```
 
+Optional ND token policy override:
+
+```bash
+sculpt build examples/getting-started/hello_world.sculpt --target cli --nd-policy strict
+```
+
 Run:
 
 ```bash

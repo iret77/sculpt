@@ -5,12 +5,12 @@
 @meta nd_budget=30
 @meta confidence=0.85
 
-module(Ops.Incident.Triage)
+module(Ops.Incident.Triage):
 
-  flow(Main)
+  flow(Main):
     start > Intro
 
-    state(Intro)
+    state(Intro):
       render text("INCIDENT TRIAGE ASSISTANT", color: "yellow")
       render text("Pick incident type:", color: "blue")
       render text("1 = Service down", color: "white")
@@ -23,7 +23,7 @@ module(Ops.Incident.Triage)
       on key(esc) > Exit
     end
 
-    state(ServiceDown)
+    state(ServiceDown):
       render text("SERVICE DOWN", color: "red")
       render text("Action plan:", color: "yellow")
       render text("- Declare SEV-1", color: "white")
@@ -34,7 +34,7 @@ module(Ops.Incident.Triage)
       on key(enter) > Intro
     end
 
-    state(ErrorSpike)
+    state(ErrorSpike):
       render text("ERROR SPIKE", color: "magenta")
       render text("Action plan:", color: "yellow")
       render text("- Check top failing endpoint", color: "white")
@@ -45,7 +45,7 @@ module(Ops.Incident.Triage)
       on key(enter) > Intro
     end
 
-    state(Latency)
+    state(Latency):
       render text("LATENCY INCREASE", color: "cyan")
       render text("Action plan:", color: "yellow")
       render text("- Check DB and cache saturation", color: "white")
@@ -56,14 +56,14 @@ module(Ops.Incident.Triage)
       on key(enter) > Intro
     end
 
-    state(Exit)
+    state(Exit):
       render text("Session closed. Stay calm and log your actions.", color: "green")
       terminate
     end
   end
 
   # Constrain wording and structure for lower ND.
-  nd(incidentPlaybookShape)
+  nd(incidentPlaybookShape):
     propose responseGuide(format: "step-list", audience: "on-call")
     satisfy(
       hasClearTitle(),

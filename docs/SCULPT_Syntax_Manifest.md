@@ -27,22 +27,24 @@ For a simple OK modal action, the compiler uses:
 `action="modal.ok"`
 
 ```
-<blockType>(<name, params...>)
+<blockType>(<name, params...>):
   ...
 end
 ```
 
 Examples:
 ```
-module(App)
-flow(Game)
-state(Title)
-state()
-rule(tick)
-nd(chooseLayout, level)
+module(App):
+flow(Game):
+state(Title):
+state():
+rule(tick):
+nd(chooseLayout, level):
 ```
 
 Benefit: consistent and logical form, language-independent.
+
+`:` is mandatory on block headers. It is semantic, not decoration.
 
 **Note (namespace path):**
 `module(...)` may be dot-qualified, e.g.:
@@ -57,6 +59,14 @@ on key(Enter) > Play
 ```
 
 `>` is compact, easy to type, and visually clear.
+
+## 3.1 Statement Separator
+Use either newline or `;` between statements.
+
+Example:
+```
+state(Title): render text("HELLO", color: "yellow"); on key(Enter) > Play; end
+```
 
 ## 4) Primary Block Types
 - `module(name)` -> root block (required, exactly one per file)
@@ -85,9 +95,9 @@ on key(Enter) > Play
   ```
 
 ## 6) Rule Syntax
-```
-rule(tick)
-  on tick
+``` 
+rule(tick):
+  on tick:
     counter += 1
   end
 end
@@ -96,8 +106,8 @@ end
 or
 
 ```
-rule(finish)
-  when counter >= 3
+rule(finish):
+  when counter >= 3:
     emit done
   end
 end
@@ -105,7 +115,7 @@ end
 
 ## 7) ND Syntax
 ```
-nd(chooseLayout, level)
+nd(chooseLayout, level):
   propose layout(type: "rooms")
   satisfy(
     insideBounds(width: 10, height: 5),
@@ -124,33 +134,33 @@ end
 
 ## 9) Visual Rhythm (Example)
 ```
-module(App)
-  flow(Main)
+module(App):
+  flow(Main):
     start > Title
 
-    state(Title)
+    state(Title):
       render text("HELLO", color: "yellow")
       on key(Enter) > Play
     end
 
-    state(Play)
+    state(Play):
       run Loop
       on done > Title
     end
   end
 
-  state()
+  state():
     counter = 0
   end
 end
 ```
 
 ## 10) Comments (Non-Syntax)
-Comments start with `#` or `;` and may contain arbitrary text.
+Comments start with `#` and may contain arbitrary text.
 
 ```
 # UI
-; Logic
+# Logic
 ```
 
 ## Fixed Decisions

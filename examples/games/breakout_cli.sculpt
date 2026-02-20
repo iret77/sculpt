@@ -5,37 +5,37 @@
 @meta nd_budget=24
 @meta confidence=0.9
 
-module(BreakoutCLI)
+module(BreakoutCLI):
 
-  flow(Game)
+  flow(Game):
     start > Title
 
-    state(Title)
+    state(Title):
       render text("BREAKOUT", color: "yellow")
       render text("A/D move paddle, Space launch, Esc quit", color: "blue")
       on key(Enter) > Play
       on key(Esc) > Exit
     end
 
-    state(Play)
+    state(Play):
       on tick > Play
       on done > GameOver
       on key(Esc) > Exit
     end
 
-    state(GameOver)
+    state(GameOver):
       render text("Game Over", color: "red")
       render text("Enter restart, Esc quit", color: "blue")
       on key(Enter) > Title
       on key(Esc) > Exit
     end
 
-    state(Exit)
+    state(Exit):
       terminate
     end
   end
 
-  state()
+  state():
     width = 40
     height = 22
     paddleX = 18
@@ -54,26 +54,26 @@ module(BreakoutCLI)
     hitBottom = 0
   end
 
-  rule(launchBall)
-    on key(Space)
+  rule(launchBall):
+    on key(Space):
       launched = 1
     end
   end
 
-  rule(moveLeft)
-    on key(A)
+  rule(moveLeft):
+    on key(A):
       paddleX = movePaddle(paddleX, "left", width, paddleWidth)
     end
   end
 
-  rule(moveRight)
-    on key(D)
+  rule(moveRight):
+    on key(D):
       paddleX = movePaddle(paddleX, "right", width, paddleWidth)
     end
   end
 
-  rule(tick)
-    on tick
+  rule(tick):
+    on tick:
       ball = stepBallIfLaunched(ball, velocity, launched)
       score += 1
       hitLeft = detectHitLeft(ball)
@@ -84,32 +84,32 @@ module(BreakoutCLI)
     end
   end
 
-  rule(wallBounceLeft)
-    when hitLeft >= 1
+  rule(wallBounceLeft):
+    when hitLeft >= 1:
       velocity = bounceX(velocity)
     end
   end
 
-  rule(wallBounceRight)
-    when hitRight >= 1
+  rule(wallBounceRight):
+    when hitRight >= 1:
       velocity = bounceX(velocity)
     end
   end
 
-  rule(wallBounceTop)
-    when hitTop >= 1
+  rule(wallBounceTop):
+    when hitTop >= 1:
       velocity = bounceY(velocity)
     end
   end
 
-  rule(paddleBounce)
-    when hitPaddle >= 1
+  rule(paddleBounce):
+    when hitPaddle >= 1:
       velocity = bounceY(velocity)
     end
   end
 
-  rule(bottomOut)
-    when hitBottom >= 1
+  rule(bottomOut):
+    when hitBottom >= 1:
       lives = dec(lives)
       launched = 0
       ball = resetBallNearPaddle(paddleX)
@@ -117,13 +117,13 @@ module(BreakoutCLI)
     end
   end
 
-  rule(finish)
-    when 0 >= lives
+  rule(finish):
+    when 0 >= lives:
       emit done
     end
   end
 
-  nd(levelLayout)
+  nd(levelLayout):
     propose brickLayout(rows: 5, cols: 10, style: "classic")
     satisfy(
       fullyInsideBounds(width: 40, height: 12),
