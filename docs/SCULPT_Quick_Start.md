@@ -31,7 +31,7 @@ sculpt help
 sculpt examples
 ```
 
-This writes sample `.sculpt` programs into `/examples`.
+This writes sample `.sculpt` programs into `/examples` (grouped by domain).
 
 ## 4) Configure an LLM Provider
 Use one of:
@@ -59,13 +59,13 @@ Example:
 Build:
 
 ```bash
-sculpt build examples/hello_world.sculpt --target cli
+sculpt build examples/getting-started/hello_world.sculpt --target cli
 ```
 
 Run:
 
 ```bash
-sculpt run examples/hello_world.sculpt --target cli
+sculpt run examples/getting-started/hello_world.sculpt --target cli
 ```
 
 If `@meta target=...` is set in the script, you can omit `--target`.

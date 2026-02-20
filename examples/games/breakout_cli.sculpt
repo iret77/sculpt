@@ -1,0 +1,136 @@
+# Breakout (CLI)
+# Demonstrates a playable arcade loop with clear game-state rules and constrained ND for level layout.
+
+@meta target=cli
+@meta nd_budget=24
+@meta confidence=0.9
+
+module(BreakoutCLI)
+
+  flow(Game)
+    start > Title
+
+    state(Title)
+      render text("BREAKOUT", color: "yellow")
+      render text("A/D move paddle, Space launch, Esc quit", color: "blue")
+      on key(Enter) > Play
+      on key(Esc) > Exit
+    end
+
+    state(Play)
+      on tick > Play
+      on done > GameOver
+      on key(Esc) > Exit
+    end
+
+    state(GameOver)
+      render text("Game Over", color: "red")
+      render text("Enter restart, Esc quit", color: "blue")
+      on key(Enter) > Title
+      on key(Esc) > Exit
+    end
+
+    state(Exit)
+      terminate
+    end
+  end
+
+  state()
+    width = 40
+    height = 22
+    paddleX = 18
+    paddleWidth = 6
+    ball = "(20,16)"
+    velocity = "up_right"
+    launched = 0
+    score = 0
+    lives = 3
+    bricks = "rows:5 cols:10 pattern:solid"
+    speedMs = 65
+    hitLeft = 0
+    hitRight = 0
+    hitTop = 0
+    hitPaddle = 0
+    hitBottom = 0
+  end
+
+  rule(launchBall)
+    on key(Space)
+      launched = 1
+    end
+  end
+
+  rule(moveLeft)
+    on key(A)
+      paddleX = movePaddle(paddleX, "left", width, paddleWidth)
+    end
+  end
+
+  rule(moveRight)
+    on key(D)
+      paddleX = movePaddle(paddleX, "right", width, paddleWidth)
+    end
+  end
+
+  rule(tick)
+    on tick
+      ball = stepBallIfLaunched(ball, velocity, launched)
+      score += 1
+      hitLeft = detectHitLeft(ball)
+      hitRight = detectHitRight(ball, width)
+      hitTop = detectHitTop(ball)
+      hitPaddle = detectHitPaddle(ball, paddleX, paddleWidth)
+      hitBottom = detectHitBottom(ball, height)
+    end
+  end
+
+  rule(wallBounceLeft)
+    when hitLeft >= 1
+      velocity = bounceX(velocity)
+    end
+  end
+
+  rule(wallBounceRight)
+    when hitRight >= 1
+      velocity = bounceX(velocity)
+    end
+  end
+
+  rule(wallBounceTop)
+    when hitTop >= 1
+      velocity = bounceY(velocity)
+    end
+  end
+
+  rule(paddleBounce)
+    when hitPaddle >= 1
+      velocity = bounceY(velocity)
+    end
+  end
+
+  rule(bottomOut)
+    when hitBottom >= 1
+      lives = dec(lives)
+      launched = 0
+      ball = resetBallNearPaddle(paddleX)
+      velocity = "up_right"
+    end
+  end
+
+  rule(finish)
+    when 0 >= lives
+      emit done
+    end
+  end
+
+  nd(levelLayout)
+    propose brickLayout(rows: 5, cols: 10, style: "classic")
+    satisfy(
+      fullyInsideBounds(width: 40, height: 12),
+      symmetricStart(),
+      reachableByBallPhysics(),
+      progressiveDifficulty()
+    )
+  end
+
+end

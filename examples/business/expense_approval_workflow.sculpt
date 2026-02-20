@@ -1,0 +1,72 @@
+# Expense Approval Workflow (Business)
+# Demonstrates a real approval flow where logic is explicit and ND is limited to message tone.
+
+@meta target=cli
+@meta nd_budget=8
+
+module(Business.Finance.ExpenseApproval)
+
+  flow(App)
+    start > Inbox
+
+    state(Inbox)
+      render text("Expense Queue", color: "yellow")
+      render text("1 = Open request, Esc = Exit", color: "blue")
+      on key(1) > Review
+      on key(Esc) > Exit
+    end
+
+    state(Review)
+      render text("Request #EX-2048", color: "yellow")
+      render text("Amount: 890 EUR", color: "white")
+      render text("Category: Travel", color: "white")
+      render text("A = Approve, R = Reject, N = Need Info", color: "blue")
+      on key(A) > Approved
+      on key(R) > Rejected
+      on key(N) > NeedInfo
+      on key(Esc) > Inbox
+    end
+
+    state(Approved)
+      render text("Approved and forwarded to payout batch.", color: "green")
+      on key(Enter) > Inbox
+    end
+
+    state(Rejected)
+      render text("Rejected with reason code.", color: "red")
+      on key(Enter) > Inbox
+    end
+
+    state(NeedInfo)
+      render text("Sent request for additional receipt details.", color: "magenta")
+      on key(Enter) > Inbox
+    end
+
+    state(Exit)
+      terminate
+    end
+  end
+
+  state()
+    approvalLimit = 1000
+    queueSize = 12
+    selectedRequest = "EX-2048"
+    riskScore = 18
+  end
+
+  rule(policyCheck)
+    when riskScore >= 80
+      emit done
+    end
+  end
+
+  nd(copyStyle)
+    propose reviewCopyTone(audience: "finance-team")
+    satisfy(
+      conciseLanguage(),
+      noLegalRiskTerms(),
+      professionalTone()
+    )
+  end
+
+end

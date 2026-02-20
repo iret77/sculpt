@@ -7,12 +7,12 @@ This case study compares two implementations of the same real-world task:
 an incident triage assistant that provides first-response action plans for on-call engineers.
 
 Implementations:
-- SCULPT: `examples/incident_triage_assistant.sculpt`
+- SCULPT: `examples/business/incident_triage_assistant.sculpt`
 - Classical TypeScript: `poc/classic_incident_triage.ts`
 
 ## Compared Source Code
 
-### SCULPT Source (`examples/incident_triage_assistant.sculpt`)
+### SCULPT Source (`examples/business/incident_triage_assistant.sculpt`)
 ```sculpt
 # Incident Triage Assistant (PoC)
 # Real-world task: guide on-call engineers to a first-response action plan.
@@ -179,7 +179,7 @@ Both implementations must:
 ## Build And Run Summary
 
 ### SCULPT implementation
-- Build: `sculpt build examples/incident_triage_assistant.sculpt --target cli --provider gemini`
+- Build: `sculpt build examples/business/incident_triage_assistant.sculpt --target cli --provider gemini`
 - Artifacts generated in `dist/incident_triage_assistant/`:
   - `ir.json`
   - `target.ir.json`

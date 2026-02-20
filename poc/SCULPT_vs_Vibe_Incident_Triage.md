@@ -27,10 +27,10 @@
 ## 3) Approaches
 
 ### A) SCULPT
-- Script path: `examples/incident_triage_assistant.sculpt`
+- Script path: `examples/business/incident_triage_assistant.sculpt`
 - Build/run commands:
-  - `sculpt build examples/incident_triage_assistant.sculpt --target cli --provider gemini`
-  - `sculpt run examples/incident_triage_assistant.sculpt --target cli`
+  - `sculpt build examples/business/incident_triage_assistant.sculpt --target cli --provider gemini`
+  - `sculpt run examples/business/incident_triage_assistant.sculpt --target cli`
 
 ### B) Vibe Coding (Prompt-First)
 - Prompt log path: [poc/vibe_prompts_incident_triage.md](vibe_prompts_incident_triage.md) (to be created during run)

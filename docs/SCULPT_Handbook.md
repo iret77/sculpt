@@ -43,7 +43,7 @@ This isolation avoids cross-script collisions and enables clean per-script run/r
 ## 3) Command Guide
 
 ### `sculpt examples`
-Writes curated examples into `examples/`.
+Writes curated examples into `examples/` (grouped by `getting-started/`, `games/`, `business/`, `web/`).
 
 ### `sculpt build <file.sculpt> --target <cli|gui|web>`
 Runs full compile pipeline and produces artifacts.
