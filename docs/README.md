@@ -22,6 +22,7 @@ Use this page as the single entry point for project docs.
 - [SCULPT_Target_WEB_Reference.md](SCULPT_Target_WEB_Reference.md)
 
 ## 4) Project Direction
+- [SCULPT_Roadmap.md](SCULPT_Roadmap.md): milestone path from current state to 1.0.
 - [SCULPT_Professional_Grade_Blueprint.md](SCULPT_Professional_Grade_Blueprint.md): long-term architecture direction.
 - [SCULPT_Backlog.md](SCULPT_Backlog.md): active roadmap and priorities.
 

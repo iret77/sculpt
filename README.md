@@ -42,6 +42,7 @@ SCULPT targets that gap:
 - [SCULPT Quick Start](docs/SCULPT_Quick_Start.md)
 - [SCULPT For Dummies](docs/SCULPT_For_Dummies.md)
 - [SCULPT Handbook](docs/SCULPT_Handbook.md)
+- [SCULPT Roadmap](docs/SCULPT_Roadmap.md)
 - [SCULPT Case Studies Overview](poc/SCULPT_Case_Studies_Overview.md)
 
 ## Documentation Map
