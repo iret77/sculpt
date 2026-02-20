@@ -68,6 +68,7 @@ impl Theme {
 
 struct AppState {
   cwd: PathBuf,
+  sculpt_cmd: PathBuf,
   entries: Vec<Entry>,
   file_state: ListState,
   targets: Vec<String>,
@@ -137,6 +138,7 @@ pub fn run() -> Result<()> {
 impl AppState {
   fn new() -> Result<Self> {
     let cwd = std::env::current_dir()?;
+    let sculpt_cmd = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("sculpt"));
     let entries = read_entries(&cwd)?;
     let targets = list_targets().unwrap_or_else(|_| vec!["cli".to_string(), "gui".to_string(), "web".to_string()]);
     let mut file_state = ListState::default();
@@ -146,6 +148,7 @@ impl AppState {
 
     Ok(Self {
       cwd,
+      sculpt_cmd,
       entries,
       file_state,
       targets,
@@ -255,12 +258,13 @@ impl AppState {
     Ok(())
   }
 
-  fn run_command(&mut self, cmd: &str, args: &[String]) -> Result<()> {
-    self.status = format!("Running: {} {}", cmd, args.join(" "));
+  fn run_sculpt(&mut self, args: &[String]) -> Result<()> {
+    let cmd_display = self.sculpt_cmd.display().to_string();
+    self.status = format!("Running: {} {}", cmd_display, args.join(" "));
     let started = Instant::now();
-    let output = Command::new(cmd).args(args).output()?;
+    let output = Command::new(&self.sculpt_cmd).args(args).output()?;
     let duration = started.elapsed();
-    self.log.push(format!("$ {} {}", cmd, args.join(" ")));
+    self.log.push(format!("$ {} {}", cmd_display, args.join(" ")));
     self.log.extend(normalize_log_output(&output.stdout));
     self.log.extend(normalize_log_output(&output.stderr));
     let ok = output.status.success();
@@ -366,7 +370,7 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
     KeyCode::Char('f') => {
       state.sync_selected_from_cursor()?;
       if state.selected_file.is_some() {
-        let _ = state.run_command("sculpt", &build_args(state, "freeze"));
+        let _ = state.run_sculpt(&build_args(state, "freeze"));
       } else {
         state.info_modal = Some("Select a .sculpt file first.".to_string());
       }
@@ -374,7 +378,7 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
     KeyCode::Char('p') => {
       state.sync_selected_from_cursor()?;
       if state.selected_file.is_some() {
-        let _ = state.run_command("sculpt", &build_args(state, "replay"));
+        let _ = state.run_sculpt(&build_args(state, "replay"));
       } else {
         state.info_modal = Some("Select a .sculpt file first.".to_string());
       }
@@ -382,7 +386,7 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
     KeyCode::Char('c') => {
       state.sync_selected_from_cursor()?;
       if state.selected_file.is_some() {
-        let _ = state.run_command("sculpt", &build_args(state, "clean"));
+        let _ = state.run_sculpt(&build_args(state, "clean"));
         state.update_preview_from_selection();
       } else {
         state.info_modal = Some("Select a .sculpt file first.".to_string());
@@ -416,22 +420,22 @@ fn handle_modal_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
 fn execute_pending_action(state: &mut AppState) -> Result<()> {
   match state.pending_action {
     PendingAction::BuildOnly => {
-      let _ = state.run_command("sculpt", &build_args(state, "build"));
+      let _ = state.run_sculpt(&build_args(state, "build"));
     }
     PendingAction::RunOnly => {
       if can_run_for_selected(state) {
-        let _ = state.run_command("sculpt", &build_args(state, "run"));
+        let _ = state.run_sculpt(&build_args(state, "run"));
       } else {
         state.info_modal = Some("Run not available. Build first.".to_string());
       }
     }
     PendingAction::BuildRun => {
       if can_run_for_selected(state) {
-        let _ = state.run_command("sculpt", &build_args(state, "run"));
+        let _ = state.run_sculpt(&build_args(state, "run"));
       } else {
-        let _ = state.run_command("sculpt", &build_args(state, "build"));
+        let _ = state.run_sculpt(&build_args(state, "build"));
         if can_run_for_selected(state) {
-          let _ = state.run_command("sculpt", &build_args(state, "run"));
+          let _ = state.run_sculpt(&build_args(state, "run"));
         }
       }
     }
@@ -838,9 +842,17 @@ fn build_args(state: &AppState, action: &str) -> Vec<String> {
     state.target_state.selected().and_then(|i| state.targets.get(i).cloned())
   };
   let mut args = vec![action.to_string(), file.to_string_lossy().to_string()];
-  if let Some(t) = target {
-    args.push("--target".to_string());
-    args.push(t);
+  if action != "clean" {
+    if let Some(t) = target {
+      args.push("--target".to_string());
+      args.push(t);
+    }
+  }
+  if action == "build" || action == "freeze" {
+    if let Some(policy) = state.preview_meta.get("nd_policy") {
+      args.push("--nd-policy".to_string());
+      args.push(policy.clone());
+    }
   }
   args
 }

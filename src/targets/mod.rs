@@ -501,12 +501,15 @@ pub fn describe_target(name: &str) -> Result<Value> {
               "layout": { "type": "enum", "values": ["default"] }
             })),
             Some(json!({ "runtime": ["browser"] })),
+            None,
         ),
         TargetKind::Cli => builtin_spec(
             "cli-ir",
             include_str!("../../ir-schemas/cli-ir.json"),
             Some(vec![
                 "runtime.cli",
+                "runtime.rules",
+                "runtime.when.logic",
                 "render.text",
                 "input.key",
                 "flow.state_machine",
@@ -515,6 +518,25 @@ pub fn describe_target(name: &str) -> Result<Value> {
               "layout": { "type": "enum", "values": ["default"] }
             })),
             Some(json!({ "runtime": ["desktop", "server"] })),
+            Some(json!({
+              "runtimeRules": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "assign", "emit"],
+                  "properties": {
+                    "name": { "type": "string" },
+                    "scopeFlow": { "type": ["string", "null"] },
+                    "scopeState": { "type": ["string", "null"] },
+                    "on": { "type": ["string", "null"] },
+                    "when": { "type": ["object", "null"] },
+                    "assign": { "type": "array" },
+                    "emit": { "type": "array" }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            })),
         ),
         TargetKind::Gui => builtin_spec(
             "gui-ir",
@@ -538,6 +560,7 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "linux": "python-tkinter"
               }
             })),
+            None,
         ),
         TargetKind::External(t) => external_describe(&t),
     }
@@ -549,6 +572,7 @@ fn builtin_spec(
     capabilities: Option<Vec<&str>>,
     target_meta: Option<Value>,
     support: Option<Value>,
+    extensions_schema: Option<Value>,
 ) -> Result<Value> {
     let schema_json: Value = serde_json::from_str(schema)?;
     let mut meta = json!({
@@ -581,7 +605,7 @@ fn builtin_spec(
           .map(|s| Value::String(s.to_string()))
           .collect::<Vec<_>>(),
         "meta": meta,
-        "extensions_schema": {}
+        "extensions_schema": extensions_schema.unwrap_or_else(|| json!({}))
       }
     });
     if let Some(support) = support {

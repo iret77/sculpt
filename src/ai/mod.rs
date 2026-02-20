@@ -52,7 +52,11 @@ pub fn generate_target_ir(
         gemini_generate(&api_key, &model, sculpt_ir, target_spec, nondet_report, previous_target_ir, layout_required, controls)?;
       Ok((value, Some(debug)))
     }
-    AiProvider::Stub => Ok((stub_generate(target_spec), None)),
+    AiProvider::Stub => {
+      let mut value = stub_generate(target_spec);
+      patch_target_ir_with_deterministic_parts(&mut value, &target_spec.standard_ir, sculpt_ir);
+      Ok((value, None))
+    }
   }
 }
 
@@ -102,10 +106,7 @@ fn openai_generate(
     "input": input,
     "text": {
       "format": {
-        "type": "json_schema",
-        "name": "target_ir",
-        "schema": compact_schema,
-        "strict": true
+        "type": "json_object"
       }
     }
   });
@@ -131,7 +132,8 @@ fn openai_generate(
   }
 
   let parsed = parse_json_response(&text)?;
-  let normalized = normalize_llm_ir(&target_spec.standard_ir, &parsed);
+  let mut normalized = normalize_llm_ir(&target_spec.standard_ir, &parsed);
+  patch_target_ir_with_deterministic_parts(&mut normalized, &target_spec.standard_ir, sculpt_ir);
   Ok((
     normalized,
     DebugCapture {
@@ -212,7 +214,8 @@ fn anthropic_generate(
     bail!("Anthropic returned empty output");
   }
   let parsed = parse_json_response(&text)?;
-  let normalized = normalize_llm_ir(&target_spec.standard_ir, &parsed);
+  let mut normalized = normalize_llm_ir(&target_spec.standard_ir, &parsed);
+  patch_target_ir_with_deterministic_parts(&mut normalized, &target_spec.standard_ir, sculpt_ir);
   Ok((
     normalized,
     DebugCapture {
@@ -276,7 +279,8 @@ fn gemini_generate(
     bail!("Gemini returned empty output");
   }
   let parsed = parse_json_response(&text)?;
-  let normalized = normalize_llm_ir(&target_spec.standard_ir, &parsed);
+  let mut normalized = normalize_llm_ir(&target_spec.standard_ir, &parsed);
+  patch_target_ir_with_deterministic_parts(&mut normalized, &target_spec.standard_ir, sculpt_ir);
   Ok((
     normalized,
     DebugCapture {
@@ -446,6 +450,335 @@ fn parse_json_response(text: &str) -> Result<Value> {
   }
 
   bail!("Failed to parse JSON from model output")
+}
+
+fn patch_target_ir_with_deterministic_parts(target: &mut Value, standard_ir: &str, sculpt_ir: &Value) {
+  if standard_ir != "cli-ir" {
+    return;
+  }
+  let Some(root) = target.as_object_mut() else {
+    return;
+  };
+  let Some(flows) = sculpt_ir.get("flows").and_then(Value::as_array) else {
+    return;
+  };
+  let Some(flow) = flows.first() else {
+    return;
+  };
+  let start = flow
+    .get("start")
+    .and_then(Value::as_str)
+    .unwrap_or("Title")
+    .to_string();
+  let Some(states) = flow.get("states").and_then(Value::as_array) else {
+    return;
+  };
+
+  let mut transitions = serde_json::Map::new();
+  let mut views = serde_json::Map::new();
+
+  for state in states {
+    let Some(name) = state.get("name").and_then(Value::as_str) else {
+      continue;
+    };
+    let statements = state
+      .get("statements")
+      .and_then(Value::as_array)
+      .cloned()
+      .unwrap_or_default();
+    let mut event_map = serde_json::Map::new();
+    let mut render_items = Vec::new();
+
+    for stmt in statements {
+      if let Some(on) = stmt.get("On").and_then(Value::as_object) {
+        let event = on.get("event").and_then(Value::as_object);
+        let target_state = on.get("target").and_then(Value::as_str);
+        if let (Some(event_obj), Some(dst)) = (event, target_state) {
+          let ev_name = event_obj
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+          let ev = normalize_event_name(ev_name, event_obj.get("args").and_then(Value::as_array));
+          if !ev.is_empty() {
+            event_map.insert(ev, Value::String(dst.to_string()));
+          }
+        }
+      }
+      if let Some(expr) = stmt.get("Expr").and_then(Value::as_object) {
+        if expr.get("name").and_then(Value::as_str) != Some("render") {
+          continue;
+        }
+        if let Some(args) = expr.get("args").and_then(Value::as_array) {
+          if let Some(first) = args.first().and_then(Value::as_object) {
+            if let Some(call) = first
+              .get("value")
+              .and_then(Value::as_object)
+              .and_then(|v| v.get("Call"))
+              .and_then(Value::as_object)
+            {
+              let kind = call.get("name").and_then(Value::as_str).unwrap_or_default();
+              if kind == "text" || kind == "button" {
+                let mut item = serde_json::Map::new();
+                item.insert("kind".to_string(), Value::String(kind.to_string()));
+                if let Some(call_args) = call.get("args").and_then(Value::as_array) {
+                  for (idx, arg) in call_args.iter().enumerate() {
+                    let name = arg.get("name").and_then(Value::as_str);
+                    let val = arg.get("value");
+                    if idx == 0 {
+                      if let Some(s) = extract_scalar_string(val) {
+                        item.insert("text".to_string(), Value::String(s));
+                      }
+                    }
+                    if name == Some("color") {
+                      if let Some(s) = extract_scalar_string(val) {
+                        item.insert("color".to_string(), Value::String(s.to_lowercase()));
+                      }
+                    }
+                    if name == Some("style") {
+                      if let Some(s) = extract_scalar_string(val) {
+                        item.insert("style".to_string(), Value::String(s));
+                      }
+                    }
+                  }
+                }
+                render_items.push(Value::Object(item));
+              }
+            }
+          }
+        }
+      }
+    }
+
+    transitions.insert(name.to_string(), Value::Object(event_map));
+    if !render_items.is_empty() {
+      views.insert(name.to_string(), Value::Array(render_items));
+    }
+  }
+
+  root.insert(
+    "flow".to_string(),
+    json!({
+      "start": start,
+      "transitions": transitions
+    }),
+  );
+  root.insert("views".to_string(), Value::Object(views));
+
+  if let Some(state_obj) = build_runtime_state(sculpt_ir) {
+    root.insert("state".to_string(), Value::Object(state_obj));
+  }
+  inject_runtime_rules(root, sculpt_ir);
+}
+
+fn build_runtime_state(sculpt_ir: &Value) -> Option<serde_json::Map<String, Value>> {
+  let mut state_obj = serde_json::Map::new();
+  let global = sculpt_ir.get("global_state").and_then(Value::as_array)?;
+  for stmt in global {
+    let Some(assign) = stmt.get("Assign").and_then(Value::as_object) else {
+      continue;
+    };
+    let Some(target) = assign.get("target").and_then(Value::as_str) else {
+      continue;
+    };
+    let op = assign.get("op").and_then(Value::as_str).unwrap_or("Set");
+    let value = assign.get("value");
+    if op == "Set" {
+      if let Some(v) = extract_simple_expr(value) {
+        state_obj.insert(target.to_string(), v);
+      }
+    }
+  }
+  if state_obj.is_empty() {
+    None
+  } else {
+    Some(state_obj)
+  }
+}
+
+fn inject_runtime_rules(root: &mut serde_json::Map<String, Value>, sculpt_ir: &Value) {
+  let Some(rules) = sculpt_ir.get("rules").and_then(Value::as_array) else {
+    return;
+  };
+  let mut runtime_rules = Vec::new();
+  for rule in rules {
+    let Some(rule_obj) = rule.as_object() else {
+      continue;
+    };
+    let Some(trigger) = rule_obj.get("trigger").and_then(Value::as_object) else {
+      continue;
+    };
+    let event = trigger
+      .get("On")
+      .and_then(Value::as_object)
+      .map(normalize_event_name_from_call)
+      .unwrap_or_default();
+    let when = trigger
+      .get("When")
+      .and_then(extract_when_condition);
+    if event.is_empty() && when.is_none() {
+      continue;
+    }
+    let scope_flow = rule_obj
+      .get("scope_flow")
+      .and_then(Value::as_str)
+      .map(|s| s.to_string());
+    let scope_state = rule_obj
+      .get("scope_state")
+      .and_then(Value::as_str)
+      .map(|s| s.to_string());
+    let mut emits = Vec::<Value>::new();
+    let mut assigns = Vec::<Value>::new();
+    if let Some(body) = rule_obj.get("body").and_then(Value::as_array) {
+      for stmt in body {
+        if let Some(emit) = stmt.get("Emit").and_then(Value::as_object) {
+          if let Some(ev) = emit.get("event").and_then(Value::as_str) {
+            emits.push(Value::String(ev.to_string()));
+          }
+        } else if let Some(assign) = stmt.get("Assign").and_then(Value::as_object) {
+          if let Some(target) = assign.get("target").and_then(Value::as_str) {
+            let op = assign.get("op").and_then(Value::as_str).unwrap_or("Set");
+            if let Some(value) = extract_simple_expr(assign.get("value")) {
+              assigns.push(json!({
+                "target": target,
+                "op": if op == "Add" { "add" } else { "set" },
+                "value": value
+              }));
+            }
+          }
+        }
+      }
+    }
+    runtime_rules.push(json!({
+      "name": rule_obj.get("name").and_then(Value::as_str).unwrap_or("rule"),
+      "scopeFlow": scope_flow,
+      "scopeState": scope_state,
+      "on": if event.is_empty() { Value::Null } else { Value::String(event) },
+      "when": when,
+      "emit": emits,
+      "assign": assigns
+    }));
+  }
+
+  if runtime_rules.is_empty() {
+    return;
+  }
+
+  let extensions = root
+    .entry("extensions".to_string())
+    .or_insert_with(|| Value::Object(serde_json::Map::new()));
+  let Some(ext_obj) = extensions.as_object_mut() else {
+    return;
+  };
+  ext_obj.insert("runtimeRules".to_string(), Value::Array(runtime_rules));
+}
+
+fn normalize_event_name_from_call(call: &serde_json::Map<String, Value>) -> String {
+  let name = call.get("name").and_then(Value::as_str).unwrap_or_default();
+  if name == "key" {
+    let key = call
+      .get("args")
+      .and_then(Value::as_array)
+      .and_then(|args| args.first())
+      .and_then(|arg| extract_scalar_string(arg.get("value")))
+      .unwrap_or_default()
+      .to_lowercase();
+    return format!("key({key})");
+  }
+  if call
+    .get("args")
+    .and_then(Value::as_array)
+    .map(|a| a.is_empty())
+    .unwrap_or(true)
+  {
+    return name.to_string();
+  }
+  name.to_string()
+}
+
+fn extract_when_condition(value: &Value) -> Option<Value> {
+  let obj = value.as_object()?;
+  let binary = obj.get("Binary")?.as_object()?;
+  let op = binary.get("op").and_then(Value::as_str)?;
+  match op {
+    "And" | "Or" => {
+      let left = extract_when_condition(binary.get("left")?)?;
+      let right = extract_when_condition(binary.get("right")?)?;
+      Some(json!({
+        "kind": "logic",
+        "op": if op == "And" { "and" } else { "or" },
+        "left": left,
+        "right": right
+      }))
+    }
+    "Gte" | "Gt" | "Lt" | "Eq" | "Neq" => {
+      let left_ident = binary
+        .get("left")
+        .and_then(Value::as_object)
+        .and_then(|v| v.get("Ident"))
+        .and_then(Value::as_str)?;
+      let right = extract_simple_expr(binary.get("right"))?;
+      let cmp = match op {
+        "Gte" => "gte",
+        "Gt" => "gt",
+        "Lt" => "lt",
+        "Eq" => "eq",
+        "Neq" => "neq",
+        _ => return None,
+      };
+      Some(json!({
+        "kind": "cmp",
+        "op": cmp,
+        "left": left_ident,
+        "right": right
+      }))
+    }
+    _ => None,
+  }
+}
+
+fn extract_simple_expr(value: Option<&Value>) -> Option<Value> {
+  let v = value?;
+  if let Some(n) = v.get("Number").and_then(Value::as_f64) {
+    return Some(json!(n));
+  }
+  if let Some(s) = v.get("String").and_then(Value::as_str) {
+    return Some(Value::String(s.to_string()));
+  }
+  if v.get("Null").is_some() {
+    return Some(Value::Null);
+  }
+  if let Some(id) = v.get("Ident").and_then(Value::as_str) {
+    return Some(json!({ "ident": id }));
+  }
+  None
+}
+
+fn normalize_event_name(name: &str, args: Option<&Vec<Value>>) -> String {
+  if name == "key" {
+    let key = args
+      .and_then(|list| list.first())
+      .and_then(|a| extract_scalar_string(a.get("value")))
+      .unwrap_or_default()
+      .to_lowercase();
+    return format!("key({})", key);
+  }
+  if let Some(list) = args {
+    if list.is_empty() {
+      return name.to_string();
+    }
+  }
+  name.to_string()
+}
+
+fn extract_scalar_string(value: Option<&Value>) -> Option<String> {
+  let v = value?;
+  if let Some(s) = v.get("String").and_then(Value::as_str) {
+    return Some(s.to_string());
+  }
+  if let Some(s) = v.get("Ident").and_then(Value::as_str) {
+    return Some(s.to_string());
+  }
+  None
 }
 
 fn http_client() -> Result<reqwest::blocking::Client> {

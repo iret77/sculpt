@@ -263,3 +263,42 @@ end
     let diagnostics = validate_module(&module);
     assert!(!diagnostics.iter().any(|d| d.code == "N306"));
 }
+
+#[test]
+fn allows_when_comparison_operators() {
+    let src = r#"module(App.Core):
+  state():
+    score = 0
+    limit = 10
+    mode = "auto"
+  end
+
+  rule(a):
+    when score > 0:
+      emit done
+    end
+  end
+
+  rule(b):
+    when score < limit:
+      emit done
+    end
+  end
+
+  rule(c):
+    when mode == "auto":
+      emit done
+    end
+  end
+
+  rule(d):
+    when score != limit and mode == "auto" or score > 2:
+      emit done
+    end
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let diagnostics = validate_module(&module);
+    assert!(!diagnostics.iter().any(|d| d.code == "R204"));
+}

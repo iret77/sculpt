@@ -2,6 +2,8 @@
 # Goal: minimal code, large solution space.
 # Most of the game design is delegated to the LLM.
 
+@meta target=cli
+
 module(SnakeHighND):
 
   # Main flow
@@ -16,12 +18,8 @@ module(SnakeHighND):
     end
 
     state(Play):
-      run Loop
+      on tick > Play
       on done > Title
-    end
-
-    state(Loop):
-      on tick > Loop
       on key(Esc) > Exit
     end
 

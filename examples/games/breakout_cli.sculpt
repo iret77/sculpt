@@ -21,6 +21,27 @@ module(BreakoutCLI):
       on tick > Play
       on done > GameOver
       on key(Esc) > Exit
+
+      on key(Space):: launched = 1
+      on key(A):: paddleX = movePaddle(paddleX, "left", width, paddleWidth)
+      on key(D):: paddleX = movePaddle(paddleX, "right", width, paddleWidth)
+
+      rule(runtimeTick):
+        on tick:
+          score += 1
+          hitLeft = detectHitLeft(ball)
+          hitRight = detectHitRight(ball, width)
+          hitTop = detectHitTop(ball)
+          hitPaddle = detectHitPaddle(ball, paddleX, paddleWidth)
+          hitBottom = detectHitBottom(ball, height)
+        end
+      end
+
+      rule(runtimeFinish):
+        when hitBottom >= 1 and lives < 1:
+          emit done
+        end
+      end
     end
 
     state(GameOver):
@@ -52,24 +73,6 @@ module(BreakoutCLI):
     hitTop = 0
     hitPaddle = 0
     hitBottom = 0
-  end
-
-  rule(launchBall):
-    on key(Space):
-      launched = 1
-    end
-  end
-
-  rule(moveLeft):
-    on key(A):
-      paddleX = movePaddle(paddleX, "left", width, paddleWidth)
-    end
-  end
-
-  rule(moveRight):
-    on key(D):
-      paddleX = movePaddle(paddleX, "right", width, paddleWidth)
-    end
   end
 
   rule(tick):
@@ -118,7 +121,7 @@ module(BreakoutCLI):
   end
 
   rule(finish):
-    when 0 >= lives:
+    when lives < 1:
       emit done
     end
   end

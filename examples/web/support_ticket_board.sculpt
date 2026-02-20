@@ -1,0 +1,77 @@
+# Support Ticket Board (Web)
+# Demonstrates a small but practical web workflow with multiple screens and keyboard navigation.
+
+@meta target=web
+@meta nd_budget=10
+
+module(ServiceDesk.Web.SupportBoard):
+
+  flow(App):
+    start > Board
+
+    state(Board):
+      render text("Support Ticket Board", color: "yellow")
+      render text("1 = Open ticket #4821", color: "white")
+      render text("2 = Open ticket #4822", color: "white")
+      render text("S = SLA overview", color: "blue")
+      render text("Esc = Exit", color: "blue")
+      on key(1) > Ticket4821
+      on key(2) > Ticket4822
+      on key(S) > SLA
+      on key(Esc) > Exit
+    end
+
+    state(Ticket4821):
+      render text("Ticket #4821", color: "yellow")
+      render text("Customer: ACME Retail", color: "white")
+      render text("Issue: Checkout timeout", color: "white")
+      render text("Priority: High", color: "red")
+      render text("A = Mark in progress, R = Return", color: "blue")
+      on key(A) > InProgress
+      on key(R) > Board
+      on key(Esc) > Exit
+    end
+
+    state(Ticket4822):
+      render text("Ticket #4822", color: "yellow")
+      render text("Customer: Nova Health", color: "white")
+      render text("Issue: CSV export mismatch", color: "white")
+      render text("Priority: Medium", color: "magenta")
+      render text("A = Mark in progress, R = Return", color: "blue")
+      on key(A) > InProgress
+      on key(R) > Board
+      on key(Esc) > Exit
+    end
+
+    state(InProgress):
+      render text("Ticket moved to In Progress.", color: "green")
+      render text("Enter = Back to board", color: "blue")
+      on key(Enter) > Board
+      on key(Esc) > Exit
+    end
+
+    state(SLA):
+      render text("SLA Overview", color: "yellow")
+      render text("High: 1 overdue", color: "red")
+      render text("Medium: 2 due in < 4h", color: "magenta")
+      render text("Low: 6 on track", color: "green")
+      render text("Enter = Back to board", color: "blue")
+      on key(Enter) > Board
+      on key(Esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  nd(layout):
+    propose boardLayout(kind: "service-desk")
+    satisfy(
+      clearPriorityContrast(),
+      keyboardFirstNavigation(),
+      readableOnLaptopScreens()
+    )
+  end
+
+end

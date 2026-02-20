@@ -28,7 +28,9 @@ Examples are grouped by intent so new developers can find the right starting poi
 
 ## 4) Web
 - `web/incident_status_dashboard.sculpt`
-  - Web-target dashboard flow with explicit layout constraints.
+  - Web-target incident overview with clear state navigation.
+- `web/support_ticket_board.sculpt`
+  - Small service-desk use case with ticket detail flow and SLA screen.
 
 ## Quick Run
 ```bash

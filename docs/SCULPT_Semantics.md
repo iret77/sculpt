@@ -81,6 +81,7 @@ Recommended deterministic rule:
 ### 4.2 `when` vs `on`
 - `on` is event-driven.
 - `when` is condition-driven.
+- Supported `when` operators: `>=`, `>`, `<`, `==`, `!=` and logic chaining with `and` / `or`.
 - If both trigger in a cycle, rule order is still source order (single deterministic ordering).
 
 ### 4.3 `emit` Ordering

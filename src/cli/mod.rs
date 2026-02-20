@@ -228,10 +228,10 @@ fn write_examples() -> Result<()> {
     fs::create_dir_all(examples_dir)?;
 
     let files: &[(&str, &str)] = &[
-        (
-            "getting-started/hello_world.sculpt",
-            r#"# Hello World (tradition kept)
+        ("getting-started/hello_world.sculpt", r#"# Hello World (tradition kept)
 # Minimal deterministic example with no ND.
+
+@meta target=cli
 
 module(HelloWorld):
 
@@ -241,18 +241,20 @@ module(HelloWorld):
     state(Show):
       render text("Hallo", color: "yellow")
       render text("Welt", color: "blue")
+      on key(Esc) > Exit
+    end
+
+    state(Exit):
+      terminate
     end
   end
 
 end
-"#,
-        ),
-        (
-            "getting-started/native_window.sculpt",
-            r#"# Native Window Demo (macOS GUI)
+"#),
+        ("getting-started/native_window.sculpt", r#"# Native Window Demo (macOS GUI)
 # Goal: show a real window with text + button.
 
-@meta target=gui layout=explicit
+@meta target=gui
 
 module(NativeWindow):
 
@@ -263,18 +265,21 @@ module(NativeWindow):
       render text("SCULPT Native Demo", color: "yellow")
       render text("Click the button to open an OK modal", color: "blue")
       render button("Open OK", action: "modal.ok")
+      on key(Esc) > Exit
+    end
+
+    state(Exit):
       terminate
     end
   end
 
 end
-"#,
-        ),
-        (
-            "games/snake_high_nd.sculpt",
-            r#"# Snake (High ND)
+"#),
+        ("games/snake_high_nd.sculpt", r#"# Snake (High ND)
 # Goal: minimal code, large solution space.
 # Most of the game design is delegated to the LLM.
+
+@meta target=cli
 
 module(SnakeHighND):
 
@@ -290,12 +295,8 @@ module(SnakeHighND):
     end
 
     state(Play):
-      run Loop
+      on tick > Play
       on done > Title
-    end
-
-    state(Loop):
-      on tick > Loop
       on key(Esc) > Exit
     end
 
@@ -333,13 +334,12 @@ module(SnakeHighND):
     )
   end
 end
-"#,
-        ),
-        (
-            "games/snake_low_nd.sculpt",
-            r#"# Snake (Low ND)
+"#),
+        ("games/snake_low_nd.sculpt", r#"# Snake (Low ND)
 # Goal: highly specified rules so the solution space is narrow.
 # ND is reduced to a tiny UI-theme choice.
+
+@meta target=cli
 
 module(SnakeLowND):
 
@@ -355,12 +355,8 @@ module(SnakeLowND):
     end
 
     state(Play):
-      run Loop
+      on tick > Play
       on done > Title
-    end
-
-    state(Loop):
-      on tick > Loop
       on key(Esc) > Exit
     end
 
@@ -381,6 +377,8 @@ module(SnakeLowND):
     food = "(12,6)"
     foodSequence = "[(12,6),(12,7),(11,7),(10,7),(10,6)]"
     stepIndex = 0
+    wallHit = 0
+    selfHit = 0
   end
 
   # Deterministic tick progression
@@ -427,12 +425,20 @@ module(SnakeLowND):
 
   rule(checkCollision):
     on tick:
-      when hitWall(snake, width, height)
-        emit done
-      end
-      when hitSelf(snake)
-        emit done
-      end
+      wallHit = hitWall(snake, width, height)
+      selfHit = hitSelf(snake)
+    end
+  end
+
+  rule(collisionWall):
+    when wallHit >= 1:
+      emit done
+    end
+  end
+
+  rule(collisionSelf):
+    when selfHit >= 1:
+      emit done
     end
   end
 
@@ -452,11 +458,8 @@ module(SnakeLowND):
     )
   end
 end
-"#,
-        ),
-        (
-            "games/breakout_cli.sculpt",
-            r#"# Breakout (CLI)
+"#),
+        ("games/breakout_cli.sculpt", r#"# Breakout (CLI)
 # Demonstrates a playable arcade loop with clear game-state rules and constrained ND for level layout.
 
 @meta target=cli
@@ -479,6 +482,27 @@ module(BreakoutCLI):
       on tick > Play
       on done > GameOver
       on key(Esc) > Exit
+
+      on key(Space):: launched = 1
+      on key(A):: paddleX = movePaddle(paddleX, "left", width, paddleWidth)
+      on key(D):: paddleX = movePaddle(paddleX, "right", width, paddleWidth)
+
+      rule(runtimeTick):
+        on tick:
+          score += 1
+          hitLeft = detectHitLeft(ball)
+          hitRight = detectHitRight(ball, width)
+          hitTop = detectHitTop(ball)
+          hitPaddle = detectHitPaddle(ball, paddleX, paddleWidth)
+          hitBottom = detectHitBottom(ball, height)
+        end
+      end
+
+      rule(runtimeFinish):
+        when hitBottom >= 1 and lives < 1:
+          emit done
+        end
+      end
     end
 
     state(GameOver):
@@ -510,24 +534,6 @@ module(BreakoutCLI):
     hitTop = 0
     hitPaddle = 0
     hitBottom = 0
-  end
-
-  rule(launchBall):
-    on key(Space):
-      launched = 1
-    end
-  end
-
-  rule(moveLeft):
-    on key(A):
-      paddleX = movePaddle(paddleX, "left", width, paddleWidth)
-    end
-  end
-
-  rule(moveRight):
-    on key(D):
-      paddleX = movePaddle(paddleX, "right", width, paddleWidth)
-    end
   end
 
   rule(tick):
@@ -576,7 +582,7 @@ module(BreakoutCLI):
   end
 
   rule(finish):
-    when 0 >= lives:
+    when lives < 1:
       emit done
     end
   end
@@ -592,12 +598,11 @@ module(BreakoutCLI):
   end
 
 end
-"#,
-        ),
-        (
-            "business/invoice_review.sculpt",
-            r#"# Business/Web Example: Invoice Review
+"#),
+        ("business/invoice_review.sculpt", r#"# Business/Web Example: Invoice Review
 # Goal: clear business UI with minimal ND.
+
+@meta target=cli
 
 module(InvoiceReview):
 
@@ -650,11 +655,8 @@ module(InvoiceReview):
     )
   end
 end
-"#,
-        ),
-        (
-            "business/incident_triage_assistant.sculpt",
-            r#"# Incident Triage Assistant (PoC)
+"#),
+        ("business/incident_triage_assistant.sculpt", r#"# Incident Triage Assistant (PoC)
 # Real-world task: guide on-call engineers to a first-response action plan.
 
 @meta target=cli
@@ -713,7 +715,6 @@ module(Ops.Incident.Triage):
     end
 
     state(Exit):
-      render text("Session closed. Stay calm and log your actions.", color: "green")
       terminate
     end
   end
@@ -730,11 +731,8 @@ module(Ops.Incident.Triage):
   end
 
 end
-"#,
-        ),
-        (
-            "business/expense_approval_workflow.sculpt",
-            r#"# Expense Approval Workflow (Business)
+"#),
+        ("business/expense_approval_workflow.sculpt", r#"# Expense Approval Workflow (Business)
 # Demonstrates a real approval flow where logic is explicit and ND is limited to message tone.
 
 @meta target=cli
@@ -757,10 +755,21 @@ module(Business.Finance.ExpenseApproval):
       render text("Amount: 890 EUR", color: "white")
       render text("Category: Travel", color: "white")
       render text("A = Approve, R = Reject, N = Need Info", color: "blue")
+      on key(A):: approvedCount += 1
+      on key(R):: rejectedCount += 1
+      on key(N):: infoCount += 1
       on key(A) > Approved
       on key(R) > Rejected
       on key(N) > NeedInfo
       on key(Esc) > Inbox
+
+      rule(autoEscalate):
+        when riskScore >= 70 and queueSize > 10 or amount == 5000:
+          emit escalated
+        end
+      end
+
+      on escalated > NeedInfo
     end
 
     state(Approved):
@@ -784,10 +793,14 @@ module(Business.Finance.ExpenseApproval):
   end
 
   state():
+    amount = 890
     approvalLimit = 1000
     queueSize = 12
     selectedRequest = "EX-2048"
     riskScore = 18
+    approvedCount = 0
+    rejectedCount = 0
+    infoCount = 0
   end
 
   rule(policyCheck):
@@ -806,15 +819,11 @@ module(Business.Finance.ExpenseApproval):
   end
 
 end
-"#,
-        ),
-        (
-            "web/incident_status_dashboard.sculpt",
-            r#"# Incident Status Dashboard (Web)
+"#),
+        ("web/incident_status_dashboard.sculpt", r#"# Incident Status Dashboard (Web)
 # Demonstrates a web target with strongly defined flow and constrained ND for layout only.
 
 @meta target=web
-@meta layout=explicit
 @meta nd_budget=12
 
 module(Ops.Web.IncidentDashboard):
@@ -873,8 +882,85 @@ module(Ops.Web.IncidentDashboard):
   end
 
 end
-"#,
-        ),
+"#),
+        ("web/support_ticket_board.sculpt", r#"# Support Ticket Board (Web)
+# Demonstrates a small but practical web workflow with multiple screens and keyboard navigation.
+
+@meta target=web
+@meta nd_budget=10
+
+module(ServiceDesk.Web.SupportBoard):
+
+  flow(App):
+    start > Board
+
+    state(Board):
+      render text("Support Ticket Board", color: "yellow")
+      render text("1 = Open ticket #4821", color: "white")
+      render text("2 = Open ticket #4822", color: "white")
+      render text("S = SLA overview", color: "blue")
+      render text("Esc = Exit", color: "blue")
+      on key(1) > Ticket4821
+      on key(2) > Ticket4822
+      on key(S) > SLA
+      on key(Esc) > Exit
+    end
+
+    state(Ticket4821):
+      render text("Ticket #4821", color: "yellow")
+      render text("Customer: ACME Retail", color: "white")
+      render text("Issue: Checkout timeout", color: "white")
+      render text("Priority: High", color: "red")
+      render text("A = Mark in progress, R = Return", color: "blue")
+      on key(A) > InProgress
+      on key(R) > Board
+      on key(Esc) > Exit
+    end
+
+    state(Ticket4822):
+      render text("Ticket #4822", color: "yellow")
+      render text("Customer: Nova Health", color: "white")
+      render text("Issue: CSV export mismatch", color: "white")
+      render text("Priority: Medium", color: "magenta")
+      render text("A = Mark in progress, R = Return", color: "blue")
+      on key(A) > InProgress
+      on key(R) > Board
+      on key(Esc) > Exit
+    end
+
+    state(InProgress):
+      render text("Ticket moved to In Progress.", color: "green")
+      render text("Enter = Back to board", color: "blue")
+      on key(Enter) > Board
+      on key(Esc) > Exit
+    end
+
+    state(SLA):
+      render text("SLA Overview", color: "yellow")
+      render text("High: 1 overdue", color: "red")
+      render text("Medium: 2 due in < 4h", color: "magenta")
+      render text("Low: 6 on track", color: "green")
+      render text("Enter = Back to board", color: "blue")
+      on key(Enter) > Board
+      on key(Esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  nd(layout):
+    propose boardLayout(kind: "service-desk")
+    satisfy(
+      clearPriorityContrast(),
+      keyboardFirstNavigation(),
+      readableOnLaptopScreens()
+    )
+  end
+
+end
+"#),
     ];
 
     for (relative, content) in files {

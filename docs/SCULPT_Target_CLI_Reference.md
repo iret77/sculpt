@@ -10,6 +10,7 @@ Standard IR: `cli-ir`
 - Text rendering in terminal
 - State transitions via keyboard events
 - Colorized text output
+- Runtime rules for `on` and `when` (including `and`/`or`, `!=`)
 
 ## Supported Render Calls
 From SCULPT source, the practical pattern is:
@@ -34,6 +35,7 @@ Useful keys:
 - `start > <State>` is required.
 - `on key(...) > <State>` transitions are used at runtime.
 - `run` and `terminate` are language-level and validated before build.
+- State-local rules are supported and scoped to their state.
 
 ## Target Meta/Contract Notes
 - Typical:
@@ -46,6 +48,7 @@ Useful keys:
 - Terminal-only UI
 - No native button widgets
 - No complex layout primitives
+- `when` runtime currently supports scalar comparisons only
 
 ## Minimal Example
 ```sculpt

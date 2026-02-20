@@ -119,6 +119,16 @@ rule(tick):
 end
 ```
 
+`when` supports `>=`, `>`, `<`, `==`, `!=` and logical chaining via `and` / `or`.
+
+State-local shortcuts are also valid:
+
+```sculpt
+state(Play):
+  on key(Left):: paddleX += 1
+end
+```
+
 ### 5.5 ND Blocks
 ND blocks define candidate generation and hard constraints:
 

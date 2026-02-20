@@ -33,7 +33,7 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
             _ => None,
         })
         .collect();
-    let rules: Vec<&Rule> = module
+    let mut rules: Vec<&Rule> = module
         .items
         .iter()
         .filter_map(|item| match item {
@@ -41,6 +41,15 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
             _ => None,
         })
         .collect();
+    for flow in &flows {
+        for state in &flow.states {
+            for stmt in &state.statements {
+                if let StateStmt::Rule(rule) = stmt {
+                    rules.push(rule);
+                }
+            }
+        }
+    }
     let nd_blocks: Vec<&NdBlock> = module
         .items
         .iter()
@@ -100,7 +109,11 @@ fn collect_known_fqns(module: &Module, flows: &[&Flow], rules: &[&Rule]) -> Hash
     }
 
     for rule in rules {
-        fqns.insert(format!("{}.{}", module.name, rule.name));
+        if let (Some(flow), Some(state)) = (&rule.scope_flow, &rule.scope_state) {
+            fqns.insert(format!("{}.{}.{}.{}", module.name, flow, state, rule.name));
+        } else {
+            fqns.insert(format!("{}.{}", module.name, rule.name));
+        }
     }
 
     for item in &module.items {
@@ -214,17 +227,11 @@ fn validate_rules(rules: &[&Rule], diagnostics: &mut Vec<Diagnostic>) {
             ));
         }
         if let RuleTrigger::When(expr) = &rule.trigger {
-            if !matches!(
-                expr,
-                Expr::Binary {
-                    op: BinaryOp::Gte,
-                    ..
-                }
-            ) {
+            if !is_supported_when_expr(expr) {
                 diagnostics.push(Diagnostic::new(
                     "R204",
                     format!(
-                        "Rule '{}' uses 'when' without a comparison expression (expected >=)",
+                        "Rule '{}' uses 'when' without a supported expression (expected comparisons >=, >, <, ==, != and optional and/or)",
                         rule.name
                     ),
                 ));
@@ -538,6 +545,41 @@ fn validate_symbol_references(
                             &mut check_ident,
                         );
                     }
+                    StateStmt::Rule(rule) => {
+                        match &rule.trigger {
+                            RuleTrigger::On(call) => walk_call_idents(
+                                call,
+                                &format!("state rule trigger {}.{}.{}", flow.name, state_name, rule.name),
+                                &mut check_ident,
+                            ),
+                            RuleTrigger::When(expr) => walk_expr_idents(
+                                expr,
+                                &format!("state rule trigger {}.{}.{}", flow.name, state_name, rule.name),
+                                &mut check_ident,
+                            ),
+                        }
+                        for stmt in &rule.body {
+                            match stmt {
+                                RuleStmt::Assign { target, value, .. } => {
+                                    check_ident(
+                                        target,
+                                        &format!("state rule assignment target {}.{}.{}", flow.name, state_name, rule.name),
+                                    );
+                                    walk_expr_idents(
+                                        value,
+                                        &format!("state rule assignment value {}.{}.{}", flow.name, state_name, rule.name),
+                                        &mut check_ident,
+                                    );
+                                }
+                                RuleStmt::Emit { event } => {
+                                    check_ident(
+                                        event,
+                                        &format!("state rule emit {}.{}.{}", flow.name, state_name, rule.name),
+                                    );
+                                }
+                            }
+                        }
+                    }
                     StateStmt::Terminate => {}
                 }
             }
@@ -636,6 +678,22 @@ fn expr_kind(expr: &Expr) -> String {
         Expr::Ident(s) => format!("ident:{s}"),
         Expr::Call(c) => format!("call:{}", call_signature(c)),
         Expr::Binary { op, .. } => format!("binary:{op:?}"),
+    }
+}
+
+fn is_supported_when_expr(expr: &Expr) -> bool {
+    match expr {
+        Expr::Binary { op, left, right } => match op {
+            BinaryOp::And | BinaryOp::Or => is_supported_when_expr(left) && is_supported_when_expr(right),
+            BinaryOp::Gte | BinaryOp::Gt | BinaryOp::Lt | BinaryOp::Eq | BinaryOp::Neq => {
+                matches!(**left, Expr::Ident(_))
+                    && matches!(
+                        **right,
+                        Expr::Number(_) | Expr::String(_) | Expr::Null | Expr::Ident(_)
+                    )
+            }
+        },
+        _ => false,
     }
 }
 

@@ -21,10 +21,21 @@ module(Business.Finance.ExpenseApproval):
       render text("Amount: 890 EUR", color: "white")
       render text("Category: Travel", color: "white")
       render text("A = Approve, R = Reject, N = Need Info", color: "blue")
+      on key(A):: approvedCount += 1
+      on key(R):: rejectedCount += 1
+      on key(N):: infoCount += 1
       on key(A) > Approved
       on key(R) > Rejected
       on key(N) > NeedInfo
       on key(Esc) > Inbox
+
+      rule(autoEscalate):
+        when riskScore >= 70 and queueSize > 10 or amount == 5000:
+          emit escalated
+        end
+      end
+
+      on escalated > NeedInfo
     end
 
     state(Approved):
@@ -48,10 +59,14 @@ module(Business.Finance.ExpenseApproval):
   end
 
   state():
+    amount = 890
     approvalLimit = 1000
     queueSize = 12
     selectedRequest = "EX-2048"
     riskScore = 18
+    approvedCount = 0
+    rejectedCount = 0
+    infoCount = 0
   end
 
   rule(policyCheck):

@@ -8,13 +8,17 @@ pub enum TokenKind {
     Keyword(Keyword),
     At,
     Gt,
+    Lt,
     PlusEq,
     Eq,
+    EqEq,
+    Neq,
     Gte,
     LParen,
     RParen,
     Comma,
     Colon,
+    DoubleColon,
     Question,
     Dot,
     Newline,
@@ -33,6 +37,8 @@ pub enum Keyword {
     On,
     When,
     Emit,
+    And,
+    Or,
     Run,
     Terminate,
     Start,
@@ -109,7 +115,13 @@ pub fn lex(input: &str) -> Result<Vec<Token>> {
             '=' => {
                 chars.next();
                 if chars.peek() == Some(&'=') {
-                    bail!("Unsupported '==' at {}:{}", line, col);
+                    chars.next();
+                    tokens.push(Token {
+                        kind: TokenKind::EqEq,
+                        line,
+                        col,
+                    });
+                    col += 2;
                 } else {
                     tokens.push(Token {
                         kind: TokenKind::Eq,
@@ -117,6 +129,20 @@ pub fn lex(input: &str) -> Result<Vec<Token>> {
                         col,
                     });
                     col += 1;
+                }
+            }
+            '!' => {
+                chars.next();
+                if chars.peek() == Some(&'=') {
+                    chars.next();
+                    tokens.push(Token {
+                        kind: TokenKind::Neq,
+                        line,
+                        col,
+                    });
+                    col += 2;
+                } else {
+                    bail!("Unexpected '!' at {}:{}", line, col);
                 }
             }
             '>' => {
@@ -137,6 +163,15 @@ pub fn lex(input: &str) -> Result<Vec<Token>> {
                     });
                     col += 1;
                 }
+            }
+            '<' => {
+                chars.next();
+                tokens.push(Token {
+                    kind: TokenKind::Lt,
+                    line,
+                    col,
+                });
+                col += 1;
             }
             '(' => {
                 chars.next();
@@ -185,12 +220,22 @@ pub fn lex(input: &str) -> Result<Vec<Token>> {
             }
             ':' => {
                 chars.next();
-                tokens.push(Token {
-                    kind: TokenKind::Colon,
-                    line,
-                    col,
-                });
-                col += 1;
+                if chars.peek() == Some(&':') {
+                    chars.next();
+                    tokens.push(Token {
+                        kind: TokenKind::DoubleColon,
+                        line,
+                        col,
+                    });
+                    col += 2;
+                } else {
+                    tokens.push(Token {
+                        kind: TokenKind::Colon,
+                        line,
+                        col,
+                    });
+                    col += 1;
+                }
             }
             '?' => {
                 chars.next();
@@ -272,6 +317,8 @@ pub fn lex(input: &str) -> Result<Vec<Token>> {
                     "on" => TokenKind::Keyword(Keyword::On),
                     "when" => TokenKind::Keyword(Keyword::When),
                     "emit" => TokenKind::Keyword(Keyword::Emit),
+                    "and" => TokenKind::Keyword(Keyword::And),
+                    "or" => TokenKind::Keyword(Keyword::Or),
                     "run" => TokenKind::Keyword(Keyword::Run),
                     "terminate" => TokenKind::Keyword(Keyword::Terminate),
                     "start" => TokenKind::Keyword(Keyword::Start),

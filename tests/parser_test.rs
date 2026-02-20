@@ -1,4 +1,4 @@
-use sculpt::ast::Item;
+use sculpt::ast::{Item, RuleTrigger, StateStmt};
 use sculpt::freeze::compute_ir_hash;
 use sculpt::ir::from_ast;
 use sculpt::parser::parse_source;
@@ -113,6 +113,84 @@ end
 #[test]
 fn parses_semicolon_short_form() {
     let src = r#"module(App): flow(Main): start > A; state(A): terminate; end; end; end"#;
+    let module = parse_source(src).expect("parse ok");
+    assert_eq!(module.name, "App");
+}
+
+#[test]
+fn parses_state_local_rules_and_on_shortcuts() {
+    let src = r#"module(App):
+  flow(Main):
+    start > Play
+    state(Play):
+      on key(Left):: paddleX += 1
+      on tick:
+        emit done
+      end
+      rule(localTick):
+        on tick:: counter += 1
+      end
+      on done > Play
+    end
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let flow = module
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Item::Flow(f) => Some(f),
+            _ => None,
+        })
+        .expect("flow");
+    let state = flow.states.first().expect("state");
+    let local_rules = state
+        .statements
+        .iter()
+        .filter_map(|s| match s {
+            StateStmt::Rule(r) => Some(r),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(local_rules.len(), 3);
+    assert!(local_rules[0].name.starts_with("__on_"));
+    assert_eq!(local_rules[0].scope_flow.as_deref(), Some("Main"));
+    assert_eq!(local_rules[0].scope_state.as_deref(), Some("Play"));
+    assert!(matches!(local_rules[1].trigger, RuleTrigger::On(_)));
+    assert_eq!(local_rules[2].name, "localTick");
+}
+
+#[test]
+fn parses_when_operator_variants() {
+    let src = r#"module(App):
+  state():
+    score = 0
+    limit = 10
+    mode = "auto"
+  end
+  rule(a):
+    when score > 0:
+      emit done
+    end
+  end
+  rule(b):
+    when score < limit:
+      emit done
+    end
+  end
+  rule(c):
+    when mode == "auto":
+      emit done
+    end
+  end
+  rule(d):
+    when score != limit and mode == "auto" or score > 2:
+      emit done
+    end
+  end
+end
+"#;
     let module = parse_source(src).expect("parse ok");
     assert_eq!(module.name, "App");
 }

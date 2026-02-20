@@ -2,6 +2,8 @@
 # Goal: highly specified rules so the solution space is narrow.
 # ND is reduced to a tiny UI-theme choice.
 
+@meta target=cli
+
 module(SnakeLowND):
 
   # Main flow
@@ -16,12 +18,8 @@ module(SnakeLowND):
     end
 
     state(Play):
-      run Loop
+      on tick > Play
       on done > Title
-    end
-
-    state(Loop):
-      on tick > Loop
       on key(Esc) > Exit
     end
 
@@ -42,6 +40,8 @@ module(SnakeLowND):
     food = "(12,6)"
     foodSequence = "[(12,6),(12,7),(11,7),(10,7),(10,6)]"
     stepIndex = 0
+    wallHit = 0
+    selfHit = 0
   end
 
   # Deterministic tick progression
@@ -88,12 +88,20 @@ module(SnakeLowND):
 
   rule(checkCollision):
     on tick:
-      when hitWall(snake, width, height)
-        emit done
-      end
-      when hitSelf(snake)
-        emit done
-      end
+      wallHit = hitWall(snake, width, height)
+      selfHit = hitSelf(snake)
+    end
+  end
+
+  rule(collisionWall):
+    when wallHit >= 1:
+      emit done
+    end
+  end
+
+  rule(collisionSelf):
+    when selfHit >= 1:
+      emit done
     end
   end
 

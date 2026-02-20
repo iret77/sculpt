@@ -31,6 +31,7 @@ pub struct StateBlock {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StateStmt {
   On { event: Call, target: String },
+  Rule(Rule),
   Run { flow: String },
   Terminate,
   Assign { target: String, op: AssignOp, value: Expr },
@@ -47,6 +48,10 @@ pub enum AssignOp {
 pub struct Rule {
   pub name: String,
   pub params: Vec<String>,
+  #[serde(default)]
+  pub scope_flow: Option<String>,
+  #[serde(default)]
+  pub scope_state: Option<String>,
   pub trigger: RuleTrigger,
   pub body: Vec<RuleStmt>,
 }
@@ -84,6 +89,12 @@ pub enum Expr {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BinaryOp {
   Gte,
+  Gt,
+  Lt,
+  Eq,
+  Neq,
+  And,
+  Or,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

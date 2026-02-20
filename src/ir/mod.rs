@@ -38,7 +38,14 @@ pub fn from_ast(module: ast::Module) -> IrModule {
         fqns.push(flow_fqn.clone());
         for state in &flow.states {
           if let Some(name) = &state.name {
-            fqns.push(format!("{flow_fqn}.{}", name));
+            let state_fqn = format!("{flow_fqn}.{}", name);
+            fqns.push(state_fqn.clone());
+            for stmt in &state.statements {
+              if let ast::StateStmt::Rule(rule) = stmt {
+                fqns.push(format!("{state_fqn}.{}", rule.name));
+                rules.push(rule.clone());
+              }
+            }
           }
         }
         flows.push(IrFlow { name: flow.name, start: flow.start, states: flow.states });

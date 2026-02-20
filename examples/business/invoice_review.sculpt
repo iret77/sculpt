@@ -1,6 +1,8 @@
 # Business/Web Example: Invoice Review
 # Goal: clear business UI with minimal ND.
 
+@meta target=cli
+
 module(InvoiceReview):
 
   flow(App):

@@ -2,7 +2,6 @@
 # Demonstrates a web target with strongly defined flow and constrained ND for layout only.
 
 @meta target=web
-@meta layout=explicit
 @meta nd_budget=12
 
 module(Ops.Web.IncidentDashboard):

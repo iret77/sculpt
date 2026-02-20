@@ -6,13 +6,18 @@ use std::collections::HashMap;
 
 pub fn parse_source(input: &str) -> Result<Module> {
     let tokens = lex(input)?;
-    let mut parser = Parser { tokens, pos: 0 };
+    let mut parser = Parser {
+        tokens,
+        pos: 0,
+        anon_rule_counter: 0,
+    };
     parser.parse_module()
 }
 
 struct Parser {
     tokens: Vec<Token>,
     pos: usize,
+    anon_rule_counter: usize,
 }
 
 impl Parser {
@@ -33,7 +38,7 @@ impl Parser {
             } else if self.check_keyword(Keyword::State) {
                 items.push(Item::GlobalState(self.parse_global_state()?));
             } else if self.check_keyword(Keyword::Rule) {
-                items.push(Item::Rule(self.parse_rule()?));
+                items.push(Item::Rule(self.parse_rule(None, None)?));
             } else if self.check_keyword(Keyword::Nd) {
                 items.push(Item::Nd(self.parse_nd()?));
             } else if self.check(TokenKind::Newline) {
@@ -124,7 +129,7 @@ impl Parser {
                 let target = self.parse_qualified_ident()?;
                 start = Some(target);
             } else if self.check_keyword(Keyword::State) {
-                states.push(self.parse_state_block(true)?);
+                states.push(self.parse_state_block(true, Some(name.as_str()))?);
             } else if self.check(TokenKind::Newline) {
                 self.consume_newlines();
             } else {
@@ -155,7 +160,7 @@ impl Parser {
         }
         self.expect(TokenKind::Colon)?;
         self.consume_newlines();
-        let statements = self.parse_state_statements(false)?;
+        let statements = self.parse_state_statements(false, None, None)?;
         self.expect_keyword(Keyword::End)?;
         Ok(StateBlock {
             name: None,
@@ -163,7 +168,11 @@ impl Parser {
         })
     }
 
-    fn parse_state_block(&mut self, requires_name: bool) -> Result<StateBlock> {
+    fn parse_state_block(
+        &mut self,
+        requires_name: bool,
+        flow_name: Option<&str>,
+    ) -> Result<StateBlock> {
         self.expect_keyword(Keyword::State)?;
         let name = if self.check(TokenKind::LParen) {
             self.advance();
@@ -182,12 +191,17 @@ impl Parser {
         };
         self.expect(TokenKind::Colon)?;
         self.consume_newlines();
-        let statements = self.parse_state_statements(true)?;
+        let statements = self.parse_state_statements(true, flow_name, name.as_deref())?;
         self.expect_keyword(Keyword::End)?;
         Ok(StateBlock { name, statements })
     }
 
-    fn parse_state_statements(&mut self, allow_actions: bool) -> Result<Vec<StateStmt>> {
+    fn parse_state_statements(
+        &mut self,
+        allow_actions: bool,
+        flow_name: Option<&str>,
+        state_name: Option<&str>,
+    ) -> Result<Vec<StateStmt>> {
         let mut statements = Vec::new();
         while !self.check_keyword(Keyword::End) && !self.is_eof() {
             if self.check(TokenKind::Newline) {
@@ -197,9 +211,37 @@ impl Parser {
             if allow_actions && self.check_keyword(Keyword::On) {
                 self.expect_keyword(Keyword::On)?;
                 let event = self.parse_call()?;
-                self.expect_transition()?;
-                let target = self.parse_qualified_ident()?;
-                statements.push(StateStmt::On { event, target });
+                if self.check(TokenKind::Gt) {
+                    self.expect_transition()?;
+                    let target = self.parse_qualified_ident()?;
+                    statements.push(StateStmt::On { event, target });
+                } else if self.check(TokenKind::DoubleColon) {
+                    self.advance();
+                    let body_stmt = self.parse_rule_stmt()?;
+                    statements.push(StateStmt::Rule(
+                        self.build_inline_on_rule(event, vec![body_stmt], flow_name, state_name),
+                    ));
+                } else if self.check(TokenKind::Colon) {
+                    self.expect(TokenKind::Colon)?;
+                    self.consume_newlines();
+                    let mut body = Vec::new();
+                    while !self.check_keyword(Keyword::End) && !self.is_eof() {
+                        if self.check(TokenKind::Newline) {
+                            self.consume_newlines();
+                            continue;
+                        }
+                        body.push(self.parse_rule_stmt()?);
+                        self.consume_newlines();
+                    }
+                    self.expect_keyword(Keyword::End)?;
+                    statements.push(StateStmt::Rule(
+                        self.build_inline_on_rule(event, body, flow_name, state_name),
+                    ));
+                } else {
+                    bail!("Expected '>' or ':' or '::' after on-event");
+                }
+            } else if allow_actions && self.check_keyword(Keyword::Rule) {
+                statements.push(StateStmt::Rule(self.parse_rule(flow_name, state_name)?));
             } else if allow_actions && self.check_keyword(Keyword::Run) {
                 self.expect_keyword(Keyword::Run)?;
                 let flow = self.parse_qualified_ident()?;
@@ -216,7 +258,7 @@ impl Parser {
         Ok(statements)
     }
 
-    fn parse_rule(&mut self) -> Result<Rule> {
+    fn parse_rule(&mut self, scope_flow: Option<&str>, scope_state: Option<&str>) -> Result<Rule> {
         self.expect_keyword(Keyword::Rule)?;
         let (name, params) = self.parse_named_param_list()?;
         self.expect(TokenKind::Colon)?;
@@ -231,32 +273,33 @@ impl Parser {
         } else {
             bail!("rule must start with on/when");
         };
-        self.expect(TokenKind::Colon)?;
-
-        self.consume_newlines();
-        let mut body = Vec::new();
-        while !self.check_keyword(Keyword::End) && !self.is_eof() {
-            if self.check(TokenKind::Newline) {
-                self.consume_newlines();
-                continue;
-            }
-            if self.check_keyword(Keyword::Emit) {
-                self.expect_keyword(Keyword::Emit)?;
-                let event = self.parse_qualified_ident()?;
-                body.push(RuleStmt::Emit { event });
-            } else {
-                let stmt = self.parse_rule_assignment()?;
-                body.push(stmt);
-            }
+        let body = if self.check(TokenKind::DoubleColon) {
+            self.advance();
+            vec![self.parse_rule_stmt()?]
+        } else {
+            self.expect(TokenKind::Colon)?;
             self.consume_newlines();
-        }
-        self.expect_keyword(Keyword::End)?; // end trigger
+            let mut body = Vec::new();
+            while !self.check_keyword(Keyword::End) && !self.is_eof() {
+                if self.check(TokenKind::Newline) {
+                    self.consume_newlines();
+                    continue;
+                }
+                body.push(self.parse_rule_stmt()?);
+                self.consume_newlines();
+            }
+            self.expect_keyword(Keyword::End)?; // end trigger
+            body
+        };
+
         self.consume_newlines();
         self.expect_keyword(Keyword::End)?; // end rule
 
         Ok(Rule {
             name,
             params,
+            scope_flow: scope_flow.map(str::to_string),
+            scope_state: scope_state.map(str::to_string),
             trigger,
             body,
         })
@@ -348,14 +391,99 @@ impl Parser {
         bail!("rule body only supports assignments or emit");
     }
 
+    fn parse_rule_stmt(&mut self) -> Result<RuleStmt> {
+        if self.check_keyword(Keyword::Emit) {
+            self.expect_keyword(Keyword::Emit)?;
+            let event = self.parse_qualified_ident()?;
+            return Ok(RuleStmt::Emit { event });
+        }
+        self.parse_rule_assignment()
+    }
+
+    fn build_inline_on_rule(
+        &mut self,
+        event: Call,
+        body: Vec<RuleStmt>,
+        scope_flow: Option<&str>,
+        scope_state: Option<&str>,
+    ) -> Rule {
+        self.anon_rule_counter += 1;
+        let line = self.peek().map(|t| t.line).unwrap_or(0);
+        let mut name = format!("__on_{}_{}", line, self.anon_rule_counter);
+        if let Some(state) = scope_state {
+            name.push('_');
+            name.push_str(state);
+        }
+        Rule {
+            name,
+            params: Vec::new(),
+            scope_flow: scope_flow.map(str::to_string),
+            scope_state: scope_state.map(str::to_string),
+            trigger: RuleTrigger::On(event),
+            body,
+        }
+    }
+
     fn parse_expr(&mut self) -> Result<Expr> {
+        self.parse_or_expr()
+    }
+
+    fn parse_or_expr(&mut self) -> Result<Expr> {
+        let mut left = self.parse_and_expr()?;
+        while self.check_keyword(Keyword::Or) {
+            self.expect_keyword(Keyword::Or)?;
+            let right = self.parse_and_expr()?;
+            left = Expr::Binary {
+                left: Box::new(left),
+                op: BinaryOp::Or,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_and_expr(&mut self) -> Result<Expr> {
+        let mut left = self.parse_comparison_expr()?;
+        while self.check_keyword(Keyword::And) {
+            self.expect_keyword(Keyword::And)?;
+            let right = self.parse_comparison_expr()?;
+            left = Expr::Binary {
+                left: Box::new(left),
+                op: BinaryOp::And,
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_comparison_expr(&mut self) -> Result<Expr> {
         let mut left = self.parse_primary()?;
-        if self.check(TokenKind::Gte) {
-            self.advance();
+        if self.check(TokenKind::Gte)
+            || self.check(TokenKind::Gt)
+            || self.check(TokenKind::Lt)
+            || self.check(TokenKind::EqEq)
+            || self.check(TokenKind::Neq)
+        {
+            let op = if self.check(TokenKind::Gte) {
+                self.advance();
+                BinaryOp::Gte
+            } else if self.check(TokenKind::Gt) {
+                self.advance();
+                BinaryOp::Gt
+            } else if self.check(TokenKind::Lt) {
+                self.advance();
+                BinaryOp::Lt
+            } else if self.check(TokenKind::EqEq) {
+                self.expect(TokenKind::EqEq)?;
+                BinaryOp::Eq
+            } else {
+                self.expect(TokenKind::Neq)?;
+                BinaryOp::Neq
+            };
             let right = self.parse_primary()?;
             left = Expr::Binary {
                 left: Box::new(left),
-                op: BinaryOp::Gte,
+                op,
                 right: Box::new(right),
             };
         }

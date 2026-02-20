@@ -103,6 +103,11 @@ rule(tick):
 end
 ```
 
+Inline trigger shortcut:
+```
+on key(Left):: paddleX += 1
+```
+
 or
 
 ```
@@ -130,7 +135,8 @@ end
 - Identifiers: `counter`
 - Calls: `key(Enter)`
 - Assignment: `=`, `+=`
-- Compare: `>=`
+- Compare: `>=`, `>`, `<`, `==`, `!=`
+- Logic in `when`: `and`, `or`
 
 ## 9) Visual Rhythm (Example)
 ```
