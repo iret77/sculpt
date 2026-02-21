@@ -1,4 +1,4 @@
-# SCULPT Core Semantics (Draft v0.1)
+# SCULPT Core Semantics (Language 1.0 Draft)
 
 (C) 2026 byte5 GmbH
 

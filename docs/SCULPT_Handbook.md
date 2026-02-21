@@ -1,4 +1,4 @@
-# SCULPT Handbook (v0.1)
+# SCULPT Handbook (Language 1.0)
 
 (C) 2026 byte5 GmbH
 

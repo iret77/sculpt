@@ -19,6 +19,7 @@ use ratatui::Terminal;
 
 use crate::build_meta::read_build_meta;
 use crate::targets::list_targets;
+use crate::versioning::{LANGUAGE_DEFAULT, LANGUAGE_SUPPORT_RANGE};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Focus {
@@ -154,7 +155,10 @@ impl AppState {
       targets,
       target_state,
       focus: Focus::Files,
-      log: vec!["SCULPT TUI ready".to_string()],
+      log: vec![
+        "SCULPT TUI ready".to_string(),
+        format!("Language {} (supports {})", LANGUAGE_DEFAULT, LANGUAGE_SUPPORT_RANGE),
+      ],
       status: "Ready".to_string(),
       selected_file: None,
       meta_target: None,

@@ -48,6 +48,7 @@ SCULPT targets that gap:
 ## Documentation Map
 Documentation has been moved under `/docs` for easier navigation:
 - [Docs Index](docs/README.md)
+- [Versioning Policy](docs/SCULPT_Versioning.md)
 
 ## License
 MIT

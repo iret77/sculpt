@@ -15,3 +15,4 @@ pub mod semantics;
 pub mod tui;
 pub mod targets;
 pub mod target_ir;
+pub mod versioning;

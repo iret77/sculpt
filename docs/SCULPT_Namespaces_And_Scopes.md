@@ -1,4 +1,4 @@
-# SCULPT Namespaces & Scopes v0.1
+# SCULPT Namespaces & Scopes (Language 1.0)
 
 (C) 2026 byte5 GmbH
 
@@ -71,9 +71,9 @@ Semantics:
 - Diagnostics SHOULD report both short and fully qualified names.
 - IR SHOULD store canonical FQNs for stable diff/replay behavior.
 
-## 5) Minimal Syntax Additions (v0.1)
+## 5) Minimal Syntax Additions (Language 1.0)
 
-No heavy new grammar is required for v0.1.
+No heavy new grammar is required for language 1.0.
 
 Enabled now:
 - Dot-qualified module names: `module(A.B.C)`
@@ -146,4 +146,3 @@ This model directly improves AI compile quality:
 3. IR: add canonical module path + FQNs.
 4. CLI/TUI diagnostics: render scoped errors with FQN context.
 5. Incremental compile planner: recompile only changed namespace units + dependents.
-

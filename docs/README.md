@@ -10,6 +10,7 @@ Use this page as the single entry point for project docs.
 - [SCULPT_Handbook.md](SCULPT_Handbook.md): complete usage guide.
 
 ## 2) Language Specification
+- [SCULPT_Versioning.md](SCULPT_Versioning.md): language/component version policy and compatibility rules.
 - [SCULPT_Syntax_Manifest.md](SCULPT_Syntax_Manifest.md): grammar and syntax rules.
 - [SCULPT_Semantics.md](SCULPT_Semantics.md): semantic behavior and diagnostics.
 - [SCULPT_Namespaces_And_Scopes.md](SCULPT_Namespaces_And_Scopes.md): naming and scope model.

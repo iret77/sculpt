@@ -3,6 +3,9 @@ use anyhow::Result;
 fn main() -> Result<()> {
     // (C) 2026 byte5 GmbH
     let args: Vec<String> = std::env::args().collect();
+    if maybe_print_custom_version(&args) {
+        return Ok(());
+    }
     if maybe_print_custom_help(&args) {
         return Ok(());
     }
@@ -10,6 +13,15 @@ fn main() -> Result<()> {
         return sculpt::tui::run();
     }
     sculpt::cli::run()
+}
+
+fn maybe_print_custom_version(args: &[String]) -> bool {
+    if args.len() == 2 && matches!(args[1].as_str(), "--version" | "-V") {
+        println!("sculpt {}", env!("CARGO_PKG_VERSION"));
+        println!("{}", sculpt::versioning::language_line());
+        return true;
+    }
+    false
 }
 
 fn maybe_print_custom_help(args: &[String]) -> bool {
@@ -58,6 +70,15 @@ fn print_help_tui() {
             " -V, --version     show version",
             " --debug=...       build/freeze option (see command help)",
         ],
+        accent2,
+        c,
+    );
+    print_box(
+        "Language",
+        &[&format!(
+            " {}",
+            sculpt::versioning::language_line()
+        )],
         accent2,
         c,
     );
@@ -247,6 +268,7 @@ fn print_header() {
         version = env!("CARGO_PKG_VERSION"),
         right = right_plain
     );
+    println!("{}{}{}", dim, sculpt::versioning::language_line(), c);
 }
 
 fn print_box(title: &str, lines: &[&str], accent2: &str, c: &str) {

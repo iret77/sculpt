@@ -26,13 +26,14 @@ use crate::targets::{
     describe_target, emit_cli, emit_gui, emit_web, list_targets, resolve_target, run_cli,
     run_external_target, run_gui, run_web, TargetKind,
 };
+use crate::versioning::{LANGUAGE_DEFAULT, LANGUAGE_SUPPORT_RANGE};
 use serde_json::Value;
 
 #[derive(Parser)]
 #[command(
     name = "sculpt",
     version,
-    about = "SCULPT compiler — (C) 2026 byte5 GmbH",
+    about = "SCULPT compiler — (C) 2026 byte5 GmbH\nLanguage default: 1.0 (supports >=1.0 <2.0)",
     after_help = "TUI: run `sculpt` with no arguments"
 )]
 pub struct Cli {
@@ -1556,6 +1557,12 @@ fn print_unified_header(action: &str, target: &str, input: &Path, provider: Opti
     let rest = style_title(&format!("Compiler {}", env!("CARGO_PKG_VERSION")));
     let copyright = style_dim("(C) 2026 byte5 GmbH");
     println!("{title} {rest} - {copyright}");
+    println!(
+        "{} {} (supports {})",
+        style_dim("Language:"),
+        style_dim(LANGUAGE_DEFAULT),
+        style_dim(LANGUAGE_SUPPORT_RANGE)
+    );
     let action_s = style_accent(action);
     println!("{} {}", style_dim("Action:"), action_s);
     println!("{} {}", style_dim("Target:"), style_dim(target));
@@ -1693,6 +1700,10 @@ fn color_24(s: &str, r: u8, g: u8, b: u8, bold: bool) -> String {
 
 fn target_list() -> Result<()> {
     let targets = list_targets()?;
+    println!(
+        "Language: default {} (supports {})",
+        LANGUAGE_DEFAULT, LANGUAGE_SUPPORT_RANGE
+    );
     println!("Available targets:");
     for t in targets {
         println!("  {}", t);
