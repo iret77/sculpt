@@ -1,0 +1,107 @@
+# Breakout (High ND)
+# Goal: keep code compact and delegate most implementation detail to ND constraints.
+# Output must still be a classic, playable Breakout experience.
+
+@meta target=cli
+@meta nd_budget=64
+@meta confidence=0.92
+
+module(BreakoutHighND):
+  use(cli.ui)
+  use(cli.input) as input
+
+  flow(Game):
+    start > Title
+
+    state(Title):
+      ui.text("BREAKOUT", color: "yellow")
+      ui.text("Enter: start  C: controls  Esc: quit", color: "cyan")
+      on input.key(enter) > Play
+      on input.key(c) > Controls
+      on input.key(esc) > Exit
+    end
+
+    state(Controls):
+      ui.text("Controls", color: "yellow")
+      ui.text("Left/Right or A/D move paddle; Space launches ball", color: "white")
+      ui.text("Esc quits; Enter returns", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Play):
+      ui.text("Classic arcade breakout in progress", color: "blue")
+      on input.tick > Play
+      on win > Victory
+      on done > GameOver
+      on input.key(esc) > Exit
+    end
+
+    state(Victory):
+      ui.text("YOU WIN", color: "green")
+      ui.text("Enter: new game  Esc: quit", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(GameOver):
+      ui.text("GAME OVER", color: "red")
+      ui.text("Enter: retry  Esc: quit", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    speedMs = 72
+    score = 0
+    lives = 3
+    stage = 1
+  end
+
+  rule(scoreTick):
+    on input.tick:
+      score += passiveArcadeScore()
+    end
+  end
+
+  rule(fail):
+    when lives < 1:
+      emit done
+    end
+  end
+
+  nd(designBreakout):
+    propose game("breakout", view: "terminal", style: "arcade")
+    satisfy(
+      playable(),
+      followsClassicBreakoutRules(),
+      hasPaddleBallBrickLoop(),
+      supportsControls(primary: "left-right-space", secondary: "a-d-space"),
+      launchesBallOnSpace(),
+      bouncesOnWallsAndPaddle(),
+      removesBricksOnImpact(),
+      tracksScoreAndLives(),
+      emitsWinWhenBricksCleared(),
+      emitsDoneWhenLivesDepleted(),
+      preservesArcadePacing(targetMs: 72),
+      includesReadableHud(fields: "score,lives,level"),
+      usesHighContrastTerminalColors(),
+      noSoftLocks(),
+      deterministicCoreWithOptionalStyleVariance()
+    )
+  end
+
+  nd(tuneDifficulty):
+    propose difficultyCurve(mode: "classic")
+    satisfy(
+      startsForgiving(),
+      increasesAfterEachStage(),
+      keepsRunDurationReasonable(minMinutes: 3, maxMinutes: 10)
+    )
+  end
+end

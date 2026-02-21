@@ -16,12 +16,14 @@ Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
   - Basic GUI output with explicit target metadata.
 
 ## 2) Games
+- `games/breakout_high_nd.sculpt`
+  - Compact high-ND Breakout that delegates mechanics/UI detail via constraints.
 - `games/snake_high_nd.sculpt`
-  - Very high ND, minimal source code.
+  - Playable and visually richer Snake with high ND (creative runtime freedom).
 - `games/snake_low_nd.sculpt`
-  - Low ND, explicit game rules and data.
+  - Playable and visually richer Snake with low ND (explicit mechanics and scoring).
 - `games/breakout_cli.sculpt`
-  - CLI arcade example with rule-driven physics and constrained ND level layout.
+  - Detailed low-ND Breakout with explicit flow and rule structure.
 
 ## 3) Business
 - `business/invoice_review.sculpt`

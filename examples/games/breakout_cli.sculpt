@@ -1,56 +1,199 @@
 # Breakout (CLI)
-# Demonstrates a playable arcade loop with clear game-state rules and constrained ND for level layout.
+# Goal: deliver a visibly richer, actually arcade-like terminal game loop.
+# This example keeps ND focused on level layout while gameplay is mostly deterministic.
 
 @meta target=cli
-@meta nd_budget=24
-@meta confidence=0.9
+@meta nd_budget=16
+@meta confidence=0.96
 
 module(BreakoutCLI):
   use(cli.ui)
   use(cli.input) as input
 
   flow(Game):
-    start > Title
+    start > Boot
 
-    state(Title):
-      ui.text("BREAKOUT", color: "yellow")
-      ui.text("A/D move paddle, Space launch, Esc quit", color: "blue")
-      on input.key(Enter) > Play
-      on input.key(Esc) > Exit
+    state(Boot):
+      ui.text("==============================================", color: "cyan")
+      ui.text("               SCULPT BREAKOUT               ", color: "yellow")
+      ui.text("==============================================", color: "cyan")
+      ui.text("Loading arena...", color: "blue")
+      on tick > Title
     end
 
-    state(Play):
-      on tick > Play
-      on done > GameOver
-      on input.key(Esc) > Exit
+    state(Title):
+      ui.text("", color: "white")
+      ui.text("BREAKOUT // ARCADE MODE", color: "yellow")
+      ui.text("Enter: start game   C: controls   Esc: quit", color: "cyan")
+      ui.text("Goal: clear all bricks before lives reach 0", color: "green")
+      ui.text("Current high score is shown in HUD during play", color: "blue")
+      on input.key(enter) > Countdown
+      on input.key(c) > Controls
+      on input.key(esc) > Exit
+    end
 
-      on input.key(Space):: launched = 1
-      on input.key(A):: paddleX = movePaddle(paddleX, "left", width, paddleWidth)
-      on input.key(D):: paddleX = movePaddle(paddleX, "right", width, paddleWidth)
+    state(Controls):
+      ui.text("CONTROLS", color: "yellow")
+      ui.text("A / Left  = move paddle left", color: "white")
+      ui.text("D / Right = move paddle right", color: "white")
+      ui.text("Space     = launch ball / fast restart", color: "white")
+      ui.text("P         = pause / resume", color: "white")
+      ui.text("Esc       = quit", color: "white")
+      ui.text("Enter or Space to return", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(space) > Title
+      on input.key(esc) > Exit
+    end
 
-      rule(runtimeTick):
+    state(Countdown):
+      ui.text("Get ready...", color: "cyan")
+      ui.text("3", color: "yellow")
+      rule(countdownTick):
         on tick:
-          score += 1
-          hitLeft = detectHitLeft(ball)
-          hitRight = detectHitRight(ball, width)
-          hitTop = detectHitTop(ball)
-          hitPaddle = detectHitPaddle(ball, paddleX, paddleWidth)
-          hitBottom = detectHitBottom(ball, height)
+          countdown = dec(countdown)
         end
       end
-
-      rule(runtimeFinish):
-        when hitBottom >= 1 and lives < 1:
+      rule(countdownDone):
+        when countdown < 1:
+          countdown = 3
           emit done
         end
       end
+      on done > Play
+      on input.key(esc) > Exit
+    end
+
+    state(Play):
+      ui.text("BREAKOUT", color: "yellow")
+      ui.text("HUD: score / lives / combo / level", color: "cyan")
+      ui.text("A,D or arrows move | Space launch | P pause | Esc quit", color: "blue")
+
+      # Input handling
+      on input.key(a):: paddleX = movePaddle(paddleX, "left", arenaWidth, paddleWidth)
+      on input.key(left):: paddleX = movePaddle(paddleX, "left", arenaWidth, paddleWidth)
+      on input.key(d):: paddleX = movePaddle(paddleX, "right", arenaWidth, paddleWidth)
+      on input.key(right):: paddleX = movePaddle(paddleX, "right", arenaWidth, paddleWidth)
+      on input.key(space):: launched = 1
+      on input.key(p) > Pause
+      on input.key(esc) > Exit
+
+      # Runtime tick
+      on tick:: frame = inc(frame)
+
+      rule(simulateTick):
+        on tick:
+          ball = stepBallIfLaunched(ball, velocity, launched, speedMs)
+          hitLeft = detectHitLeft(ball)
+          hitRight = detectHitRight(ball, arenaWidth)
+          hitTop = detectHitTop(ball)
+          hitPaddle = detectHitPaddle(ball, paddleX, paddleWidth, paddleY)
+          hitBottom = detectHitBottom(ball, arenaHeight)
+          brickHit = detectBrickHit(ball, bricks)
+        end
+      end
+
+      rule(bounceWalls):
+        when hitLeft >= 1 or hitRight >= 1:
+          velocity = bounceX(velocity)
+        end
+      end
+
+      rule(bounceCeiling):
+        when hitTop >= 1:
+          velocity = bounceY(velocity)
+        end
+      end
+
+      rule(bouncePaddle):
+        when hitPaddle >= 1:
+          velocity = angleFromPaddleHit(velocity, ball, paddleX, paddleWidth)
+        end
+      end
+
+      rule(onBrickHit):
+        when brickHit >= 1:
+          bricks = removeHitBrick(bricks, ball)
+          combo = inc(combo)
+          score += pointsForHit(combo, currentLevel)
+          velocity = bounceY(velocity)
+          bricksRemaining = countBricks(bricks)
+          frameFx = "flash"
+        end
+      end
+
+      rule(onNoBrickHit):
+        when brickHit < 1:
+          combo = decayCombo(combo)
+          frameFx = "none"
+        end
+      end
+
+      rule(ballLost):
+        when hitBottom >= 1:
+          lives = dec(lives)
+          launched = 0
+          combo = 0
+          ball = resetBallNearPaddle(paddleX, paddleY)
+          velocity = "up_right"
+        end
+      end
+
+      rule(stageClear):
+        when bricksRemaining < 1:
+          currentLevel = inc(currentLevel)
+          score += clearBonus(currentLevel, lives)
+          emit stage_done
+        end
+      end
+
+      rule(gameOver):
+        when lives < 1:
+          emit done
+        end
+      end
+
+      on stage_done > Intermission
+      on done > GameOver
+    end
+
+    state(Intermission):
+      ui.text("Stage clear!", color: "green")
+      ui.text("Next level incoming...", color: "cyan")
+      ui.text("Enter continue | Esc quit", color: "blue")
+      on input.key(enter) > LevelSetup
+      on input.key(space) > LevelSetup
+      on input.key(esc) > Exit
+    end
+
+    state(LevelSetup):
+      rule(loadLevel):
+        on tick:
+          bricks = generateLevel(levelSeed, currentLevel)
+          bricksRemaining = countBricks(bricks)
+          launched = 0
+          ball = resetBallNearPaddle(paddleX, paddleY)
+          velocity = "up_right"
+          speedMs = speedForLevel(currentLevel)
+          emit done
+        end
+      end
+      on done > Play
+    end
+
+    state(Pause):
+      ui.text("PAUSED", color: "yellow")
+      ui.text("Enter/P = resume | Esc = quit", color: "cyan")
+      on input.key(enter) > Play
+      on input.key(p) > Play
+      on input.key(esc) > Exit
     end
 
     state(GameOver):
-      ui.text("Game Over", color: "red")
-      ui.text("Enter restart, Esc quit", color: "blue")
-      on input.key(Enter) > Title
-      on input.key(Esc) > Exit
+      ui.text("GAME OVER", color: "red")
+      ui.text("Final score displayed in leaderboard format", color: "white")
+      ui.text("Enter restart | Esc quit", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
     end
 
     state(Exit):
@@ -59,82 +202,49 @@ module(BreakoutCLI):
   end
 
   state():
-    width = 40
-    height = 22
+    # Arena
+    arenaWidth = 44
+    arenaHeight = 24
+    paddleY = 21
+    paddleWidth = 8
     paddleX = 18
-    paddleWidth = 6
-    ball = "(20,16)"
+
+    # Ball state
+    ball = "(22,20)"
     velocity = "up_right"
     launched = 0
+
+    # Session state
     score = 0
     lives = 3
-    bricks = "rows:5 cols:10 pattern:solid"
-    speedMs = 65
+    combo = 0
+    currentLevel = 1
+    frame = 0
+    speedMs = 70
+    countdown = 3
+    frameFx = "none"
+
+    # Collision flags and level data
     hitLeft = 0
     hitRight = 0
     hitTop = 0
     hitPaddle = 0
     hitBottom = 0
-  end
-
-  rule(tick):
-    on tick:
-      ball = stepBallIfLaunched(ball, velocity, launched)
-      score += 1
-      hitLeft = detectHitLeft(ball)
-      hitRight = detectHitRight(ball, width)
-      hitTop = detectHitTop(ball)
-      hitPaddle = detectHitPaddle(ball, paddleX, paddleWidth)
-      hitBottom = detectHitBottom(ball, height)
-    end
-  end
-
-  rule(wallBounceLeft):
-    when hitLeft >= 1:
-      velocity = bounceX(velocity)
-    end
-  end
-
-  rule(wallBounceRight):
-    when hitRight >= 1:
-      velocity = bounceX(velocity)
-    end
-  end
-
-  rule(wallBounceTop):
-    when hitTop >= 1:
-      velocity = bounceY(velocity)
-    end
-  end
-
-  rule(paddleBounce):
-    when hitPaddle >= 1:
-      velocity = bounceY(velocity)
-    end
-  end
-
-  rule(bottomOut):
-    when hitBottom >= 1:
-      lives = dec(lives)
-      launched = 0
-      ball = resetBallNearPaddle(paddleX)
-      velocity = "up_right"
-    end
-  end
-
-  rule(finish):
-    when lives < 1:
-      emit done
-    end
+    brickHit = 0
+    bricksRemaining = 0
+    levelSeed = "classic"
+    bricks = "rows:6 cols:11 style:gradient"
   end
 
   nd(levelLayout):
-    propose brickLayout(rows: 5, cols: 10, style: "classic")
+    propose brickLayout(rows: 6, cols: 11, style: "arcade", density: "medium")
     satisfy(
-      fullyInsideBounds(width: 40, height: 12),
-      symmetricStart(),
-      reachableByBallPhysics(),
-      progressiveDifficulty()
+      fullyInsideBounds(width: 44, height: 14),
+      mirroredDifficultyCurve(),
+      guaranteedLaunchLane(minWidth: 2),
+      noUnreachableBricks(),
+      firstLevelIsForgiving(),
+      visualPalette(colorA: "cyan", colorB: "blue", colorC: "magenta")
     )
   end
 

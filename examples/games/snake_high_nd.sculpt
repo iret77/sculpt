@@ -1,6 +1,6 @@
 # Snake (High ND)
-# Goal: minimal code, large solution space.
-# Most of the game design is delegated to the LLM.
+# Goal: playable and stylish with intentionally broad ND freedom.
+# Strategy: define only core UX + win/lose constraints, delegate mechanics and rendering details.
 
 @meta target=cli
 
@@ -8,21 +8,53 @@ module(SnakeHighND):
   use(cli.ui)
   use(cli.input) as input
 
-  # Main flow
   flow(Game):
-    start > Title
+    start > Boot
+
+    state(Boot):
+      ui.clear()
+      ui.line("================================================", color: "cyan")
+      ui.text("                SCULPT SNAKE                    ", color: "yellow")
+      ui.line("================================================", color: "cyan")
+      ui.text("Loading mode profile: HIGH ND", color: "blue")
+      on input.tick > Title
+    end
 
     state(Title):
-      ui.text("SNAKE", color: "yellow")
-      ui.text("Press Enter", color: "blue")
-      on input.key(Enter) > Play
-      on input.key(Esc)   > Exit
+      ui.clear()
+      ui.text("SNAKE // HIGH ND", color: "yellow")
+      ui.text("Enter: Start  |  C: Controls  |  Esc: Quit", color: "cyan")
+      ui.text("This build intentionally leaves room for creative runtime behavior.", color: "green")
+      on input.key(enter) > Play
+      on input.key(c) > Controls
+      on input.key(esc) > Exit
+    end
+
+    state(Controls):
+      ui.clear()
+      ui.text("Controls", color: "yellow")
+      ui.text("W/A/S/D or Arrow Keys: move", color: "white")
+      ui.text("P: pause   Esc: quit", color: "white")
+      ui.text("Enter: back", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(space) > Title
+      on input.key(esc) > Exit
     end
 
     state(Play):
-      on tick > Play
+      ui.text("Score and board update every tick", color: "blue")
+      on input.tick > Play
       on done > Title
-      on input.key(Esc) > Exit
+      on input.key(p) > Pause
+      on input.key(esc) > Exit
+    end
+
+    state(Pause):
+      ui.text("PAUSED", color: "yellow")
+      ui.text("Enter/P resume  |  Esc quit", color: "cyan")
+      on input.key(enter) > Play
+      on input.key(p) > Play
+      on input.key(esc) > Exit
     end
 
     state(Exit):
@@ -30,32 +62,56 @@ module(SnakeHighND):
     end
   end
 
-  # Minimal state (intentionally sparse)
   state():
-    speedMs = 160
+    speedMs = 95
     score = 0
+    lives = 3
+    stage = 1
+    frame = 0
+    stageReady = 0
+    failed = 0
   end
 
   rule(tick):
-    on tick:
+    on input.tick:
+      frame = inc(frame)
       score += 1
+      score += bonusFromPace(speedMs)
+      stageReady = meetsStageGoal(score, stage)
+      failed = snakeFailed()
     end
   end
 
-  rule(finish):
-    when score >= 10:
+  rule(progression):
+    when stageReady >= 1:
+      stage = inc(stage)
+      speedMs = tightenSpeed(speedMs)
+    end
+  end
+
+  rule(loseLife):
+    when failed >= 1:
+      lives = dec(lives)
+    end
+  end
+
+  rule(finishRound):
+    when lives < 1:
       emit done
     end
   end
 
-  # High-ND block: most of the game definition is delegated to the LLM
   nd(designSnake):
-    propose game("snake", size: 10)
+    propose game("snake", style: "neon", view: "terminal", pacing: "arcade")
     satisfy(
       playable(),
-      funToLearn(),
-      usesKeys("WASD"),
-      loopedGameplay()
+      readableHud(),
+      responsiveControls(keys: "wasd+arrows"),
+      visuallyDistinctHeadAndFood(),
+      smoothDifficultyCurve(),
+      clearWinOrLossFeedback(),
+      loopedGameplay(),
+      compactTerminalLayout(maxWidth: 80, maxHeight: 28)
     )
   end
 end

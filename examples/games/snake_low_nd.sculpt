@@ -1,6 +1,6 @@
 # Snake (Low ND)
-# Goal: highly specified rules so the solution space is narrow.
-# ND is reduced to a tiny UI-theme choice.
+# Goal: fully playable, polished CLI snake with strongly constrained behavior.
+# Strategy: explicit menu, deterministic movement/collision/score flow, minimal ND (palette only).
 
 @meta target=cli
 
@@ -8,21 +8,105 @@ module(SnakeLowND):
   use(cli.ui)
   use(cli.input) as input
 
-  # Main flow
   flow(Game):
-    start > Title
+    start > Boot
+
+    state(Boot):
+      ui.clear()
+      ui.line("================================================", color: "cyan")
+      ui.text("                SCULPT SNAKE                    ", color: "yellow")
+      ui.line("================================================", color: "cyan")
+      ui.text("Loading mode profile: LOW ND", color: "blue")
+      on input.tick > Title
+    end
 
     state(Title):
-      ui.text("SNAKE", color: "yellow")
-      ui.text("Enter = Start, Esc = Quit", color: "blue")
-      on input.key(Enter) > Play
-      on input.key(Esc)   > Exit
+      ui.clear()
+      ui.text("SNAKE // LOW ND", color: "yellow")
+      ui.text("Enter: Start  |  C: Controls  |  Esc: Quit", color: "cyan")
+      ui.text("Deterministic rules + explicit gameplay constraints", color: "green")
+      ui.text("Target score: 18 food pickups", color: "blue")
+      on input.key(enter) > Countdown
+      on input.key(c) > Controls
+      on input.key(esc) > Exit
+    end
+
+    state(Controls):
+      ui.clear()
+      ui.text("Controls", color: "yellow")
+      ui.text("W/A/S/D or Arrow Keys: move", color: "white")
+      ui.text("P: pause   Esc: quit", color: "white")
+      ui.text("No reverse turn in same tick", color: "magenta")
+      ui.text("Enter or Space: back", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(space) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Countdown):
+      ui.clear()
+      ui.text("Get ready...", color: "cyan")
+      ui.text("3", color: "yellow")
+      rule(countdownTick):
+        on input.tick:
+          countdown = dec(countdown)
+        end
+      end
+      rule(countdownDone):
+        when countdown < 1:
+          countdown = 3
+          emit done
+        end
+      end
+      on done > Play
+      on input.key(esc) > Exit
+    end
+
+    state(Pause):
+      ui.text("PAUSED", color: "yellow")
+      ui.text("Enter/P resume  |  Esc quit", color: "cyan")
+      on input.key(enter) > Play
+      on input.key(p) > Play
+      on input.key(esc) > Exit
     end
 
     state(Play):
-      on tick > Play
-      on done > Title
-      on input.key(Esc) > Exit
+      ui.clear()
+      ui.text("SNAKE // LOW ND", color: "yellow")
+      ui.text("HUD: score, lives, length, speed", color: "cyan")
+      ui.text("WASD/Arrows move | P pause | Esc quit", color: "blue")
+
+      on input.key(w):: pendingDirection = "up"
+      on input.key(up):: pendingDirection = "up"
+      on input.key(s):: pendingDirection = "down"
+      on input.key(down):: pendingDirection = "down"
+      on input.key(a):: pendingDirection = "left"
+      on input.key(left):: pendingDirection = "left"
+      on input.key(d):: pendingDirection = "right"
+      on input.key(right):: pendingDirection = "right"
+      on input.key(p) > Pause
+      on input.key(esc) > Exit
+
+      on input.tick > Play
+      on win > Victory
+      on done > GameOver
+    end
+
+    state(Victory):
+      ui.clear()
+      ui.text("YOU WIN", color: "green")
+      ui.text("Perfect route executed", color: "cyan")
+      ui.text("Enter: play again  |  Esc: quit", color: "blue")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(GameOver):
+      ui.clear()
+      ui.text("GAME OVER", color: "red")
+      ui.text("Enter: retry  |  Esc: quit", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
     end
 
     state(Exit):
@@ -30,95 +114,108 @@ module(SnakeLowND):
     end
   end
 
-  # Deterministic configuration and initial game state
   state():
-    width = 16
-    height = 12
-    speedMs = 120
-    score = 0
+    boardWidth = 28
+    boardHeight = 16
+    speedMs = 105
+
+    # snake state
+    snake = "[(10,8),(9,8),(8,8),(7,8)]"
+    snakeLength = 4
     direction = "right"
     pendingDirection = "right"
-    snake = "[(8,6),(7,6),(6,6)]"   # head first
-    food = "(12,6)"
-    foodSequence = "[(12,6),(12,7),(11,7),(10,7),(10,6)]"
-    stepIndex = 0
+    nextDirection = "right"
+
+    # food state
+    food = "(18,8)"
+    foodSequence = "[(18,8),(18,9),(17,9),(16,9),(15,9),(15,8),(15,7),(16,7),(17,7),(18,7),(19,7),(20,7),(21,7),(21,8),(21,9),(20,9),(19,9),(14,10),(13,10),(12,10)]"
+    foodIndex = 0
+
+    # score/session state
+    score = 0
+    lives = 3
+    ticks = 0
+    countdown = 3
+
+    # collision/result flags
     wallHit = 0
     selfHit = 0
+    ateFood = 0
+    hardTurn = 0
   end
 
-  # Deterministic tick progression
-  rule(tick):
-    on tick:
-      score += 1
-      stepIndex += 1
+  rule(clock):
+    on input.tick:
+      ticks += 1
     end
   end
 
-  # Deterministic input handling
-  rule(inputUp):
-    on input.key(W):
-      pendingDirection = "up"
+  rule(resolveDirection):
+    on input.tick:
+      hardTurn = isReverseTurn(direction, pendingDirection)
+      nextDirection = selectDirection(direction, pendingDirection, hardTurn)
+      direction = nextDirection
     end
   end
 
-  rule(inputDown):
-    on input.key(S):
-      pendingDirection = "down"
-    end
-  end
-
-  rule(inputLeft):
-    on input.key(A):
-      pendingDirection = "left"
-    end
-  end
-
-  rule(inputRight):
-    on input.key(D):
-      pendingDirection = "right"
-    end
-  end
-
-  # Deterministic movement and food handling
-  rule(applyDirection):
-    on tick:
-      direction = pendingDirection
+  rule(stepSnake):
+    on input.tick:
       snake = moveSnake(snake, direction)
-      food = nextFood(foodSequence, stepIndex)
+      snakeLength = lengthOf(snake)
     end
   end
 
-  rule(checkCollision):
-    on tick:
-      wallHit = hitWall(snake, width, height)
+  rule(detectCollisions):
+    on input.tick:
+      wallHit = hitWall(snake, boardWidth, boardHeight)
       selfHit = hitSelf(snake)
+      ateFood = hitFood(snake, food)
     end
   end
 
-  rule(collisionWall):
-    when wallHit >= 1:
-      emit done
+  rule(onFood):
+    when ateFood >= 1:
+      foodIndex = inc(foodIndex)
+      food = nextFood(foodSequence, foodIndex)
+      snake = growSnake(snake)
+      score += pointsPerFood()
+      speedMs = tightenSpeed(speedMs)
     end
   end
 
-  rule(collisionSelf):
-    when selfHit >= 1:
-      emit done
+  rule(onCollision):
+    when wallHit >= 1 or selfHit >= 1:
+      lives = dec(lives)
+      snake = resetSnake()
+      direction = "right"
+      pendingDirection = "right"
+      speedMs = loosenSpeed(speedMs)
     end
   end
 
-  # Deterministic finish condition
+  rule(levelProgress):
+    when score >= 180:
+      emit win
+    end
+  end
+
   rule(finish):
-    when score >= 25:
+    when lives < 1:
       emit done
     end
   end
 
-  # Tiny ND for cosmetics only
+  rule(ambientScore):
+    on input.tick:
+      score += passiveScoreTick()
+    end
+  end
+
   nd(theme):
-    propose theme("classic")
+    propose theme("terminal")
     satisfy(
-      exact("classic"),
+      exact("terminal"),
+      exactPalette(background: "black", border: "cyan", head: "yellow", body: "green", food: "magenta", danger: "red", hud: "blue"),
       highContrast()
     )
   end
