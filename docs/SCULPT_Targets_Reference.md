@@ -17,10 +17,12 @@ What they mean at build/run time depends on:
   - `sculpt target describe --target web`
   - `sculpt target packages --target <name>`
   - `sculpt target exports --target <name> --package <package-id>`
+  - `sculpt target stacks --target web`
 - Core language semantics:
   - [SCULPT Semantics](SCULPT_Semantics.md)
 - Target architecture:
   - [SCULPT Target Model](SCULPT_Target_Model.md)
+  - [SCULPT Web Stack Model](SCULPT_Web_Stack_Model.md)
 
 ## Per-Target References
 - [CLI Target Reference](SCULPT_Target_CLI_Reference.md)

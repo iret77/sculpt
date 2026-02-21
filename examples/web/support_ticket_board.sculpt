@@ -2,6 +2,7 @@
 # Demonstrates a small but practical web workflow with multiple screens and keyboard navigation.
 
 @meta target=web
+@meta web_profile="laravel-mvc"
 @meta nd_budget=10
 
 module(ServiceDesk.Web.SupportBoard):

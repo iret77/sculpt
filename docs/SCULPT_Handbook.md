@@ -92,6 +92,7 @@ module(Billing.Account.Invoice):
 
 ### 5.2 Core Blocks
 - `use(path[, as: alias])`: import provider package namespaces
+- `import("file.sculpt"[, as: Alias])`: import project module files
 - `flow(name)`: state flow graph
 - `state(name)`: named state inside a flow
 - `state()`: global state storage
@@ -114,6 +115,27 @@ module(App):
   end
 end
 ```
+
+### 5.2.2 Project Imports (Multi-File)
+For team-scale projects, split modules into multiple files and import them explicitly:
+
+```sculpt
+module(Billing.App):
+  import("shared/invoice_rules.sculpt", as: Shared)
+  use(cli.ui)
+  use(cli.input, as: input)
+  flow(Main):
+    start > List
+    state(List):
+      ui.text("Invoice Review")
+      ruleVersion = Shared.InvoiceRules.version
+      on input.key(Enter) > List
+    end
+  end
+end
+```
+
+Import resolution is relative to the current file directory and recursive.
 
 ### 5.3 State Transitions
 

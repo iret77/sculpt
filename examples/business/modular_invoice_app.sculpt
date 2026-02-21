@@ -1,0 +1,44 @@
+# Modular Invoice App (Business, CLI)
+# Demonstrates multi-file project structure with import(...) + provider namespaces.
+
+@meta target=cli
+
+module(Billing.App):
+  import("modules/invoice_rules.sculpt", as: Shared)
+  use(cli.ui)
+  use(cli.input, as: input)
+
+  flow(Main):
+    start > List
+
+    state(List):
+      ui.text("Invoices", color: "yellow")
+      ui.text("Policy loaded from Shared.InvoiceRules", color: "blue")
+      ui.text("Enter = Open, Esc = Exit", color: "white")
+      on input.key(Enter) > Detail
+      on input.key(Esc) > Exit
+    end
+
+    state(Detail):
+      ui.text("Invoice #2026-042", color: "yellow")
+      ui.text("A = Approve, R = Reject, Esc = Back", color: "blue")
+      on input.key(A) > Approved
+      on input.key(R) > Rejected
+      on input.key(Esc) > List
+    end
+
+    state(Approved):
+      ui.text("Approved", color: "green")
+      on input.key(Enter) > List
+    end
+
+    state(Rejected):
+      ui.text("Rejected", color: "red")
+      on input.key(Enter) > List
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+end

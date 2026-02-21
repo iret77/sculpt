@@ -47,6 +47,8 @@ You define what must be true, and SCULPT+LLM find a valid solution within those 
 - `rule(...)`: clear, predictable logic.
 - `nd(...)`: controlled non-determinism.
 - `@meta`: compile-time controls (`target`, `nd_policy`, convergence, strictness).
+- `use(...)`: import target provider namespaces (`ui`, `input`, ...).
+- `import(...)`: import other `.sculpt` files for bigger projects.
 - Newline and `;` are equivalent statement separators.
 
 ## 5) Copy-Paste Starter Patterns

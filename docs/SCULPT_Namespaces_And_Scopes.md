@@ -79,7 +79,6 @@ Enabled now:
 - Dot-qualified module names: `module(A.B.C)`
 
 Reserved for next phase:
-- `import(...)`
 - `export(...)`
 - `alias(...)`
 

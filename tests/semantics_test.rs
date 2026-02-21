@@ -123,6 +123,25 @@ end
 }
 
 #[test]
+fn allows_import_alias_as_namespace_root() {
+    let src = r#"module(App.Core):
+  import("shared/billing.sculpt", as: Billing)
+  flow(Main):
+    start > A
+    state(A):
+      customer = Billing.Customer.name
+      on input.key(Enter) > A
+    end
+  end
+  use(cli.input, as: input)
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let diagnostics = validate_module(&module);
+    assert!(!diagnostics.iter().any(|d| d.code == "NS504"));
+}
+
+#[test]
 fn catches_strict_scope_shadowing() {
     let src = r#"@meta strict_scopes=true
 module(App.Core):

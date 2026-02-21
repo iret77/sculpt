@@ -21,10 +21,20 @@ impl Diagnostic {
 }
 
 pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
+    let additional_imported_roots = HashSet::new();
+    validate_module_with_imports(module, &additional_imported_roots)
+}
+
+pub fn validate_module_with_imports(
+    module: &Module,
+    additional_imported_roots: &HashSet<String>,
+) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
     validate_module_name(module, &mut diagnostics);
-    let imported_roots = validate_use_decls(module, &mut diagnostics);
+    let mut imported_roots = validate_use_decls(module, &mut diagnostics);
+    validate_import_decls(module, &mut imported_roots, &mut diagnostics);
+    imported_roots.extend(additional_imported_roots.iter().cloned());
 
     let flows: Vec<&Flow> = module
         .items
@@ -200,6 +210,38 @@ fn validate_use_decls(module: &Module, diagnostics: &mut Vec<Diagnostic>) -> Has
         }
     }
     roots
+}
+
+fn validate_import_decls(
+    module: &Module,
+    imported_roots: &mut HashSet<String>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for decl in &module.imports {
+        let exposed = decl.alias.as_ref().cloned().unwrap_or_else(|| {
+            std::path::Path::new(&decl.path)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string()
+        });
+        if exposed.is_empty() || !is_valid_ident(&exposed) {
+            diagnostics.push(Diagnostic::new(
+                "U604",
+                format!(
+                    "Invalid import alias/root '{}' for path '{}'",
+                    exposed, decl.path
+                ),
+            ));
+            continue;
+        }
+        if !imported_roots.insert(exposed.clone()) {
+            diagnostics.push(Diagnostic::new(
+                "U605",
+                format!("Duplicate imported namespace root '{}'", exposed),
+            ));
+        }
+    }
 }
 
 fn collect_known_fqns(module: &Module, flows: &[&Flow], rules: &[&Rule]) -> HashSet<String> {

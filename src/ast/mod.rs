@@ -6,11 +6,19 @@ pub struct Module {
     pub meta: std::collections::HashMap<String, String>,
     #[serde(default)]
     pub uses: Vec<UseDecl>,
+    #[serde(default)]
+    pub imports: Vec<ImportDecl>,
     pub items: Vec<Item>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UseDecl {
+    pub path: String,
+    pub alias: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportDecl {
     pub path: String,
     pub alias: Option<String>,
 }

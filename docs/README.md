@@ -17,6 +17,7 @@ Use this page as the single entry point for project docs.
 
 ## 3) Targets
 - [SCULPT_Target_Model.md](SCULPT_Target_Model.md): target/provider architecture.
+- [SCULPT_Web_Stack_Model.md](SCULPT_Web_Stack_Model.md): framework-agnostic web IR + stack adapter model.
 - [SCULPT_Targets_Reference.md](SCULPT_Targets_Reference.md): target reference entry point.
 - [SCULPT_Target_CLI_Reference.md](SCULPT_Target_CLI_Reference.md)
 - [SCULPT_Target_GUI_Reference.md](SCULPT_Target_GUI_Reference.md)

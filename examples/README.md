@@ -30,12 +30,14 @@ Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
   - Operational playbook assistant.
 - `business/expense_approval_workflow.sculpt`
   - Realistic workflow-oriented example with strict logic and light ND.
+- `business/modular_invoice_app.sculpt`
+  - Multi-file business app using `import(...)` and shared module files.
 
 ## 4) Web
 - `web/incident_status_dashboard.sculpt`
-  - Web-target incident overview with clear state navigation.
+  - Web-target incident overview with clear state navigation (`web_profile=next-app`).
 - `web/support_ticket_board.sculpt`
-  - Small service-desk use case with ticket detail flow and SLA screen.
+  - Small service-desk use case with ticket detail flow and SLA screen (`web_profile=laravel-mvc`).
 
 ## Quick Run
 ```bash

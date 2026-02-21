@@ -496,24 +496,47 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "render.text",
                 "input.key",
                 "flow.state_machine",
+                "web.profile",
+                "web.adapter",
             ]),
             Some(json!({
-              "layout": { "type": "enum", "values": ["default"] }
+              "layout": { "type": "enum", "values": ["default"] },
+              "web_profile": { "type": "enum", "values": ["standard", "next-app", "laravel-mvc"] }
             })),
-            Some(json!({ "runtime": ["browser"] })),
+            Some(json!({
+              "runtime": ["browser"],
+              "adapters": [
+                { "id": "builtin.web.standard@1", "class": "frontend", "description": "Built-in browser runtime emitter" },
+                { "id": "provider.web.next@1", "class": "frontend", "description": "External Next.js adapter provider" },
+                { "id": "provider.web.laravel@1", "class": "backend", "description": "External Laravel MVC adapter provider" }
+              ],
+              "standard_app_ir": "web-app-ir"
+            })),
             None,
             Some(json!([
               {
                 "id": "builtin.web.ui@1",
                 "namespace": "ui",
                 "description": "Web rendering primitives",
-                "exports": ["text", "button", "list", "table"]
+                "exports": ["text", "button", "list", "table", "input"]
               },
               {
                 "id": "builtin.web.input@1",
                 "namespace": "input",
                 "description": "Web input events",
                 "exports": ["key", "click", "submit", "change"]
+              },
+              {
+                "id": "builtin.web.data@1",
+                "namespace": "data",
+                "description": "Data and query primitives",
+                "exports": ["query", "mutate", "filter", "sort", "paginate"]
+              },
+              {
+                "id": "builtin.web.net@1",
+                "namespace": "net",
+                "description": "HTTP/API integration primitives",
+                "exports": ["get", "post", "put", "delete"]
               }
             ])),
         ),

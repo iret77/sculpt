@@ -36,6 +36,7 @@ Examples:
 ```
 module(App):
 use(cli.ui)
+import("shared/domain.sculpt", as: Shared)
 flow(Game):
 state(Title):
 state():
@@ -72,6 +73,7 @@ state(Title): ui.text("HELLO", color: "yellow"); on input.key(Enter) > Play; end
 ## 4) Primary Block Types
 - `module(name)` -> root block (required, exactly one per file)
 - `use(package.path[, as: alias])` -> import a provider namespace root
+- `import("relative/path.sculpt"[, as: Alias])` -> import another SCULPT module file
 - `flow(name)` -> state flow
 - `state(name)` -> named state
 - `state()` -> global state block (unnamed)

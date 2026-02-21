@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SCULPT Web Standard App IR",
+  "type": "object",
+  "required": ["app", "views", "navigation", "actions"],
+  "properties": {
+    "app": {
+      "type": "object",
+      "required": ["name", "profile"],
+      "properties": {
+        "name": { "type": "string" },
+        "profile": { "type": "string", "enum": ["standard", "next-app", "laravel-mvc"] },
+        "runtime": { "type": "string", "enum": ["frontend", "backend-hybrid"] }
+      },
+      "additionalProperties": true
+    },
+    "views": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "elements"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string", "enum": ["page", "panel", "modal", "form"] },
+          "elements": { "type": "array", "items": { "type": "object" } }
+        },
+        "additionalProperties": true
+      }
+    },
+    "navigation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "trigger"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "trigger": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["query", "mutation", "http", "local"] },
+          "inputs": { "type": "array" },
+          "outputs": { "type": "array" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "dataModels": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "validation": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  },
+  "additionalProperties": true
+}

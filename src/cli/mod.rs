@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
@@ -20,7 +21,7 @@ use crate::freeze::{create_lock, read_lock, verify_lock, write_lock};
 use crate::ir::{from_ast, to_pretty_json, IrModule};
 use crate::parser::parse_source;
 use crate::report::generate_report;
-use crate::semantics::{format_diagnostics, validate_module};
+use crate::semantics::{format_diagnostics, validate_module_with_imports};
 use crate::target_ir::{from_json_value, TargetIr};
 use crate::targets::{
     describe_target, emit_cli, emit_gui, emit_web, list_targets, resolve_target, run_cli,
@@ -120,6 +121,10 @@ pub enum TargetCommand {
         #[arg(long)]
         package: String,
     },
+    Stacks {
+        #[arg(long)]
+        target: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -178,6 +183,7 @@ pub fn run() -> Result<()> {
             TargetCommand::Describe { target } => target_describe(&target),
             TargetCommand::Packages { target } => target_packages(&target),
             TargetCommand::Exports { target, package } => target_exports(&target, &package),
+            TargetCommand::Stacks { target } => target_stacks(&target),
         },
         Command::Build {
             input,
@@ -1943,6 +1949,36 @@ fn target_exports(target: &str, package: &str) -> Result<()> {
     Ok(())
 }
 
+fn target_stacks(target: &str) -> Result<()> {
+    let spec = describe_target(target)?;
+    let adapters = spec
+        .pointer("/support/adapters")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if adapters.is_empty() {
+        println!("No stack adapters declared for target '{}'", target);
+        return Ok(());
+    }
+    println!("Stack adapters for target '{}':", target);
+    for adapter in adapters {
+        let id = adapter
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or("<unknown>");
+        let class = adapter
+            .get("class")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let desc = adapter
+            .get("description")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        println!("  {}  class={}  {}", id, class, desc);
+    }
+    Ok(())
+}
+
 fn auth_check(provider: &str, verify: bool) -> Result<()> {
     match provider {
         "openai" => {
@@ -2056,12 +2092,13 @@ fn auth_check(provider: &str, verify: bool) -> Result<()> {
 fn load_ir(input: &Path, nd_policy_override: Option<&str>) -> Result<crate::ir::IrModule> {
     let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
     let mut module = parse_source(&src)?;
+    let imported_roots = resolve_imported_module_roots(input, &module)?;
     if let Some(value) = nd_policy_override {
         module
             .meta
             .insert("nd_policy".to_string(), value.to_string());
     }
-    let diagnostics = validate_module(&module);
+    let diagnostics = validate_module_with_imports(&module, &imported_roots);
     if !diagnostics.is_empty() {
         bail!(
             "Semantic validation failed:\n{}",
@@ -2069,6 +2106,67 @@ fn load_ir(input: &Path, nd_policy_override: Option<&str>) -> Result<crate::ir::
         );
     }
     Ok(from_ast(module))
+}
+
+fn resolve_imported_module_roots(
+    input: &Path,
+    module: &crate::ast::Module,
+) -> Result<HashSet<String>> {
+    let mut roots = HashSet::new();
+    let mut visited = HashSet::new();
+    let base_dir = input
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."));
+    resolve_imported_module_roots_inner(module, &base_dir, &mut roots, &mut visited)?;
+    Ok(roots)
+}
+
+fn resolve_imported_module_roots_inner(
+    module: &crate::ast::Module,
+    base_dir: &Path,
+    roots: &mut HashSet<String>,
+    visited: &mut HashSet<PathBuf>,
+) -> Result<()> {
+    for import in &module.imports {
+        let import_path = base_dir.join(&import.path);
+        let canonical = import_path
+            .canonicalize()
+            .with_context(|| format!("Failed to resolve import path {}", import_path.display()))?;
+        if !visited.insert(canonical.clone()) {
+            continue;
+        }
+        let src = fs::read_to_string(&canonical)
+            .with_context(|| format!("Failed to read imported file {}", canonical.display()))?;
+        let imported = parse_source(&src)
+            .with_context(|| format!("Failed to parse imported file {}", canonical.display()))?;
+
+        if let Some(alias) = &import.alias {
+            roots.insert(alias.clone());
+        } else {
+            let module_root = imported
+                .name
+                .split('.')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if module_root.is_empty() {
+                bail!(
+                    "Imported module in {} has invalid module name",
+                    canonical.display()
+                );
+            }
+            roots.insert(module_root);
+        }
+
+        let next_base = canonical
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| PathBuf::from("."));
+        resolve_imported_module_roots_inner(&imported, &next_base, roots, visited)?;
+    }
+    Ok(())
 }
 
 fn select_ai_provider(

@@ -38,9 +38,23 @@ Useful keys:
 ## Target Meta/Contract Notes
 - Typical:
   - `@meta target=web`
+- Optional profile selection:
+  - `@meta web_profile=standard`
+  - `@meta web_profile="next-app"`
+  - `@meta web_profile="laravel-mvc"`
 - `layout=explicit` is not valid for Web in the current built-in contract.
 - Capability requirements can be declared via:
   - `@meta requires="runtime.web,render.text"`
+
+## Stack Adapters
+Inspect available stack adapters:
+
+```bash
+sculpt target stacks --target web
+```
+
+The built-in web emitter is `builtin.web.standard@1`.  
+`next-app` and `laravel-mvc` are modeled as adapter profiles and can be implemented as external target providers.
 
 ## Known Limits (Current)
 - No built-in web component system in this target yet

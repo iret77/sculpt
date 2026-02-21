@@ -11,6 +11,8 @@ pub struct IrModule {
     pub meta: std::collections::HashMap<String, String>,
     #[serde(default)]
     pub uses: Vec<ast::UseDecl>,
+    #[serde(default)]
+    pub imports: Vec<ast::ImportDecl>,
     pub flows: Vec<IrFlow>,
     pub global_state: Vec<ast::StateStmt>,
     pub rules: Vec<ast::Rule>,
@@ -29,6 +31,7 @@ pub fn from_ast(module: ast::Module) -> IrModule {
         name,
         meta,
         uses,
+        imports,
         items,
     } = module;
     let module_name = name.clone();
@@ -86,6 +89,7 @@ pub fn from_ast(module: ast::Module) -> IrModule {
         fqns,
         meta,
         uses,
+        imports,
         flows,
         global_state,
         rules,

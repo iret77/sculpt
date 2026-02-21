@@ -30,12 +30,15 @@ impl Parser {
         self.expect(TokenKind::RParen)?;
         self.expect(TokenKind::Colon)?;
         let mut uses = Vec::new();
+        let mut imports = Vec::new();
         let mut items = Vec::new();
         self.consume_newlines();
 
         while !self.check_keyword(Keyword::End) && !self.is_eof() {
             if self.check_keyword(Keyword::Use) {
                 uses.push(self.parse_use()?);
+            } else if self.check_keyword(Keyword::Import) {
+                imports.push(self.parse_import()?);
             } else if self.check_keyword(Keyword::Flow) {
                 items.push(Item::Flow(self.parse_flow()?));
             } else if self.check_keyword(Keyword::State) {
@@ -58,6 +61,7 @@ impl Parser {
             name,
             meta,
             uses,
+            imports,
             items,
         })
     }
@@ -78,6 +82,30 @@ impl Parser {
         }
         self.expect(TokenKind::RParen)?;
         Ok(UseDecl { path, alias })
+    }
+
+    fn parse_import(&mut self) -> Result<ImportDecl> {
+        self.expect_keyword(Keyword::Import)?;
+        self.expect(TokenKind::LParen)?;
+        let path = match self.peek_kind().cloned() {
+            Some(TokenKind::String(s)) => {
+                self.advance();
+                s
+            }
+            _ => bail!("import(...) expects a string file path as first argument"),
+        };
+        let mut alias = None;
+        if self.check(TokenKind::Comma) {
+            self.advance();
+            let key = self.expect_ident()?;
+            if key != "as" {
+                bail!("Expected 'as' in import(...) declaration");
+            }
+            self.expect(TokenKind::Colon)?;
+            alias = Some(self.expect_ident()?);
+        }
+        self.expect(TokenKind::RParen)?;
+        Ok(ImportDecl { path, alias })
     }
 
     fn parse_meta_headers(&mut self) -> Result<HashMap<String, String>> {

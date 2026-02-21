@@ -1,0 +1,9 @@
+# Shared Invoice Rules Module
+# Imported by modular_invoice_app.sculpt to demonstrate multi-file linking.
+
+module(Billing.Shared.InvoiceRules):
+  state():
+    version = "rules-v1"
+    approvalLimit = 1000
+  end
+end
