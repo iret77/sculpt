@@ -82,13 +82,7 @@ impl Parser {
     fn parse_import(&mut self) -> Result<ImportDecl> {
         self.expect_keyword(Keyword::Import)?;
         self.expect(TokenKind::LParen)?;
-        let path = match self.peek_kind().cloned() {
-            Some(TokenKind::String(s)) => {
-                self.advance();
-                s
-            }
-            _ => bail!("import(...) expects a string file path as first argument"),
-        };
+        let path = self.parse_qualified_ident()?;
         self.expect(TokenKind::RParen)?;
         let mut alias = None;
         if matches!(self.peek_kind(), Some(TokenKind::Identifier(s)) if s == "as") {

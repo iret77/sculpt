@@ -649,7 +649,7 @@ fn builtin_spec(
     let schema_json: Value = serde_json::from_str(schema)?;
     let mut meta = json!({
       "target": { "type": "string" },
-      "nd_policy": { "type": "enum", "values": ["strict", "magic"] },
+      "nd_policy": { "type": "enum", "values": ["strict"] },
       "strict_scopes": { "type": "bool" },
       "nd_budget": { "type": "int", "min": 0, "max": 100 },
       "confidence": { "type": "float", "min": 0.0, "max": 1.0 },

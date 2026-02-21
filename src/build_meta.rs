@@ -30,6 +30,13 @@ pub struct BuildMeta {
 }
 
 pub fn dist_dir_for_input(input: &Path) -> PathBuf {
+    let filename = input
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("sculpt");
+    if let Some(base) = filename.strip_suffix(".sculpt.json") {
+        return Path::new("dist").join(base);
+    }
     let stem = input
         .file_stem()
         .and_then(|s| s.to_str())

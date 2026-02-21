@@ -4,7 +4,7 @@
 @meta target=cli
 
 module(Billing.App):
-  import("modules/invoice_rules.sculpt") as Shared
+  import(Billing.Shared.InvoiceRules) as Shared
   use(cli.ui)
   use(cli.input) as input
 

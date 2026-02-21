@@ -92,7 +92,7 @@ module(Billing.Account.Invoice):
 
 ### 5.2 Core Blocks
 - `use(path) [as alias]`: import provider package namespaces
-- `import("file.sculpt") [as Alias]`: import project module files
+- `import(namespace.path) [as Alias]`: import project module namespaces (project mode only)
 - `flow(name)`: state flow graph
 - `state(name)`: named state inside a flow
 - `state()`: global state storage
@@ -121,7 +121,7 @@ For team-scale projects, split modules into multiple files and import them expli
 
 ```sculpt
 module(Billing.App):
-  import("shared/invoice_rules.sculpt") as Shared
+  import(shared.invoice_rules) as Shared
   use(cli.ui)
   use(cli.input) as input
   flow(Main):

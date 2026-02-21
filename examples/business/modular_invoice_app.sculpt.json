@@ -1,0 +1,8 @@
+{
+  "name": "modular_invoice_app",
+  "entry": "Billing.App",
+  "modules": [
+    "modular_invoice_app.sculpt",
+    "modules/invoice_rules.sculpt"
+  ]
+}

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::io::{self, Write};
@@ -61,7 +61,7 @@ pub enum Command {
         input: PathBuf,
         #[arg(long)]
         target: Option<String>,
-        #[arg(long = "nd-policy", value_parser = ["strict", "magic"])]
+        #[arg(long = "nd-policy", value_parser = ["strict"])]
         nd_policy: Option<String>,
         #[arg(long)]
         provider: Option<String>,
@@ -74,7 +74,7 @@ pub enum Command {
     },
     Freeze {
         input: PathBuf,
-        #[arg(long = "nd-policy", value_parser = ["strict", "magic"])]
+        #[arg(long = "nd-policy", value_parser = ["strict"])]
         nd_policy: Option<String>,
         #[arg(long)]
         provider: Option<String>,
@@ -166,6 +166,19 @@ struct AnthropicConfig {
 struct GeminiConfig {
     api_key: Option<String>,
     model: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct SculptProjectFile {
+    name: Option<String>,
+    entry: Option<String>,
+    modules: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ProjectContext {
+    entry_module: String,
+    modules: HashMap<String, (PathBuf, crate::ast::Module)>,
 }
 
 pub fn run() -> Result<()> {
@@ -2090,9 +2103,29 @@ fn auth_check(provider: &str, verify: bool) -> Result<()> {
 }
 
 fn load_ir(input: &Path, nd_policy_override: Option<&str>) -> Result<crate::ir::IrModule> {
-    let src = fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
-    let mut module = parse_source(&src)?;
-    let imported_roots = resolve_imported_module_roots(input, &module)?;
+    let (mut module, imported_roots) = if is_project_file(input) {
+        let project = load_project_context(input)?;
+        let (_, entry_module) = project
+            .modules
+            .get(&project.entry_module)
+            .cloned()
+            .ok_or_else(|| {
+                anyhow::anyhow!("Project entry module '{}' not found", project.entry_module)
+            })?;
+        let roots = resolve_imported_module_roots_project(&entry_module, &project.modules)?;
+        (entry_module, roots)
+    } else {
+        let src =
+            fs::read_to_string(input).with_context(|| format!("Failed to read {:?}", input))?;
+        let module = parse_source(&src)?;
+        if !module.imports.is_empty() {
+            bail!(
+                "Imports require a project file (*.sculpt.json). Stand-alone scripts cannot import modules."
+            );
+        }
+        (module, HashSet::new())
+    };
+
     if let Some(value) = nd_policy_override {
         module
             .meta
@@ -2108,44 +2141,104 @@ fn load_ir(input: &Path, nd_policy_override: Option<&str>) -> Result<crate::ir::
     Ok(from_ast(module))
 }
 
-fn resolve_imported_module_roots(
-    input: &Path,
-    module: &crate::ast::Module,
-) -> Result<HashSet<String>> {
-    let mut roots = HashSet::new();
-    let mut visited = HashSet::new();
-    let base_dir = input
+fn is_project_file(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.ends_with(".sculpt.json"))
+        .unwrap_or(false)
+}
+
+fn load_project_context(project_file: &Path) -> Result<ProjectContext> {
+    let project_text = fs::read_to_string(project_file)
+        .with_context(|| format!("Failed to read project file {}", project_file.display()))?;
+    let spec: SculptProjectFile = serde_json::from_str(&project_text)
+        .with_context(|| format!("Invalid project file JSON {}", project_file.display()))?;
+    if spec.modules.is_empty() {
+        bail!("Project file {} has no modules", project_file.display());
+    }
+
+    let base_dir = project_file
         .parent()
         .map(Path::to_path_buf)
         .unwrap_or_else(|| PathBuf::from("."));
-    resolve_imported_module_roots_inner(module, &base_dir, &mut roots, &mut visited)?;
+    let mut modules = HashMap::new();
+    for rel in &spec.modules {
+        let path = base_dir.join(rel);
+        let src = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read module source {}", path.display()))?;
+        let module = parse_source(&src)
+            .with_context(|| format!("Failed to parse module source {}", path.display()))?;
+        if modules
+            .insert(module.name.clone(), (path.clone(), module))
+            .is_some()
+        {
+            bail!("Duplicate module namespace in project: {}", rel);
+        }
+    }
+
+    let entry_module = if let Some(entry) = spec.entry {
+        entry
+    } else if modules.len() == 1 {
+        modules
+            .keys()
+            .next()
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("Project module index empty"))?
+    } else {
+        bail!(
+            "Project file {} must define 'entry' when more than one module is present",
+            project_file.display()
+        );
+    };
+    if !modules.contains_key(&entry_module) {
+        bail!("Project entry '{}' not found in modules list", entry_module);
+    }
+
+    let _project_name = spec.name.unwrap_or_else(|| {
+        project_file
+            .file_name()
+            .and_then(|s| s.to_str())
+            .and_then(|s| s.strip_suffix(".sculpt.json"))
+            .unwrap_or("sculpt")
+            .to_string()
+    });
+
+    Ok(ProjectContext {
+        entry_module,
+        modules,
+    })
+}
+
+fn resolve_imported_module_roots_project(
+    module: &crate::ast::Module,
+    modules: &HashMap<String, (PathBuf, crate::ast::Module)>,
+) -> Result<HashSet<String>> {
+    let mut roots = HashSet::new();
+    let mut visited = HashSet::new();
+    resolve_imported_module_roots_project_inner(module, modules, &mut roots, &mut visited)?;
     Ok(roots)
 }
 
-fn resolve_imported_module_roots_inner(
+fn resolve_imported_module_roots_project_inner(
     module: &crate::ast::Module,
-    base_dir: &Path,
+    modules: &HashMap<String, (PathBuf, crate::ast::Module)>,
     roots: &mut HashSet<String>,
-    visited: &mut HashSet<PathBuf>,
+    visited: &mut HashSet<String>,
 ) -> Result<()> {
     for import in &module.imports {
-        let import_path = base_dir.join(&import.path);
-        let canonical = import_path
-            .canonicalize()
-            .with_context(|| format!("Failed to resolve import path {}", import_path.display()))?;
-        if !visited.insert(canonical.clone()) {
+        let imported = modules
+            .get(&import.path)
+            .map(|(_, m)| m)
+            .ok_or_else(|| anyhow::anyhow!("Unknown imported module '{}'", import.path))?;
+        if !visited.insert(import.path.clone()) {
             continue;
         }
-        let src = fs::read_to_string(&canonical)
-            .with_context(|| format!("Failed to read imported file {}", canonical.display()))?;
-        let imported = parse_source(&src)
-            .with_context(|| format!("Failed to parse imported file {}", canonical.display()))?;
 
         if let Some(alias) = &import.alias {
             roots.insert(alias.clone());
         } else {
-            let module_root = imported
-                .name
+            let module_root = import
+                .path
                 .split('.')
                 .next()
                 .unwrap_or("")
@@ -2153,18 +2246,13 @@ fn resolve_imported_module_roots_inner(
                 .to_string();
             if module_root.is_empty() {
                 bail!(
-                    "Imported module in {} has invalid module name",
-                    canonical.display()
+                    "Imported module '{}' has invalid namespace root",
+                    import.path
                 );
             }
             roots.insert(module_root);
         }
-
-        let next_base = canonical
-            .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("."));
-        resolve_imported_module_roots_inner(&imported, &next_base, roots, visited)?;
+        resolve_imported_module_roots_project_inner(imported, modules, roots, visited)?;
     }
     Ok(())
 }

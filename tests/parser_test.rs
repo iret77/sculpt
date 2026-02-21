@@ -120,15 +120,15 @@ end
 #[test]
 fn parses_import_declarations() {
     let src = r#"module(App):
-  import("shared/helpers.sculpt")
-  import("shared/ui.sculpt") as SharedUI
+  import(shared.helpers)
+  import(shared.ui) as SharedUI
 end
 "#;
     let module = parse_source(src).expect("parse ok");
     assert_eq!(module.imports.len(), 2);
-    assert_eq!(module.imports[0].path, "shared/helpers.sculpt");
+    assert_eq!(module.imports[0].path, "shared.helpers");
     assert_eq!(module.imports[0].alias.as_deref(), None);
-    assert_eq!(module.imports[1].path, "shared/ui.sculpt");
+    assert_eq!(module.imports[1].path, "shared.ui");
     assert_eq!(module.imports[1].alias.as_deref(), Some("SharedUI"));
 }
 

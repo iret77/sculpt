@@ -218,13 +218,11 @@ fn validate_import_decls(
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     for decl in &module.imports {
-        let exposed = decl.alias.as_ref().cloned().unwrap_or_else(|| {
-            std::path::Path::new(&decl.path)
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_string()
-        });
+        let exposed = decl
+            .alias
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| decl.path.split('.').next().unwrap_or("").trim().to_string());
         if exposed.is_empty() || !is_valid_ident(&exposed) {
             diagnostics.push(Diagnostic::new(
                 "U604",
@@ -451,10 +449,10 @@ fn validate_convergence_meta(
         .map(|v| v.trim().to_ascii_lowercase());
 
     if let Some(raw) = nd_policy {
-        if !matches!(raw.as_str(), "strict" | "magic") {
+        if raw != "strict" {
             diagnostics.push(Diagnostic::new(
                 "M705",
-                format!("Invalid nd_policy '{}': expected one of strict|magic", raw),
+                format!("Invalid nd_policy '{}': expected strict", raw),
             ));
         }
     }
@@ -601,11 +599,6 @@ fn validate_symbol_references(
     imported_roots: &HashSet<String>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let nd_policy = module
-        .meta
-        .get("nd_policy")
-        .map(|v| v.trim().to_ascii_lowercase())
-        .unwrap_or_else(|| "strict".to_string());
     let mut short_counts: HashMap<String, usize> = HashMap::new();
     for fqn in known_fqns {
         if let Some(short) = fqn.rsplit('.').next() {
@@ -615,15 +608,7 @@ fn validate_symbol_references(
 
     let mut check_ident = |ident: &str, context: &str| {
         if ident.starts_with('?') {
-            if nd_policy == "strict" {
-                diagnostics.push(Diagnostic::new(
-                    "N306",
-                    format!(
-                        "ND magicword '{}' is not allowed in strict nd_policy (context: {})",
-                        ident, context
-                    ),
-                ));
-            }
+            // Explicit ND-magic identifier (prefixed with '?') is always allowed.
             return;
         }
         if ident.contains('.') {

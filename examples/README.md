@@ -33,7 +33,7 @@ Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
 - `business/expense_approval_workflow.sculpt`
   - Realistic workflow-oriented example with strict logic and light ND.
 - `business/modular_invoice_app.sculpt`
-  - Multi-file business app using `import(...)` and shared module files.
+  - Multi-file business app using namespace imports (`import(Billing.Shared.InvoiceRules)`) and project file `business/modular_invoice_app.sculpt.json`.
 
 ## 4) Web
 - `web/incident_status_dashboard.sculpt`

@@ -23,7 +23,12 @@ fn target_stacks_lists_web_adapters() {
         .args(["target", "stacks", "--target", "web"])
         .output()
         .expect("run");
-    assert!(out.status.success(), "stdout={} stderr={}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("builtin.web.standard@1"));
     assert!(s.contains("provider.web.next@1"));
@@ -39,7 +44,7 @@ fn build_resolves_recursive_imports() {
     fs::write(
         dir.join("modules").join("shared.sculpt"),
         r#"module(Company.Shared):
-  import("nested/deep.sculpt") as Deep
+  import(Company.Deep) as Deep
   state():
     root = 1
   end
@@ -64,7 +69,7 @@ end
         &main,
         r#"@meta target=cli
 module(App.Main):
-  import("modules/shared.sculpt") as Shared
+  import(Company.Shared) as Shared
   use(cli.ui)
   use(cli.input) as input
   flow(Main):
@@ -83,9 +88,25 @@ end
     )
     .expect("write main");
 
+    let project = dir.join("recursive.sculpt.json");
+    fs::write(
+        &project,
+        r#"{
+  "name": "recursive",
+  "entry": "App.Main",
+  "modules": [
+    "main.sculpt",
+    "modules/shared.sculpt",
+    "modules/nested/deep.sculpt"
+  ]
+}
+"#,
+    )
+    .expect("write project");
+
     let out = Command::new(sculpt_bin())
         .arg("build")
-        .arg(&main)
+        .arg(&project)
         .args(["--target", "cli", "--provider", "stub"])
         .current_dir(&dir)
         .output()
@@ -96,4 +117,36 @@ end
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr)
     );
+}
+
+#[test]
+fn standalone_script_with_import_fails() {
+    let dir = temp_dir("standalone_import_fail");
+    let main = dir.join("main.sculpt");
+    fs::write(
+        &main,
+        r#"@meta target=cli
+module(App.Main):
+  import(Company.Shared) as Shared
+  flow(Main):
+    start > A
+    state(A):
+      on input.key(esc) > A
+    end
+  end
+end
+"#,
+    )
+    .expect("write main");
+
+    let out = Command::new(sculpt_bin())
+        .arg("build")
+        .arg(&main)
+        .args(["--target", "cli", "--provider", "stub"])
+        .current_dir(&dir)
+        .output()
+        .expect("run");
+    assert!(!out.status.success(), "build unexpectedly succeeded");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("Imports require a project file"));
 }

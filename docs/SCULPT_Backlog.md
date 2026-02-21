@@ -7,7 +7,7 @@
 3. Convergence Controls in Language (P1)
 4. Release Quality Gates (P1)
 5. Team-Scale Structure Enablement (P1)
-- Multi-file imports via `import("file.sculpt") [as Alias]`
+- Multi-file imports via namespace references: `import(namespace.path) [as Alias]`
 - Explicit provider namespaces via `use(...)`
 - Package/export discovery via `sculpt target packages/exports`
 - Legacy magic shorthand removed from default language path

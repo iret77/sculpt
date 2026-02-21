@@ -125,7 +125,7 @@ end
 #[test]
 fn allows_import_alias_as_namespace_root() {
     let src = r#"module(App.Core):
-  import("shared/billing.sculpt") as Billing
+  import(shared.billing) as Billing
   flow(Main):
     start > A
     state(A):
@@ -280,7 +280,7 @@ end
 }
 
 #[test]
-fn rejects_nd_magicword_in_strict_policy() {
+fn allows_explicit_nd_magicword_with_question_prefix() {
     let src = r#"@meta nd_policy=strict
 module(App.Core):
   flow(Main):
@@ -293,11 +293,11 @@ end
 "#;
     let module = parse_source(src).expect("parse ok");
     let diagnostics = validate_module(&module);
-    assert!(diagnostics.iter().any(|d| d.code == "N306"));
+    assert!(!diagnostics.iter().any(|d| d.code == "N306"));
 }
 
 #[test]
-fn allows_nd_magicword_in_magic_policy() {
+fn rejects_magic_policy_value() {
     let src = r#"@meta nd_policy=magic
 module(App.Core):
   flow(Main):
@@ -310,7 +310,7 @@ end
 "#;
     let module = parse_source(src).expect("parse ok");
     let diagnostics = validate_module(&module);
-    assert!(!diagnostics.iter().any(|d| d.code == "N306"));
+    assert!(diagnostics.iter().any(|d| d.code == "M705"));
 }
 
 #[test]

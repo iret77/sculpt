@@ -53,7 +53,7 @@ fn print_help_tui() {
         &[
             " examples   write curated examples into ./examples",
             " gate       evaluate release quality gates",
-            " build      compile .sculpt to target output",
+            " build      compile .sculpt or .sculpt.json to target output",
             " freeze     compile + lock deterministic output",
             " replay     build from sculpt.lock (no LLM)",
             " run        run last build output",
@@ -108,7 +108,7 @@ fn print_subcommand_help(cmd: &str) -> bool {
             print_header();
             print_box(
                 "Usage",
-                &[" sculpt build <input.sculpt> [--target <cli|gui|web>] [options]"],
+                &[" sculpt build <input.sculpt|project.sculpt.json> [--target <cli|gui|web>] [options]"],
                 accent2,
                 c,
             );
@@ -116,7 +116,7 @@ fn print_subcommand_help(cmd: &str) -> bool {
                 "Options",
                 &[
                     " --target <name>         override target (meta target is preferred)",
-                    " --nd-policy <strict|magic> override nd_policy meta",
+                    " --nd-policy <strict>    override nd_policy meta",
                     " --provider <name>       llm provider (default from config)",
                     " --model <name>          model override",
                     " --strict-provider       fail if provider auth/config is missing",
@@ -160,7 +160,7 @@ fn print_subcommand_help(cmd: &str) -> bool {
             print_header();
             print_box(
                 "Usage",
-                &[" sculpt freeze <input.sculpt> [--target <cli|gui|web>] [options]"],
+                &[" sculpt freeze <input.sculpt|project.sculpt.json> [--target <cli|gui|web>] [options]"],
                 accent2,
                 c,
             );
@@ -168,7 +168,7 @@ fn print_subcommand_help(cmd: &str) -> bool {
                 "Options",
                 &[
                     " --target <name>         override target",
-                    " --nd-policy <strict|magic> override nd_policy meta",
+                    " --nd-policy <strict>    override nd_policy meta",
                     " --provider <name>       llm provider (default from config)",
                     " --model <name>          model override",
                     " --strict-provider       fail if provider auth/config is missing",
@@ -192,7 +192,7 @@ fn print_subcommand_help(cmd: &str) -> bool {
             print_header();
             print_box(
                 "Usage",
-                &[" sculpt replay <input.sculpt> [--target <cli|gui|web>]"],
+                &[" sculpt replay <input.sculpt|project.sculpt.json> [--target <cli|gui|web>]"],
                 accent2,
                 c,
             );
@@ -211,7 +211,7 @@ fn print_subcommand_help(cmd: &str) -> bool {
             print_header();
             print_box(
                 "Usage",
-                &[" sculpt run <input.sculpt> [--target <cli|gui|web>]"],
+                &[" sculpt run <input.sculpt|project.sculpt.json> [--target <cli|gui|web>]"],
                 accent2,
                 c,
             );
@@ -258,7 +258,10 @@ fn print_subcommand_help(cmd: &str) -> bool {
             print_header();
             print_box(
                 "Usage",
-                &[" sculpt clean <input.sculpt>", " sculpt clean --all"],
+                &[
+                    " sculpt clean <input.sculpt|project.sculpt.json>",
+                    " sculpt clean --all",
+                ],
                 accent2,
                 c,
             );
