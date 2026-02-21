@@ -5,7 +5,7 @@
 
 module(NativeWindow):
   use(gui.ui)
-  use(gui.input, as: input)
+  use(gui.input) as input
 
   flow(App):
     start > Main

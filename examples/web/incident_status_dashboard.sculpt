@@ -7,7 +7,7 @@
 
 module(Ops.Web.IncidentDashboard):
   use(web.ui)
-  use(web.input, as: input)
+  use(web.input) as input
 
   flow(App):
     start > Overview

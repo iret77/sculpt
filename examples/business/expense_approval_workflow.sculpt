@@ -6,7 +6,7 @@
 
 module(Business.Finance.ExpenseApproval):
   use(cli.ui)
-  use(cli.input, as: input)
+  use(cli.input) as input
 
   flow(App):
     start > Inbox

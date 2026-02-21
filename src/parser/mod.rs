@@ -70,17 +70,12 @@ impl Parser {
         self.expect_keyword(Keyword::Use)?;
         self.expect(TokenKind::LParen)?;
         let path = self.parse_qualified_ident()?;
+        self.expect(TokenKind::RParen)?;
         let mut alias = None;
-        if self.check(TokenKind::Comma) {
+        if matches!(self.peek_kind(), Some(TokenKind::Identifier(s)) if s == "as") {
             self.advance();
-            let key = self.expect_ident()?;
-            if key != "as" {
-                bail!("Expected 'as' in use(...) declaration");
-            }
-            self.expect(TokenKind::Colon)?;
             alias = Some(self.expect_ident()?);
         }
-        self.expect(TokenKind::RParen)?;
         Ok(UseDecl { path, alias })
     }
 
@@ -94,17 +89,12 @@ impl Parser {
             }
             _ => bail!("import(...) expects a string file path as first argument"),
         };
+        self.expect(TokenKind::RParen)?;
         let mut alias = None;
-        if self.check(TokenKind::Comma) {
+        if matches!(self.peek_kind(), Some(TokenKind::Identifier(s)) if s == "as") {
             self.advance();
-            let key = self.expect_ident()?;
-            if key != "as" {
-                bail!("Expected 'as' in import(...) declaration");
-            }
-            self.expect(TokenKind::Colon)?;
             alias = Some(self.expect_ident()?);
         }
-        self.expect(TokenKind::RParen)?;
         Ok(ImportDecl { path, alias })
     }
 

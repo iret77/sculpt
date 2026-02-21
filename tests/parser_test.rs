@@ -106,7 +106,7 @@ end
 fn parses_use_declarations() {
     let src = r#"module(App):
   use(cli.ui)
-  use(cli.input, as: input)
+  use(cli.input) as input
 end
 "#;
     let module = parse_source(src).expect("parse ok");
@@ -121,7 +121,7 @@ end
 fn parses_import_declarations() {
     let src = r#"module(App):
   import("shared/helpers.sculpt")
-  import("shared/ui.sculpt", as: SharedUI)
+  import("shared/ui.sculpt") as SharedUI
 end
 "#;
     let module = parse_source(src).expect("parse ok");

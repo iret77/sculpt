@@ -4,7 +4,7 @@ use sculpt::semantics::validate_module;
 #[test]
 fn validates_clean_program() {
     let src = r#"module(Billing.Account.Invoice):
-  use(cli.input, as: input)
+  use(cli.input) as input
   flow(Main):
     start > Draft
     state(Draft):
@@ -96,7 +96,7 @@ end
 #[test]
 fn allows_imported_namespace_references() {
     let src = r#"module(App.Core):
-  use(cli.input, as: input)
+  use(cli.input) as input
   flow(Main):
     start > A
     state(A):
@@ -113,8 +113,8 @@ end
 #[test]
 fn catches_duplicate_use_alias_roots() {
     let src = r#"module(App.Core):
-  use(cli.input, as: io)
-  use(cli.ui, as: io)
+  use(cli.input) as io
+  use(cli.ui) as io
 end
 "#;
     let module = parse_source(src).expect("parse ok");
@@ -125,7 +125,7 @@ end
 #[test]
 fn allows_import_alias_as_namespace_root() {
     let src = r#"module(App.Core):
-  import("shared/billing.sculpt", as: Billing)
+  import("shared/billing.sculpt") as Billing
   flow(Main):
     start > A
     state(A):
@@ -133,7 +133,7 @@ fn allows_import_alias_as_namespace_root() {
       on input.key(Enter) > A
     end
   end
-  use(cli.input, as: input)
+  use(cli.input) as input
 end
 "#;
     let module = parse_source(src).expect("parse ok");

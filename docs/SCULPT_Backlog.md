@@ -7,10 +7,18 @@
 3. Convergence Controls in Language (P1)
 4. Release Quality Gates (P1)
 5. Team-Scale Structure Enablement (P1)
-- Multi-file imports via `import("file.sculpt"[, as: Alias])`
+- Multi-file imports via `import("file.sculpt") [as Alias]`
 - Explicit provider namespaces via `use(...)`
 - Package/export discovery via `sculpt target packages/exports`
 - Legacy magic shorthand removed from default language path
+6. Web Stack Foundation (P1)
+- Framework-agnostic web standard app IR (`web-app-ir`)
+- `web_profile` support (`standard`, `next-app`, `laravel-mvc`)
+- Stack adapter discovery via `sculpt target stacks --target web`
+7. Pre-LLM Contract Enforcement Hardening (P1)
+- `C905`: unknown package namespace in `use(...)`
+- `C906`: symbol not exported by package
+- Contract-level symbol validation now blocks invalid builds before LLM execution
 
 ## Validation, Tooling, and Scale
 

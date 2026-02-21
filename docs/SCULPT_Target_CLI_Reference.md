@@ -68,7 +68,7 @@ Useful keys:
 @meta target=cli
 module(App.CliDemo):
   use(cli.ui)
-  use(cli.input, as: input)
+  use(cli.input) as input
   flow(Main):
     start > Title
     state(Title):

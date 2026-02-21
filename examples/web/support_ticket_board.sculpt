@@ -7,7 +7,7 @@
 
 module(ServiceDesk.Web.SupportBoard):
   use(web.ui)
-  use(web.input, as: input)
+  use(web.input) as input
 
   flow(App):
     start > Board

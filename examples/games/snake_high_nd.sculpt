@@ -6,7 +6,7 @@
 
 module(SnakeHighND):
   use(cli.ui)
-  use(cli.input, as: input)
+  use(cli.input) as input
 
   # Main flow
   flow(Game):

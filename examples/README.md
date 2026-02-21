@@ -6,7 +6,7 @@ Examples are grouped by intent so new developers can find the right starting poi
 
 All current examples use explicit provider namespaces via:
 - `use(<target>.ui)`
-- `use(<target>.input, as: input)`
+- `use(<target>.input) as input`
 Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
 
 ## 1) Getting Started
