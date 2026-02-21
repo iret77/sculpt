@@ -491,7 +491,7 @@ end
 "#,
         ),
         (
-            "games/breakout_cli.sculpt",
+            "games/breakout_low_nd.sculpt",
             r#"# Breakout (CLI)
 # Demonstrates a playable arcade loop with clear game-state rules and constrained ND for level layout.
 
@@ -499,7 +499,7 @@ end
 @meta nd_budget=24
 @meta confidence=0.9
 
-module(BreakoutCLI):
+module(BreakoutLowND):
 
   flow(Game):
     start > Title

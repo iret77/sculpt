@@ -6,7 +6,7 @@
 @meta nd_budget=16
 @meta confidence=0.96
 
-module(BreakoutCLI):
+module(BreakoutLowND):
   use(cli.ui)
   use(cli.input) as input
 

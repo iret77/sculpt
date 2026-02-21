@@ -22,7 +22,7 @@ Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
   - Playable and visually richer Snake with high ND (creative runtime freedom).
 - `games/snake_low_nd.sculpt`
   - Playable and visually richer Snake with low ND (explicit mechanics and scoring).
-- `games/breakout_cli.sculpt`
+- `games/breakout_low_nd.sculpt`
   - Detailed low-ND Breakout with explicit flow and rule structure.
 
 ## 3) Business
