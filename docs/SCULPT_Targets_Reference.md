@@ -5,7 +5,7 @@
 This is the entry point for target-specific source-code references.
 
 ## Why This Exists
-In SCULPT source code, statements like `on key(...)`, `render text(...)`, and ND constraints are easy to write.
+In SCULPT source code, target calls like `on input.key(...)` and `ui.text(...)` are imported APIs.
 What they mean at build/run time depends on:
 - core language semantics, and
 - the selected target contract (`cli`, `gui`, `web`, or external providers).
@@ -15,6 +15,8 @@ What they mean at build/run time depends on:
   - `sculpt target describe --target cli`
   - `sculpt target describe --target gui`
   - `sculpt target describe --target web`
+  - `sculpt target packages --target <name>`
+  - `sculpt target exports --target <name> --package <package-id>`
 - Core language semantics:
   - [SCULPT Semantics](SCULPT_Semantics.md)
 - Target architecture:
@@ -27,4 +29,4 @@ What they mean at build/run time depends on:
 
 ## Language vs Target (Quick Rule)
 - `flow`, `state`, `rule`, `nd`, `on`, `when`, `emit`, `run`, `terminate` are language-level.
-- Calls like `key(...)`, `render text(...)`, and many ND call names are interpreted through target contracts and provider/runtime behavior.
+- Calls like `input.key(...)`, `ui.text(...)`, and many ND call names are interpreted through imported provider packages and target contracts.

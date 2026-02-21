@@ -6,25 +6,27 @@
 @meta confidence=0.9
 
 module(BreakoutCLI):
+  use(cli.ui)
+  use(cli.input, as: input)
 
   flow(Game):
     start > Title
 
     state(Title):
-      render text("BREAKOUT", color: "yellow")
-      render text("A/D move paddle, Space launch, Esc quit", color: "blue")
-      on key(Enter) > Play
-      on key(Esc) > Exit
+      ui.text("BREAKOUT", color: "yellow")
+      ui.text("A/D move paddle, Space launch, Esc quit", color: "blue")
+      on input.key(Enter) > Play
+      on input.key(Esc) > Exit
     end
 
     state(Play):
       on tick > Play
       on done > GameOver
-      on key(Esc) > Exit
+      on input.key(Esc) > Exit
 
-      on key(Space):: launched = 1
-      on key(A):: paddleX = movePaddle(paddleX, "left", width, paddleWidth)
-      on key(D):: paddleX = movePaddle(paddleX, "right", width, paddleWidth)
+      on input.key(Space):: launched = 1
+      on input.key(A):: paddleX = movePaddle(paddleX, "left", width, paddleWidth)
+      on input.key(D):: paddleX = movePaddle(paddleX, "right", width, paddleWidth)
 
       rule(runtimeTick):
         on tick:
@@ -45,10 +47,10 @@ module(BreakoutCLI):
     end
 
     state(GameOver):
-      render text("Game Over", color: "red")
-      render text("Enter restart, Esc quit", color: "blue")
-      on key(Enter) > Title
-      on key(Esc) > Exit
+      ui.text("Game Over", color: "red")
+      ui.text("Enter restart, Esc quit", color: "blue")
+      on input.key(Enter) > Title
+      on input.key(Esc) > Exit
     end
 
     state(Exit):

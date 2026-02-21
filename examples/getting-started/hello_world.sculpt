@@ -4,14 +4,16 @@
 @meta target=cli
 
 module(HelloWorld):
+  use(cli.ui)
+  use(cli.input, as: input)
 
   flow(App):
     start > Show
 
     state(Show):
-      render text("Hallo", color: "yellow")
-      render text("Welt", color: "blue")
-      on key(Esc) > Exit
+      ui.text("Hallo", color: "yellow")
+      ui.text("Welt", color: "blue")
+      on input.key(Esc) > Exit
     end
 
     state(Exit):

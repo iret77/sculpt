@@ -5,59 +5,61 @@
 @meta nd_budget=10
 
 module(ServiceDesk.Web.SupportBoard):
+  use(web.ui)
+  use(web.input, as: input)
 
   flow(App):
     start > Board
 
     state(Board):
-      render text("Support Ticket Board", color: "yellow")
-      render text("1 = Open ticket #4821", color: "white")
-      render text("2 = Open ticket #4822", color: "white")
-      render text("S = SLA overview", color: "blue")
-      render text("Esc = Exit", color: "blue")
-      on key(1) > Ticket4821
-      on key(2) > Ticket4822
-      on key(S) > SLA
-      on key(Esc) > Exit
+      ui.text("Support Ticket Board", color: "yellow")
+      ui.text("1 = Open ticket #4821", color: "white")
+      ui.text("2 = Open ticket #4822", color: "white")
+      ui.text("S = SLA overview", color: "blue")
+      ui.text("Esc = Exit", color: "blue")
+      on input.key(1) > Ticket4821
+      on input.key(2) > Ticket4822
+      on input.key(S) > SLA
+      on input.key(Esc) > Exit
     end
 
     state(Ticket4821):
-      render text("Ticket #4821", color: "yellow")
-      render text("Customer: ACME Retail", color: "white")
-      render text("Issue: Checkout timeout", color: "white")
-      render text("Priority: High", color: "red")
-      render text("A = Mark in progress, R = Return", color: "blue")
-      on key(A) > InProgress
-      on key(R) > Board
-      on key(Esc) > Exit
+      ui.text("Ticket #4821", color: "yellow")
+      ui.text("Customer: ACME Retail", color: "white")
+      ui.text("Issue: Checkout timeout", color: "white")
+      ui.text("Priority: High", color: "red")
+      ui.text("A = Mark in progress, R = Return", color: "blue")
+      on input.key(A) > InProgress
+      on input.key(R) > Board
+      on input.key(Esc) > Exit
     end
 
     state(Ticket4822):
-      render text("Ticket #4822", color: "yellow")
-      render text("Customer: Nova Health", color: "white")
-      render text("Issue: CSV export mismatch", color: "white")
-      render text("Priority: Medium", color: "magenta")
-      render text("A = Mark in progress, R = Return", color: "blue")
-      on key(A) > InProgress
-      on key(R) > Board
-      on key(Esc) > Exit
+      ui.text("Ticket #4822", color: "yellow")
+      ui.text("Customer: Nova Health", color: "white")
+      ui.text("Issue: CSV export mismatch", color: "white")
+      ui.text("Priority: Medium", color: "magenta")
+      ui.text("A = Mark in progress, R = Return", color: "blue")
+      on input.key(A) > InProgress
+      on input.key(R) > Board
+      on input.key(Esc) > Exit
     end
 
     state(InProgress):
-      render text("Ticket moved to In Progress.", color: "green")
-      render text("Enter = Back to board", color: "blue")
-      on key(Enter) > Board
-      on key(Esc) > Exit
+      ui.text("Ticket moved to In Progress.", color: "green")
+      ui.text("Enter = Back to board", color: "blue")
+      on input.key(Enter) > Board
+      on input.key(Esc) > Exit
     end
 
     state(SLA):
-      render text("SLA Overview", color: "yellow")
-      render text("High: 1 overdue", color: "red")
-      render text("Medium: 2 due in < 4h", color: "magenta")
-      render text("Low: 6 on track", color: "green")
-      render text("Enter = Back to board", color: "blue")
-      on key(Enter) > Board
-      on key(Esc) > Exit
+      ui.text("SLA Overview", color: "yellow")
+      ui.text("High: 1 overdue", color: "red")
+      ui.text("Medium: 2 due in < 4h", color: "magenta")
+      ui.text("Low: 6 on track", color: "green")
+      ui.text("Enter = Back to board", color: "blue")
+      on input.key(Enter) > Board
+      on input.key(Esc) > Exit
     end
 
     state(Exit):

@@ -5,31 +5,33 @@
 @meta nd_budget=12
 
 module(Ops.Web.IncidentDashboard):
+  use(web.ui)
+  use(web.input, as: input)
 
   flow(App):
     start > Overview
 
     state(Overview):
-      render text("Incident Status Dashboard", color: "yellow")
-      render text("1 = Active incidents, 2 = Timeline, Esc = Exit", color: "blue")
-      on key(1) > ActiveIncidents
-      on key(2) > Timeline
-      on key(Esc) > Exit
+      ui.text("Incident Status Dashboard", color: "yellow")
+      ui.text("1 = Active incidents, 2 = Timeline, Esc = Exit", color: "blue")
+      on input.key(1) > ActiveIncidents
+      on input.key(2) > Timeline
+      on input.key(Esc) > Exit
     end
 
     state(ActiveIncidents):
-      render text("SEV-1 Checkout API", color: "red")
-      render text("SEV-2 Search Latency", color: "magenta")
-      render text("Enter = Back", color: "blue")
-      on key(Enter) > Overview
+      ui.text("SEV-1 Checkout API", color: "red")
+      ui.text("SEV-2 Search Latency", color: "magenta")
+      ui.text("Enter = Back", color: "blue")
+      on input.key(Enter) > Overview
     end
 
     state(Timeline):
-      render text("14:02 deploy started", color: "white")
-      render text("14:07 error rate crossed SLO", color: "white")
-      render text("14:10 rollback started", color: "white")
-      render text("Enter = Back", color: "blue")
-      on key(Enter) > Overview
+      ui.text("14:02 deploy started", color: "white")
+      ui.text("14:07 error rate crossed SLO", color: "white")
+      ui.text("14:10 rollback started", color: "white")
+      ui.text("Enter = Back", color: "blue")
+      on input.key(Enter) > Overview
     end
 
     state(Exit):

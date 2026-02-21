@@ -103,6 +103,21 @@ end
 }
 
 #[test]
+fn parses_use_declarations() {
+    let src = r#"module(App):
+  use(cli.ui)
+  use(cli.input, as: input)
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    assert_eq!(module.uses.len(), 2);
+    assert_eq!(module.uses[0].path, "cli.ui");
+    assert_eq!(module.uses[0].alias.as_deref(), None);
+    assert_eq!(module.uses[1].path, "cli.input");
+    assert_eq!(module.uses[1].alias.as_deref(), Some("input"));
+}
+
+#[test]
 fn missing_block_colon_fails() {
     let src = r#"module(App)
 end

@@ -4,15 +4,17 @@
 @meta target=gui
 
 module(NativeWindow):
+  use(gui.ui)
+  use(gui.input, as: input)
 
   flow(App):
     start > Main
 
     state(Main):
-      render text("SCULPT Native Demo", color: "yellow")
-      render text("Click the button to open an OK modal", color: "blue")
-      render button("Open OK", action: "modal.ok")
-      on key(Esc) > Exit
+      ui.text("SCULPT Native Demo", color: "yellow")
+      ui.text("Click the button to open an OK modal", color: "blue")
+      ui.button("Open OK", action: "modal.ok")
+      on input.key(Esc) > Exit
     end
 
     state(Exit):

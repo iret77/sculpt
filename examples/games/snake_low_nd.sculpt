@@ -5,22 +5,24 @@
 @meta target=cli
 
 module(SnakeLowND):
+  use(cli.ui)
+  use(cli.input, as: input)
 
   # Main flow
   flow(Game):
     start > Title
 
     state(Title):
-      render text("SNAKE", color: "yellow")
-      render text("Enter = Start, Esc = Quit", color: "blue")
-      on key(Enter) > Play
-      on key(Esc)   > Exit
+      ui.text("SNAKE", color: "yellow")
+      ui.text("Enter = Start, Esc = Quit", color: "blue")
+      on input.key(Enter) > Play
+      on input.key(Esc)   > Exit
     end
 
     state(Play):
       on tick > Play
       on done > Title
-      on key(Esc) > Exit
+      on input.key(Esc) > Exit
     end
 
     state(Exit):
@@ -54,25 +56,25 @@ module(SnakeLowND):
 
   # Deterministic input handling
   rule(inputUp):
-    on key(W):
+    on input.key(W):
       pendingDirection = "up"
     end
   end
 
   rule(inputDown):
-    on key(S):
+    on input.key(S):
       pendingDirection = "down"
     end
   end
 
   rule(inputLeft):
-    on key(A):
+    on input.key(A):
       pendingDirection = "left"
     end
   end
 
   rule(inputRight):
-    on key(D):
+    on input.key(D):
       pendingDirection = "right"
     end
   end

@@ -75,10 +75,7 @@ fn print_help_tui() {
     );
     print_box(
         "Language",
-        &[&format!(
-            " {}",
-            sculpt::versioning::language_line()
-        )],
+        &[&format!(" {}", sculpt::versioning::language_line())],
         accent2,
         c,
     );
@@ -223,6 +220,32 @@ fn print_subcommand_help(cmd: &str) -> bool {
                 &[
                     " Runs the last successful build for the selected script.",
                     " Reads artifacts from dist/<script_name>/.",
+                ],
+                accent2,
+                c,
+            );
+            true
+        }
+        "target" => {
+            print_header();
+            print_box(
+                "Usage",
+                &[
+                    " sculpt target list",
+                    " sculpt target describe --target <name>",
+                    " sculpt target packages --target <name>",
+                    " sculpt target exports --target <name> --package <id>",
+                ],
+                accent2,
+                c,
+            );
+            print_box(
+                "Behavior",
+                &[
+                    " list     : available targets",
+                    " describe : full target contract + schema",
+                    " packages : provider packages and exposed namespaces",
+                    " exports  : symbols exported by one package",
                 ],
                 accent2,
                 c,

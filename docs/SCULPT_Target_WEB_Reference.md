@@ -13,7 +13,7 @@ Standard IR: `web-ir`
 
 ## Supported Render Calls
 Practical SCULPT pattern:
-- `render text("...", color: "...")`
+- `ui.text("...", color: "...")`
 
 Effective item kind in `web-ir`:
 - `kind: "text"`
@@ -22,17 +22,17 @@ Effective item kind in `web-ir`:
 
 ## Supported Events
 Runtime dispatch uses:
-- `key(<normalized_key>)`
+- `input.key(<normalized_key>)`
 
 Useful keys:
-- `key(enter)`
-- `key(esc)`
-- `key(space)`
+- `input.key(enter)`
+- `input.key(esc)`
+- `input.key(space)`
 - alphanumeric keys lowercased
 
 ## Flow Behavior
 - `start > <State>` required.
-- `on key(...) > <State>` transitions are applied in browser runtime.
+- `on input.key(...) > <State>` transitions are applied in browser runtime.
 - Web runtime listens to `window.keydown`.
 
 ## Target Meta/Contract Notes
@@ -54,13 +54,13 @@ module(App.WebDemo)
   flow(Main)
     start > Title
     state(Title)
-      render text("Web Demo", color: "blue")
-      render text("Press Enter", color: "green")
-      on key(enter) > Done
-      on key(esc) > Exit
+      ui.text("Web Demo", color: "blue")
+      ui.text("Press Enter", color: "green")
+      on input.key(enter) > Done
+      on input.key(esc) > Exit
     end
     state(Done)
-      render text("Done", color: "black")
+      ui.text("Done", color: "black")
       terminate
     end
     state(Exit)

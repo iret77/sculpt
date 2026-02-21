@@ -6,54 +6,56 @@
 @meta confidence=0.85
 
 module(Ops.Incident.Triage):
+  use(cli.ui)
+  use(cli.input, as: input)
 
   flow(Main):
     start > Intro
 
     state(Intro):
-      render text("INCIDENT TRIAGE ASSISTANT", color: "yellow")
-      render text("Pick incident type:", color: "blue")
-      render text("1 = Service down", color: "white")
-      render text("2 = Error spike", color: "white")
-      render text("3 = Latency increase", color: "white")
-      render text("Esc = Exit", color: "white")
-      on key(1) > ServiceDown
-      on key(2) > ErrorSpike
-      on key(3) > Latency
-      on key(esc) > Exit
+      ui.text("INCIDENT TRIAGE ASSISTANT", color: "yellow")
+      ui.text("Pick incident type:", color: "blue")
+      ui.text("1 = Service down", color: "white")
+      ui.text("2 = Error spike", color: "white")
+      ui.text("3 = Latency increase", color: "white")
+      ui.text("Esc = Exit", color: "white")
+      on input.key(1) > ServiceDown
+      on input.key(2) > ErrorSpike
+      on input.key(3) > Latency
+      on input.key(esc) > Exit
     end
 
     state(ServiceDown):
-      render text("SERVICE DOWN", color: "red")
-      render text("Action plan:", color: "yellow")
-      render text("- Declare SEV-1", color: "white")
-      render text("- Start status page incident", color: "white")
-      render text("- Assign commander + comms owner", color: "white")
-      render text("- Roll back latest deploy if recent", color: "white")
-      render text("Enter = Back", color: "blue")
-      on key(enter) > Intro
+      ui.text("SERVICE DOWN", color: "red")
+      ui.text("Action plan:", color: "yellow")
+      ui.text("- Declare SEV-1", color: "white")
+      ui.text("- Start status page incident", color: "white")
+      ui.text("- Assign commander + comms owner", color: "white")
+      ui.text("- Roll back latest deploy if recent", color: "white")
+      ui.text("Enter = Back", color: "blue")
+      on input.key(enter) > Intro
     end
 
     state(ErrorSpike):
-      render text("ERROR SPIKE", color: "magenta")
-      render text("Action plan:", color: "yellow")
-      render text("- Check top failing endpoint", color: "white")
-      render text("- Compare release/version deltas", color: "white")
-      render text("- Enable degraded mode if available", color: "white")
-      render text("- Page owning team if >5 min sustained", color: "white")
-      render text("Enter = Back", color: "blue")
-      on key(enter) > Intro
+      ui.text("ERROR SPIKE", color: "magenta")
+      ui.text("Action plan:", color: "yellow")
+      ui.text("- Check top failing endpoint", color: "white")
+      ui.text("- Compare release/version deltas", color: "white")
+      ui.text("- Enable degraded mode if available", color: "white")
+      ui.text("- Page owning team if >5 min sustained", color: "white")
+      ui.text("Enter = Back", color: "blue")
+      on input.key(enter) > Intro
     end
 
     state(Latency):
-      render text("LATENCY INCREASE", color: "cyan")
-      render text("Action plan:", color: "yellow")
-      render text("- Check DB and cache saturation", color: "white")
-      render text("- Inspect queue backlog", color: "white")
-      render text("- Apply temporary rate-limit if needed", color: "white")
-      render text("- Capture flamegraph before restart", color: "white")
-      render text("Enter = Back", color: "blue")
-      on key(enter) > Intro
+      ui.text("LATENCY INCREASE", color: "cyan")
+      ui.text("Action plan:", color: "yellow")
+      ui.text("- Check DB and cache saturation", color: "white")
+      ui.text("- Inspect queue backlog", color: "white")
+      ui.text("- Apply temporary rate-limit if needed", color: "white")
+      ui.text("- Capture flamegraph before restart", color: "white")
+      ui.text("Enter = Back", color: "blue")
+      on input.key(enter) > Intro
     end
 
     state(Exit):

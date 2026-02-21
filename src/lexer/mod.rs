@@ -28,6 +28,7 @@ pub enum TokenKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Keyword {
     Module,
+    Use,
     Flow,
     State,
     Rule,
@@ -308,6 +309,7 @@ pub fn lex(input: &str) -> Result<Vec<Token>> {
                 }
                 let kind = match ident.as_str() {
                     "module" => TokenKind::Keyword(Keyword::Module),
+                    "use" => TokenKind::Keyword(Keyword::Use),
                     "flow" => TokenKind::Keyword(Keyword::Flow),
                     "state" => TokenKind::Keyword(Keyword::State),
                     "rule" => TokenKind::Keyword(Keyword::Rule),

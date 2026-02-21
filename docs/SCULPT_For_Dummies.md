@@ -58,7 +58,7 @@ module(HelloWorld):
   flow(App):
     start > Show
     state(Show):
-      render text("Hello", color: "yellow")
+      ui.text("Hello", color: "yellow")
       terminate
     end
   end
@@ -72,11 +72,11 @@ module(SimpleFlow):
   flow(App):
     start > Start
     state(Start):
-      render text("Press Enter", color: "blue")
-      on key(Enter) > Done
+      ui.text("Press Enter", color: "blue")
+      on input.key(Enter) > Done
     end
     state(Done):
-      render text("Completed", color: "green")
+      ui.text("Completed", color: "green")
       terminate
     end
   end
@@ -123,7 +123,7 @@ module(StableGui):
   flow(App):
     start > Main
     state(Main):
-      render text("Stable path", color: "white")
+      ui.text("Stable path", color: "white")
       terminate
     end
   end

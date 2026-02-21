@@ -91,17 +91,35 @@ module(Billing.Account.Invoice):
 ```
 
 ### 5.2 Core Blocks
+- `use(path[, as: alias])`: import provider package namespaces
 - `flow(name)`: state flow graph
 - `state(name)`: named state inside a flow
 - `state()`: global state storage
 - `rule(name, ...)`: deterministic rule block
 - `nd(name, ...)`: non-deterministic solution block
 
+### 5.2.1 Namespace Imports (Provider APIs)
+Target-specific functions are not language keywords. They come from provider packages and must be imported:
+
+```sculpt
+module(App):
+  use(cli.ui)
+  use(cli.input, as: input)
+  flow(Main):
+    start > A
+    state(A):
+      ui.text("HELLO")
+      on input.key(Enter) > A
+    end
+  end
+end
+```
+
 ### 5.3 State Transitions
 
 ```sculpt
 start > Title
-on key(Enter) > Menu
+on input.key(Enter) > Menu
 ```
 
 The transition symbol is always `>`.
@@ -125,7 +143,7 @@ State-local shortcuts are also valid:
 
 ```sculpt
 state(Play):
-  on key(Left):: paddleX += 1
+  on input.key(Left):: paddleX += 1
 end
 ```
 

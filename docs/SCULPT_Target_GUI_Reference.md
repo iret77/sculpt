@@ -19,8 +19,8 @@ Standard IR: `gui-ir`
 
 ## Supported Render Calls
 Practical SCULPT patterns:
-- `render text("...", color: "...")`
-- `render button("...", action: "modal.ok")` (LLM/IR mapping dependent)
+- `ui.text("...", color: "...")`
+- `ui.button("...", action: "modal.ok")` (LLM/IR mapping dependent)
 
 Effective item kinds in `gui-ir`:
 - `kind: "text"`
@@ -60,9 +60,9 @@ module(App.GuiDemo)
   flow(Main)
     start > Home
     state(Home)
-      render text("Native GUI Demo", color: "blue")
-      render text("Click the button", color: "secondary")
-      render button("Open OK", action: "modal.ok")
+      ui.text("Native GUI Demo", color: "blue")
+      ui.text("Click the button", color: "secondary")
+      ui.button("Open OK", action: "modal.ok")
       terminate
     end
   end

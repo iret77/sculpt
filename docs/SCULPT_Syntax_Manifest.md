@@ -1,4 +1,4 @@
-# SCULPT Syntax Manifest v0.2 (Draft)
+# SCULPT Syntax Manifest (Language 1.0 Draft)
 
 (C) 2026 byte5 GmbH
 
@@ -35,6 +35,7 @@ end
 Examples:
 ```
 module(App):
+use(cli.ui)
 flow(Game):
 state(Title):
 state():
@@ -55,7 +56,7 @@ Benefit: consistent and logical form, language-independent.
 
 ```
 start > Title
-on key(Enter) > Play
+on input.key(Enter) > Play
 ```
 
 `>` is compact, easy to type, and visually clear.
@@ -65,11 +66,12 @@ Use either newline or `;` between statements.
 
 Example:
 ```
-state(Title): render text("HELLO", color: "yellow"); on key(Enter) > Play; end
+state(Title): ui.text("HELLO", color: "yellow"); on input.key(Enter) > Play; end
 ```
 
 ## 4) Primary Block Types
 - `module(name)` -> root block (required, exactly one per file)
+- `use(package.path[, as: alias])` -> import a provider namespace root
 - `flow(name)` -> state flow
 - `state(name)` -> named state
 - `state()` -> global state block (unnamed)
@@ -77,13 +79,13 @@ state(Title): render text("HELLO", color: "yellow"); on key(Enter) > Play; end
 - `nd(name, ...)` -> non-deterministic solution block
 
 ## 5) Statements Inside `state(...)`
-- **Render calls** (meaning comes from the selected target contract):
+- **Target contract calls** (must be namespaced and imported):
   ```
-  render text("Hello", color: "yellow")
+  ui.text("Hello", color: "yellow")
   ```
 - **Transition:**
   ```
-  on key(Enter) > Play
+  on input.key(Enter) > Play
   ```
 - **Run flow:**
   ```
@@ -105,7 +107,7 @@ end
 
 Inline trigger shortcut:
 ```
-on key(Left):: paddleX += 1
+on input.key(Left):: paddleX += 1
 ```
 
 or
@@ -133,7 +135,8 @@ end
 ## 8) Expressions (Current)
 - Literals: numbers, strings, null
 - Identifiers: `counter`
-- Calls: `key(Enter)`
+- Calls: `input.key(Enter)`
+- Qualified calls: `ui.text("A")`, `input.key(Enter)`
 - Assignment: `=`, `+=`
 - Compare: `>=`, `>`, `<`, `==`, `!=`
 - Logic in `when`: `and`, `or`
@@ -141,12 +144,14 @@ end
 ## 9) Visual Rhythm (Example)
 ```
 module(App):
+  use(cli.ui)
+  use(cli.input, as: input)
   flow(Main):
     start > Title
 
     state(Title):
-      render text("HELLO", color: "yellow")
-      on key(Enter) > Play
+      ui.text("HELLO", color: "yellow")
+      on input.key(Enter) > Play
     end
 
     state(Play):

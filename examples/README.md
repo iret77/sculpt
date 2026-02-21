@@ -4,6 +4,11 @@
 
 Examples are grouped by intent so new developers can find the right starting point quickly.
 
+All current examples use explicit provider namespaces via:
+- `use(<target>.ui)`
+- `use(<target>.input, as: input)`
+Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
+
 ## 1) Getting Started
 - `getting-started/hello_world.sculpt`
   - Smallest deterministic program.

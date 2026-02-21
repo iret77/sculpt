@@ -29,11 +29,14 @@ impl Parser {
         let name = self.parse_qualified_ident()?;
         self.expect(TokenKind::RParen)?;
         self.expect(TokenKind::Colon)?;
+        let mut uses = Vec::new();
         let mut items = Vec::new();
         self.consume_newlines();
 
         while !self.check_keyword(Keyword::End) && !self.is_eof() {
-            if self.check_keyword(Keyword::Flow) {
+            if self.check_keyword(Keyword::Use) {
+                uses.push(self.parse_use()?);
+            } else if self.check_keyword(Keyword::Flow) {
                 items.push(Item::Flow(self.parse_flow()?));
             } else if self.check_keyword(Keyword::State) {
                 items.push(Item::GlobalState(self.parse_global_state()?));
@@ -51,7 +54,30 @@ impl Parser {
         }
 
         self.expect_keyword(Keyword::End)?;
-        Ok(Module { name, meta, items })
+        Ok(Module {
+            name,
+            meta,
+            uses,
+            items,
+        })
+    }
+
+    fn parse_use(&mut self) -> Result<UseDecl> {
+        self.expect_keyword(Keyword::Use)?;
+        self.expect(TokenKind::LParen)?;
+        let path = self.parse_qualified_ident()?;
+        let mut alias = None;
+        if self.check(TokenKind::Comma) {
+            self.advance();
+            let key = self.expect_ident()?;
+            if key != "as" {
+                bail!("Expected 'as' in use(...) declaration");
+            }
+            self.expect(TokenKind::Colon)?;
+            alias = Some(self.expect_ident()?);
+        }
+        self.expect(TokenKind::RParen)?;
+        Ok(UseDecl { path, alias })
     }
 
     fn parse_meta_headers(&mut self) -> Result<HashMap<String, String>> {
@@ -218,9 +244,12 @@ impl Parser {
                 } else if self.check(TokenKind::DoubleColon) {
                     self.advance();
                     let body_stmt = self.parse_rule_stmt()?;
-                    statements.push(StateStmt::Rule(
-                        self.build_inline_on_rule(event, vec![body_stmt], flow_name, state_name),
-                    ));
+                    statements.push(StateStmt::Rule(self.build_inline_on_rule(
+                        event,
+                        vec![body_stmt],
+                        flow_name,
+                        state_name,
+                    )));
                 } else if self.check(TokenKind::Colon) {
                     self.expect(TokenKind::Colon)?;
                     self.consume_newlines();

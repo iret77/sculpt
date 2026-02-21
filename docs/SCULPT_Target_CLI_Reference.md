@@ -12,9 +12,22 @@ Standard IR: `cli-ir`
 - Colorized text output
 - Runtime rules for `on` and `when` (including `and`/`or`, `!=`)
 
-## Supported Render Calls
-From SCULPT source, the practical pattern is:
-- `render text("...", color: "...")`
+## Provider Packages
+Inspect live package metadata with:
+- `sculpt target packages --target cli`
+- `sculpt target exports --target cli --package builtin.cli.ui@1`
+- `sculpt target exports --target cli --package builtin.cli.input@1`
+
+Current built-in namespaces:
+- `ui.*` from `builtin.cli.ui@1`
+- `input.*` from `builtin.cli.input@1`
+
+## Supported UI Calls
+Recommended (explicit import + namespace):
+- `ui.text("...", color: "...")`
+
+Legacy shorthand (still accepted during migration):
+- `ui.text("...", color: "...")`
 
 Effective item kind in `cli-ir`:
 - `kind: "text"`
@@ -23,17 +36,17 @@ Effective item kind in `cli-ir`:
 
 ## Supported Events
 Runtime dispatch uses:
-- `key(<normalized_key>)`
+- `input.key(<normalized_key>)`
 
 Useful keys:
-- `key(enter)`
-- `key(esc)`
-- `key(space)`
-- `key(a)`, `key(1)`, etc. (lowercased)
+- `input.key(enter)`
+- `input.key(esc)`
+- `input.key(space)`
+- `input.key(a)`, `input.key(1)`, etc. (lowercased)
 
 ## Flow Behavior
 - `start > <State>` is required.
-- `on key(...) > <State>` transitions are used at runtime.
+- `on input.key(...) > <State>` transitions are used at runtime.
 - `run` and `terminate` are language-level and validated before build.
 - State-local rules are supported and scoped to their state.
 
@@ -53,20 +66,22 @@ Useful keys:
 ## Minimal Example
 ```sculpt
 @meta target=cli
-module(App.CliDemo)
-  flow(Main)
+module(App.CliDemo):
+  use(cli.ui)
+  use(cli.input, as: input)
+  flow(Main):
     start > Title
-    state(Title)
-      render text("CLI Demo", color: "yellow")
-      render text("Enter = Continue", color: "blue")
-      on key(enter) > Done
-      on key(esc) > Exit
+    state(Title):
+      ui.text("CLI Demo", color: "yellow")
+      ui.text("Enter = Continue", color: "blue")
+      on input.key(enter) > Done
+      on input.key(esc) > Exit
     end
-    state(Done)
-      render text("Done", color: "green")
+    state(Done):
+      ui.text("Done", color: "green")
       terminate
     end
-    state(Exit)
+    state(Exit):
       terminate
     end
   end

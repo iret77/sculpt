@@ -110,6 +110,16 @@ pub enum TargetCommand {
         #[arg(long)]
         target: String,
     },
+    Packages {
+        #[arg(long)]
+        target: String,
+    },
+    Exports {
+        #[arg(long)]
+        target: String,
+        #[arg(long)]
+        package: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -166,6 +176,8 @@ pub fn run() -> Result<()> {
         Command::Target { cmd } => match cmd {
             TargetCommand::List => target_list(),
             TargetCommand::Describe { target } => target_describe(&target),
+            TargetCommand::Packages { target } => target_packages(&target),
+            TargetCommand::Exports { target, package } => target_exports(&target, &package),
         },
         Command::Build {
             input,
@@ -229,7 +241,9 @@ fn write_examples() -> Result<()> {
     fs::create_dir_all(examples_dir)?;
 
     let files: &[(&str, &str)] = &[
-        ("getting-started/hello_world.sculpt", r#"# Hello World (tradition kept)
+        (
+            "getting-started/hello_world.sculpt",
+            r#"# Hello World (tradition kept)
 # Minimal deterministic example with no ND.
 
 @meta target=cli
@@ -251,8 +265,11 @@ module(HelloWorld):
   end
 
 end
-"#),
-        ("getting-started/native_window.sculpt", r#"# Native Window Demo (macOS GUI)
+"#,
+        ),
+        (
+            "getting-started/native_window.sculpt",
+            r#"# Native Window Demo (macOS GUI)
 # Goal: show a real window with text + button.
 
 @meta target=gui
@@ -275,8 +292,11 @@ module(NativeWindow):
   end
 
 end
-"#),
-        ("games/snake_high_nd.sculpt", r#"# Snake (High ND)
+"#,
+        ),
+        (
+            "games/snake_high_nd.sculpt",
+            r#"# Snake (High ND)
 # Goal: minimal code, large solution space.
 # Most of the game design is delegated to the LLM.
 
@@ -335,8 +355,11 @@ module(SnakeHighND):
     )
   end
 end
-"#),
-        ("games/snake_low_nd.sculpt", r#"# Snake (Low ND)
+"#,
+        ),
+        (
+            "games/snake_low_nd.sculpt",
+            r#"# Snake (Low ND)
 # Goal: highly specified rules so the solution space is narrow.
 # ND is reduced to a tiny UI-theme choice.
 
@@ -459,8 +482,11 @@ module(SnakeLowND):
     )
   end
 end
-"#),
-        ("games/breakout_cli.sculpt", r#"# Breakout (CLI)
+"#,
+        ),
+        (
+            "games/breakout_cli.sculpt",
+            r#"# Breakout (CLI)
 # Demonstrates a playable arcade loop with clear game-state rules and constrained ND for level layout.
 
 @meta target=cli
@@ -599,8 +625,11 @@ module(BreakoutCLI):
   end
 
 end
-"#),
-        ("business/invoice_review.sculpt", r#"# Business/Web Example: Invoice Review
+"#,
+        ),
+        (
+            "business/invoice_review.sculpt",
+            r#"# Business/Web Example: Invoice Review
 # Goal: clear business UI with minimal ND.
 
 @meta target=cli
@@ -656,8 +685,11 @@ module(InvoiceReview):
     )
   end
 end
-"#),
-        ("business/incident_triage_assistant.sculpt", r#"# Incident Triage Assistant (PoC)
+"#,
+        ),
+        (
+            "business/incident_triage_assistant.sculpt",
+            r#"# Incident Triage Assistant (PoC)
 # Real-world task: guide on-call engineers to a first-response action plan.
 
 @meta target=cli
@@ -732,8 +764,11 @@ module(Ops.Incident.Triage):
   end
 
 end
-"#),
-        ("business/expense_approval_workflow.sculpt", r#"# Expense Approval Workflow (Business)
+"#,
+        ),
+        (
+            "business/expense_approval_workflow.sculpt",
+            r#"# Expense Approval Workflow (Business)
 # Demonstrates a real approval flow where logic is explicit and ND is limited to message tone.
 
 @meta target=cli
@@ -820,8 +855,11 @@ module(Business.Finance.ExpenseApproval):
   end
 
 end
-"#),
-        ("web/incident_status_dashboard.sculpt", r#"# Incident Status Dashboard (Web)
+"#,
+        ),
+        (
+            "web/incident_status_dashboard.sculpt",
+            r#"# Incident Status Dashboard (Web)
 # Demonstrates a web target with strongly defined flow and constrained ND for layout only.
 
 @meta target=web
@@ -883,8 +921,11 @@ module(Ops.Web.IncidentDashboard):
   end
 
 end
-"#),
-        ("web/support_ticket_board.sculpt", r#"# Support Ticket Board (Web)
+"#,
+        ),
+        (
+            "web/support_ticket_board.sculpt",
+            r#"# Support Ticket Board (Web)
 # Demonstrates a small but practical web workflow with multiple screens and keyboard navigation.
 
 @meta target=web
@@ -961,7 +1002,8 @@ module(ServiceDesk.Web.SupportBoard):
   end
 
 end
-"#),
+"#,
+        ),
     ];
 
     for (relative, content) in files {
@@ -1842,6 +1884,62 @@ fn evaluate_gate_criterion(c: &GateCriterion) -> Result<GateEvalResult> {
 fn target_describe(target: &str) -> Result<()> {
     let spec = describe_target(target)?;
     println!("{}", serde_json::to_string_pretty(&spec)?);
+    Ok(())
+}
+
+fn target_packages(target: &str) -> Result<()> {
+    let spec = describe_target(target)?;
+    let packages = spec
+        .pointer("/contract/packages")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if packages.is_empty() {
+        println!("No packages declared for target '{}'", target);
+        return Ok(());
+    }
+    println!("Packages for target '{}':", target);
+    for pkg in packages {
+        let id = pkg.get("id").and_then(Value::as_str).unwrap_or("<unknown>");
+        let ns = pkg
+            .get("namespace")
+            .and_then(Value::as_str)
+            .unwrap_or("<unknown>");
+        let desc = pkg.get("description").and_then(Value::as_str).unwrap_or("");
+        println!("  {}  namespace={}  {}", id, ns, desc);
+    }
+    Ok(())
+}
+
+fn target_exports(target: &str, package: &str) -> Result<()> {
+    let spec = describe_target(target)?;
+    let packages = spec
+        .pointer("/contract/packages")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let Some(pkg) = packages.into_iter().find(|p| {
+        p.get("id")
+            .and_then(Value::as_str)
+            .map(|id| id == package)
+            .unwrap_or(false)
+    }) else {
+        bail!("Unknown package '{}' for target '{}'", package, target);
+    };
+    let ns = pkg
+        .get("namespace")
+        .and_then(Value::as_str)
+        .unwrap_or("<unknown>");
+    println!("Exports for package '{}' (namespace={}):", package, ns);
+    if let Some(exports) = pkg.get("exports").and_then(Value::as_array) {
+        for symbol in exports {
+            if let Some(s) = symbol.as_str() {
+                println!("  {}.{}", ns, s);
+            }
+        }
+    } else {
+        println!("  <none>");
+    }
     Ok(())
 }
 

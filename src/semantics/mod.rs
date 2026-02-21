@@ -24,6 +24,7 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
     validate_module_name(module, &mut diagnostics);
+    let imported_roots = validate_use_decls(module, &mut diagnostics);
 
     let flows: Vec<&Flow> = module
         .items
@@ -65,10 +66,85 @@ pub fn validate_module(module: &Module) -> Vec<Diagnostic> {
     validate_nd_blocks(&nd_blocks, &mut diagnostics);
     validate_convergence_meta(module, &nd_blocks, &mut diagnostics);
     validate_state_execution(&flows, &mut diagnostics);
-    validate_symbol_references(module, &flows, &rules, &known_fqns, &mut diagnostics);
+    validate_legacy_shorthand(module, &flows, &rules, &mut diagnostics);
+    validate_symbol_references(
+        module,
+        &flows,
+        &rules,
+        &known_fqns,
+        &imported_roots,
+        &mut diagnostics,
+    );
     validate_shadowing(module, &rules, &mut diagnostics);
 
     diagnostics
+}
+
+fn validate_legacy_shorthand(
+    _module: &Module,
+    flows: &[&Flow],
+    rules: &[&Rule],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for flow in flows {
+        for state in &flow.states {
+            let state_name = state.name.as_deref().unwrap_or("<unnamed>");
+            for stmt in &state.statements {
+                match stmt {
+                    StateStmt::On { event, .. } => {
+                        if event.name == "key" {
+                            diagnostics.push(Diagnostic::new(
+                                "U610",
+                                format!(
+                                    "Legacy event shorthand 'key(...)' in {}.{}; use 'input.key(...)' with use(...) import",
+                                    flow.name, state_name
+                                ),
+                            ));
+                        }
+                    }
+                    StateStmt::Expr(call) => {
+                        if call.name == "render" {
+                            diagnostics.push(Diagnostic::new(
+                                "U611",
+                                format!(
+                                    "Legacy render shorthand in {}.{}; use namespaced calls like 'ui.text(...)'",
+                                    flow.name, state_name
+                                ),
+                            ));
+                        }
+                    }
+                    StateStmt::Rule(rule) => {
+                        if let RuleTrigger::On(call) = &rule.trigger {
+                            if call.name == "key" {
+                                diagnostics.push(Diagnostic::new(
+                                    "U610",
+                                    format!(
+                                        "Legacy event shorthand in rule '{}'; use 'input.key(...)' with use(...) import",
+                                        rule.name
+                                    ),
+                                ));
+                            }
+                        }
+                    }
+                    StateStmt::Run { .. } | StateStmt::Terminate | StateStmt::Assign { .. } => {}
+                }
+            }
+        }
+    }
+
+    for rule in rules {
+        if let RuleTrigger::On(call) = &rule.trigger {
+            if call.name == "key" {
+                diagnostics.push(Diagnostic::new(
+                    "U610",
+                    format!(
+                        "Legacy event shorthand in rule '{}'; use 'input.key(...)' with use(...) import",
+                        rule.name
+                    ),
+                ));
+            }
+        }
+    }
 }
 
 pub fn format_diagnostics(diags: &[Diagnostic]) -> String {
@@ -92,6 +168,38 @@ fn validate_module_name(module: &Module, diagnostics: &mut Vec<Diagnostic>) {
             ));
         }
     }
+}
+
+fn validate_use_decls(module: &Module, diagnostics: &mut Vec<Diagnostic>) -> HashSet<String> {
+    let mut roots = HashSet::new();
+    for decl in &module.uses {
+        if !is_valid_qualified_ident(&decl.path) {
+            diagnostics.push(Diagnostic::new(
+                "U601",
+                format!("Invalid use path '{}'", decl.path),
+            ));
+            continue;
+        }
+        let exposed = decl
+            .alias
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| decl.path.rsplit('.').next().unwrap_or("").to_string());
+        if exposed.is_empty() || !is_valid_ident(&exposed) {
+            diagnostics.push(Diagnostic::new(
+                "U602",
+                format!("Invalid use alias '{}' for path '{}'", exposed, decl.path),
+            ));
+            continue;
+        }
+        if !roots.insert(exposed.clone()) {
+            diagnostics.push(Diagnostic::new(
+                "U603",
+                format!("Duplicate imported namespace root '{}'", exposed),
+            ));
+        }
+    }
+    roots
 }
 
 fn collect_known_fqns(module: &Module, flows: &[&Flow], rules: &[&Rule]) -> HashSet<String> {
@@ -448,6 +556,7 @@ fn validate_symbol_references(
     flows: &[&Flow],
     rules: &[&Rule],
     known_fqns: &HashSet<String>,
+    imported_roots: &HashSet<String>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let nd_policy = module
@@ -482,6 +591,11 @@ fn validate_symbol_references(
                     format!("Invalid qualified identifier '{}' in {}", ident, context),
                 ));
                 return;
+            }
+            if let Some(root) = ident.split('.').next() {
+                if imported_roots.contains(root) {
+                    return;
+                }
             }
             let module_prefix = format!("{}.", module.name);
             if !ident.starts_with(&module_prefix) && ident != module.name {
@@ -549,12 +663,18 @@ fn validate_symbol_references(
                         match &rule.trigger {
                             RuleTrigger::On(call) => walk_call_idents(
                                 call,
-                                &format!("state rule trigger {}.{}.{}", flow.name, state_name, rule.name),
+                                &format!(
+                                    "state rule trigger {}.{}.{}",
+                                    flow.name, state_name, rule.name
+                                ),
                                 &mut check_ident,
                             ),
                             RuleTrigger::When(expr) => walk_expr_idents(
                                 expr,
-                                &format!("state rule trigger {}.{}.{}", flow.name, state_name, rule.name),
+                                &format!(
+                                    "state rule trigger {}.{}.{}",
+                                    flow.name, state_name, rule.name
+                                ),
                                 &mut check_ident,
                             ),
                         }
@@ -563,18 +683,27 @@ fn validate_symbol_references(
                                 RuleStmt::Assign { target, value, .. } => {
                                     check_ident(
                                         target,
-                                        &format!("state rule assignment target {}.{}.{}", flow.name, state_name, rule.name),
+                                        &format!(
+                                            "state rule assignment target {}.{}.{}",
+                                            flow.name, state_name, rule.name
+                                        ),
                                     );
                                     walk_expr_idents(
                                         value,
-                                        &format!("state rule assignment value {}.{}.{}", flow.name, state_name, rule.name),
+                                        &format!(
+                                            "state rule assignment value {}.{}.{}",
+                                            flow.name, state_name, rule.name
+                                        ),
                                         &mut check_ident,
                                     );
                                 }
                                 RuleStmt::Emit { event } => {
                                     check_ident(
                                         event,
-                                        &format!("state rule emit {}.{}.{}", flow.name, state_name, rule.name),
+                                        &format!(
+                                            "state rule emit {}.{}.{}",
+                                            flow.name, state_name, rule.name
+                                        ),
                                     );
                                 }
                             }
@@ -684,7 +813,9 @@ fn expr_kind(expr: &Expr) -> String {
 fn is_supported_when_expr(expr: &Expr) -> bool {
     match expr {
         Expr::Binary { op, left, right } => match op {
-            BinaryOp::And | BinaryOp::Or => is_supported_when_expr(left) && is_supported_when_expr(right),
+            BinaryOp::And | BinaryOp::Or => {
+                is_supported_when_expr(left) && is_supported_when_expr(right)
+            }
             BinaryOp::Gte | BinaryOp::Gt | BinaryOp::Lt | BinaryOp::Eq | BinaryOp::Neq => {
                 matches!(**left, Expr::Ident(_))
                     && matches!(

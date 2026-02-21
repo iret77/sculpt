@@ -4,10 +4,11 @@ use sculpt::semantics::validate_module;
 #[test]
 fn validates_clean_program() {
     let src = r#"module(Billing.Account.Invoice):
+  use(cli.input, as: input)
   flow(Main):
     start > Draft
     state(Draft):
-      on key(Enter) > Draft
+      on input.key(Enter) > Draft
     end
   end
 
@@ -90,6 +91,35 @@ end
     let diagnostics = validate_module(&module);
     assert!(diagnostics.iter().any(|d| d.code == "NS503"));
     assert!(diagnostics.iter().any(|d| d.code == "NS504"));
+}
+
+#[test]
+fn allows_imported_namespace_references() {
+    let src = r#"module(App.Core):
+  use(cli.input, as: input)
+  flow(Main):
+    start > A
+    state(A):
+      on input.key(Enter) > A
+    end
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let diagnostics = validate_module(&module);
+    assert!(!diagnostics.iter().any(|d| d.code == "NS504"));
+}
+
+#[test]
+fn catches_duplicate_use_alias_roots() {
+    let src = r#"module(App.Core):
+  use(cli.input, as: io)
+  use(cli.ui, as: io)
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let diagnostics = validate_module(&module);
+    assert!(diagnostics.iter().any(|d| d.code == "U603"));
 }
 
 #[test]
@@ -301,4 +331,22 @@ end
     let module = parse_source(src).expect("parse ok");
     let diagnostics = validate_module(&module);
     assert!(!diagnostics.iter().any(|d| d.code == "R204"));
+}
+
+#[test]
+fn rejects_legacy_render_and_key_by_default() {
+    let src = r#"module(App.Core):
+  flow(Main):
+    start > A
+    state(A):
+      render text("Legacy")
+      on key(Enter) > A
+    end
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let diagnostics = validate_module(&module);
+    assert!(diagnostics.iter().any(|d| d.code == "U610"));
+    assert!(diagnostics.iter().any(|d| d.code == "U611"));
 }

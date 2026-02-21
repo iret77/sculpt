@@ -5,29 +5,31 @@
 @meta nd_budget=8
 
 module(Business.Finance.ExpenseApproval):
+  use(cli.ui)
+  use(cli.input, as: input)
 
   flow(App):
     start > Inbox
 
     state(Inbox):
-      render text("Expense Queue", color: "yellow")
-      render text("1 = Open request, Esc = Exit", color: "blue")
-      on key(1) > Review
-      on key(Esc) > Exit
+      ui.text("Expense Queue", color: "yellow")
+      ui.text("1 = Open request, Esc = Exit", color: "blue")
+      on input.key(1) > Review
+      on input.key(Esc) > Exit
     end
 
     state(Review):
-      render text("Request #EX-2048", color: "yellow")
-      render text("Amount: 890 EUR", color: "white")
-      render text("Category: Travel", color: "white")
-      render text("A = Approve, R = Reject, N = Need Info", color: "blue")
-      on key(A):: approvedCount += 1
-      on key(R):: rejectedCount += 1
-      on key(N):: infoCount += 1
-      on key(A) > Approved
-      on key(R) > Rejected
-      on key(N) > NeedInfo
-      on key(Esc) > Inbox
+      ui.text("Request #EX-2048", color: "yellow")
+      ui.text("Amount: 890 EUR", color: "white")
+      ui.text("Category: Travel", color: "white")
+      ui.text("A = Approve, R = Reject, N = Need Info", color: "blue")
+      on input.key(A):: approvedCount += 1
+      on input.key(R):: rejectedCount += 1
+      on input.key(N):: infoCount += 1
+      on input.key(A) > Approved
+      on input.key(R) > Rejected
+      on input.key(N) > NeedInfo
+      on input.key(Esc) > Inbox
 
       rule(autoEscalate):
         when riskScore >= 70 and queueSize > 10 or amount == 5000:
@@ -39,18 +41,18 @@ module(Business.Finance.ExpenseApproval):
     end
 
     state(Approved):
-      render text("Approved and forwarded to payout batch.", color: "green")
-      on key(Enter) > Inbox
+      ui.text("Approved and forwarded to payout batch.", color: "green")
+      on input.key(Enter) > Inbox
     end
 
     state(Rejected):
-      render text("Rejected with reason code.", color: "red")
-      on key(Enter) > Inbox
+      ui.text("Rejected with reason code.", color: "red")
+      on input.key(Enter) > Inbox
     end
 
     state(NeedInfo):
-      render text("Sent request for additional receipt details.", color: "magenta")
-      on key(Enter) > Inbox
+      ui.text("Sent request for additional receipt details.", color: "magenta")
+      on input.key(Enter) > Inbox
     end
 
     state(Exit):

@@ -502,6 +502,20 @@ pub fn describe_target(name: &str) -> Result<Value> {
             })),
             Some(json!({ "runtime": ["browser"] })),
             None,
+            Some(json!([
+              {
+                "id": "builtin.web.ui@1",
+                "namespace": "ui",
+                "description": "Web rendering primitives",
+                "exports": ["text", "button", "list", "table"]
+              },
+              {
+                "id": "builtin.web.input@1",
+                "namespace": "input",
+                "description": "Web input events",
+                "exports": ["key", "click", "submit", "change"]
+              }
+            ])),
         ),
         TargetKind::Cli => builtin_spec(
             "cli-ir",
@@ -537,6 +551,20 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 }
               }
             })),
+            Some(json!([
+              {
+                "id": "builtin.cli.ui@1",
+                "namespace": "ui",
+                "description": "CLI rendering primitives",
+                "exports": ["text", "clear", "line"]
+              },
+              {
+                "id": "builtin.cli.input@1",
+                "namespace": "input",
+                "description": "CLI input events",
+                "exports": ["key", "tick"]
+              }
+            ])),
         ),
         TargetKind::Gui => builtin_spec(
             "gui-ir",
@@ -561,6 +589,26 @@ pub fn describe_target(name: &str) -> Result<Value> {
               }
             })),
             None,
+            Some(json!([
+              {
+                "id": "builtin.gui.ui@1",
+                "namespace": "ui",
+                "description": "GUI rendering primitives",
+                "exports": ["text", "button", "image", "spacer"]
+              },
+              {
+                "id": "builtin.gui.input@1",
+                "namespace": "input",
+                "description": "GUI input events",
+                "exports": ["key", "click"]
+              },
+              {
+                "id": "builtin.gui.window@1",
+                "namespace": "window",
+                "description": "Window and modal controls",
+                "exports": ["open", "close", "modalOk"]
+              }
+            ])),
         ),
         TargetKind::External(t) => external_describe(&t),
     }
@@ -573,6 +621,7 @@ fn builtin_spec(
     target_meta: Option<Value>,
     support: Option<Value>,
     extensions_schema: Option<Value>,
+    packages: Option<Value>,
 ) -> Result<Value> {
     let schema_json: Value = serde_json::from_str(schema)?;
     let mut meta = json!({
@@ -605,7 +654,8 @@ fn builtin_spec(
           .map(|s| Value::String(s.to_string()))
           .collect::<Vec<_>>(),
         "meta": meta,
-        "extensions_schema": extensions_schema.unwrap_or_else(|| json!({}))
+        "extensions_schema": extensions_schema.unwrap_or_else(|| json!({})),
+        "packages": packages.unwrap_or_else(|| json!([]))
       }
     });
     if let Some(support) = support {

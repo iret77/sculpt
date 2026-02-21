@@ -103,7 +103,7 @@ module(Billing.Account.Invoice)
     start > Draft
 
     state(Draft)
-      on key(Enter) > Validate
+      on input.key(Enter) > Validate
     end
 
     state(Validate)

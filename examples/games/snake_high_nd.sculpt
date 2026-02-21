@@ -5,22 +5,24 @@
 @meta target=cli
 
 module(SnakeHighND):
+  use(cli.ui)
+  use(cli.input, as: input)
 
   # Main flow
   flow(Game):
     start > Title
 
     state(Title):
-      render text("SNAKE", color: "yellow")
-      render text("Press Enter", color: "blue")
-      on key(Enter) > Play
-      on key(Esc)   > Exit
+      ui.text("SNAKE", color: "yellow")
+      ui.text("Press Enter", color: "blue")
+      on input.key(Enter) > Play
+      on input.key(Esc)   > Exit
     end
 
     state(Play):
       on tick > Play
       on done > Title
-      on key(Esc) > Exit
+      on input.key(Esc) > Exit
     end
 
     state(Exit):
