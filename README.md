@@ -2,17 +2,15 @@
 
 (C) 2026 byte5 GmbH
 
+## Elevator Pitch
+Prompt-first AI coding is fast at first and expensive later: unclear intent, brittle outputs, weak reviewability, and poor reproducibility.  
+SCULPT fixes that by making AI generation code-native and constraint-driven.  
+Instead of wrestling with long prompt chains, teams get a compile pipeline that is inspectable, repeatable, and built for real software delivery.
+
 **SCULPT — an intent-oriented, AI-native convergent programming language.**
 
-SCULPT lets developers shape software through structured non-deterministic code instead of prose prompts.
-The compiler narrows solution space through constraints, compiles via LLM to target IR, and target providers build deterministic artifacts.
-
+SCULPT is a code-first layer above prompting: you shape solution space, the compiler converges it through LLMs, and target providers build deterministic outputs for `cli`, `gui`, and `web`.
 **AI‑first, but human‑centered:** built *by* AI, built *with* AI, built *for* humans.
-
-## Elevator Pitch
-SCULPT is for developers who want the speed of AI coding without giving up control.
-You write structured code (flows, states, rules, constraints), not long prompt prose.
-SCULPT then converges that intent through an LLM into target IR and produces reproducible builds for `cli`, `gui`, and `web`.
 
 ## What This Repository Contains
 - Rust CLI compiler (`sculpt`)
@@ -22,9 +20,8 @@ SCULPT then converges that intent through an LLM into target IR and produces rep
 - Example SCULPT programs
 
 ## Why SCULPT
-In mainstream software delivery, fully hand-written code is becoming the exception.
-AI-assisted development is growing, but prose-prompt workflows are hard to control and hard to scale in teams.
-SCULPT targets that gap with code-first convergence and deterministic build paths.
+In mainstream delivery, fully hand-written code is becoming the exception.
+SCULPT gives teams a better default than prompt-only workflows: faster iteration with stronger control.
 
 - code-native instead of prose-native,
 - intent-oriented instead of prompt-chaotic,
@@ -39,11 +36,18 @@ SCULPT targets that gap with code-first convergence and deterministic build path
     - Windows/Linux: Python Tkinter desktop app (cross-platform parity path)
 
 ## Start Here
-- [SCULPT Quick Start](docs/SCULPT_Quick_Start.md)
-- [SCULPT For Dummies](docs/SCULPT_For_Dummies.md)
-- [SCULPT Handbook](docs/SCULPT_Handbook.md)
-- [SCULPT Roadmap](docs/SCULPT_Roadmap.md)
-- [SCULPT Case Studies Overview](poc/SCULPT_Case_Studies_Overview.md)
+- I am curious and need a simple walkthrough:
+  - [SCULPT For Dummies](docs/SCULPT_For_Dummies.md)
+- I want to run SCULPT now:
+  - [SCULPT Quick Start](docs/SCULPT_Quick_Start.md)
+- I want to see concrete SCULPT code:
+  - [Examples](examples/README.md)
+- I want implementation details:
+  - [SCULPT Handbook](docs/SCULPT_Handbook.md)
+  - [Docs Index](docs/README.md)
+- I want evidence and strategic direction:
+  - [SCULPT Case Studies Overview](poc/SCULPT_Case_Studies_Overview.md)
+  - [SCULPT Roadmap](docs/SCULPT_Roadmap.md)
 
 ## Documentation Map
 Documentation has been moved under `/docs` for easier navigation:
