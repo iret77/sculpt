@@ -49,6 +49,27 @@ Rules:
 - Bugfix/security releases do **not** require a language version change.
 - Components must explicitly declare which language range they support.
 
+### Mandatory Rule Before Push
+
+If any of these paths changed, bump `Cargo.toml` package version **before push**:
+- `src/**`
+- `tests/**`
+- `examples/**`
+- `ir-schemas/**`
+- `Cargo.lock`
+
+This rule is enforced by:
+- local script: `scripts/ensure_version_bump.sh`
+- CI workflow: `.github/workflows/version-guard.yml`
+
+### Bump Strategy
+
+- `PATCH` (`x.y.z -> x.y.z+1`): bugfixes, UX improvements, non-breaking behavior changes.
+- `MINOR` (`x.y.z -> x.y+1.0`): notable feature additions that stay backward-compatible.
+- `MAJOR` (`x.y.z -> x+1.0.0`): breaking CLI/compiler behavior or compatibility changes.
+
+Language version (`1.0`) is independent and changes only with language policy decisions.
+
 ---
 
 ## 3) User-Facing Transparency Rules
@@ -76,3 +97,12 @@ Each component should declare:
 
 This allows safe mixed-version toolchains and predictable upgrades.
 
+---
+
+## 5) Release Checklist (Short)
+
+1. Update `Cargo.toml` version.
+2. Update `CHANGELOG.md`.
+3. Run `cargo test`.
+4. Run `scripts/ensure_version_bump.sh <base-ref> HEAD`.
+5. Push only after all checks pass.

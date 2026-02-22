@@ -17,6 +17,15 @@ cargo install --path .
 cargo test
 ```
 
+## Version Discipline (Required)
+- If you change core SCULPT paths (`src/**`, `tests/**`, `examples/**`, `ir-schemas/**`, `Cargo.lock`), you must bump `Cargo.toml` package version before push.
+- Also update `CHANGELOG.md` for every released version bump.
+- Run local guard:
+```bash
+scripts/ensure_version_bump.sh origin/main HEAD
+```
+- CI enforces the same rule via `.github/workflows/version-guard.yml`.
+
 ## Coding Style
 - Keep Rust code clear and explicit.
 - Prefer small modules and single-purpose functions.

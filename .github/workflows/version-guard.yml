@@ -1,0 +1,31 @@
+name: version-guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  ensure-version-bump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine base ref
+        id: base
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enforce version bump for core changes
+        shell: bash
+        run: |
+          ./scripts/ensure_version_bump.sh "${{ steps.base.outputs.base }}" HEAD
