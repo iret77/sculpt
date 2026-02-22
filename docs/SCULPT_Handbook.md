@@ -11,6 +11,19 @@ This handbook explains how to work with SCULPT as a developer:
 This is a practical guide.  
 For strict normative rules, see the dedicated specification documents listed in [Docs Index](README.md).
 
+## 0) Plain-Language Glossary
+
+| Term | Plain meaning |
+|---|---|
+| Deterministic | Same input gives same behavior every time. |
+| ND (non-deterministic) | More than one valid solution is allowed. |
+| Convergence | Compiler process that narrows ND solution space toward valid output. |
+| Constraint | A rule that limits allowed solutions. |
+| Soft define | Reusable named ND guidance rule declared via `define(...)`, referenced as `?name(...)`. |
+| Target | Output runtime class (`cli`, `gui`, `web`). |
+| Provider | Integration component (LLM provider or target provider). |
+| IR | Intermediate representation between SCULPT source and final build outputs. |
+
 ## 1) Mental Model
 SCULPT is a convergent language:
 - You define intent and constraints.

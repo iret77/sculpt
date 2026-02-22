@@ -142,6 +142,41 @@ end
 `define(...)` can exist at module level or inside an `nd(...)` block.
 Inside `satisfy(...)`, `?name(...)` references a soft define.
 
+## 7.1 `?` Prefix (Question Prefix)
+`?` is a dedicated SCULPT marker for **explicit soft/ND intent**.
+
+Plain-language definition:
+- **Soft define** = a named reusable ND guidance rule you write with `define(...)`.
+- It is “soft” because it guides convergence behavior (ND layer), not deterministic runtime logic like `ui.text(...)` or assignments.
+- You reference it with `?name(...)` inside `satisfy(...)`.
+
+Current language usage (1.0):
+
+1. Inside `satisfy(...)`:
+   - `?name(...)` means “use this soft define reference”
+   - Example:
+   ```
+   define collision.stable():
+     "Collision should feel stable and predictable."
+   end
+
+   nd(layout):
+     propose layout(type: "rooms")
+     satisfy(?collision.stable())
+   end
+   ```
+
+2. Outside `nd(...)`:
+   - `?identifier` is parsed as an explicit ND-magic identifier expression.
+   - This is an advanced form and should be used intentionally.
+
+Not part of language 1.0 syntax:
+- `?"free text prompt"` inline prompt literals are **not** currently specified/implemented.
+
+Practical guidance:
+- Use `?` primarily with `define(...)` references in `satisfy(...)`.
+- Prefer named defines over ad-hoc magic identifiers for readability and team maintainability.
+
 ## 8) Expressions (Current)
 - Literals: numbers, strings, null
 - Identifiers: `counter`

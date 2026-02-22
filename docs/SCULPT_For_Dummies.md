@@ -24,6 +24,18 @@ Then the compiler does two extra jobs for you:
 - `Constraint`:
   - a hard rule that limits ND (“must be readable”, “no overlap”, etc.).
 
+## 1.1 Mini Glossary (Plain Language)
+
+| Term | Plain meaning |
+|---|---|
+| `Deterministic` | Same input gives same behavior every time. |
+| `Non-deterministic (ND)` | More than one valid solution is allowed. |
+| `Convergence` | The compiler narrows many possible solutions to a usable one. |
+| `Constraint` | A rule the solution must respect. |
+| `Soft define` | A reusable named ND guidance rule (`define(...)`) referenced with `?name(...)`. |
+| `Target` | Where output should run (`cli`, `gui`, `web`). |
+| `Provider` | Integration that performs a specific job (LLM generation or target build/run). |
+
 ## 2) The 5 Core Blocks You Actually Use
 
 | Block | What it means (ELI5) | Tiny example |
