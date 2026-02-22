@@ -10,6 +10,10 @@ module(BreakoutHighND):
   use(cli.ui)
   use(cli.input) as input
 
+  define arcade.classic():
+    "Breakout must follow classic arcade pacing and readability."
+  end
+
   flow(Game):
     start > Title
 
@@ -76,9 +80,15 @@ module(BreakoutHighND):
   end
 
   nd(designBreakout):
+    define controls.standard():
+      "Use Left/Right or A/D to move paddle; Space launches ball."
+    end
+
     propose game("breakout", view: "terminal", style: "arcade")
     satisfy(
       playable(),
+      ?arcade.classic(),
+      ?controls.standard(),
       followsClassicBreakoutRules(),
       hasPaddleBallBrickLoop(),
       supportsControls(primary: "left-right-space", secondary: "a-d-space"),

@@ -97,6 +97,7 @@ module(Billing.Account.Invoice):
 - `state(name)`: named state inside a flow
 - `state()`: global state storage
 - `rule(name, ...)`: deterministic rule block
+- `define(name, ...)`: reusable soft ND constraint template
 - `nd(name, ...)`: non-deterministic solution block
 
 ### 5.2.1 Namespace Imports (Provider APIs)
@@ -121,7 +122,7 @@ For team-scale projects, split modules into multiple files and import them expli
 
 ```sculpt
 module(Billing.App):
-  import(shared.invoice_rules) as Shared
+  import(Billing.Shared.InvoiceRules) as Shared
   use(cli.ui)
   use(cli.input) as input
   flow(Main):
@@ -135,7 +136,7 @@ module(Billing.App):
 end
 ```
 
-Import resolution is relative to the current file directory and recursive.
+Project imports are namespace-based and resolved from the project file module index.
 
 ### 5.3 State Transitions
 
@@ -174,16 +175,22 @@ ND blocks define candidate generation and hard constraints:
 
 ```sculpt
 nd(layoutPlan):
+  define collision.stable():
+    "Collision should feel stable and predictable."
+  end
   propose layout(type: "rooms")
   satisfy(
     insideBounds(width: 10, height: 5),
     noOverlap(),
-    reachablePathExists()
+    reachablePathExists(),
+    ?collision.stable()
   )
 end
 ```
 
 `propose` expands the space; `satisfy` narrows it.
+`define(...)` can be declared at module level or inside an ND block.
+`?name(...)` references a soft define explicitly.
 
 ### 5.6 Comments
 SCULPT supports line comments with `#`.
@@ -213,7 +220,7 @@ You can set one key per line, or multiple key-value pairs in one line:
 - `target`: default target for this script (`cli`, `gui`, `web`).
 - `layout`: currently `explicit` is used for GUI flows that require explicit layout data.
 - `strict_scopes`: enables stricter shadowing checks in semantic validation.
-- `nd_policy`: ND token policy (`strict` or `magic`).
+- `nd_policy`: ND token policy (`strict` only).
 - `nd_budget`: convergence budget in range `0..100` (lower means stricter ND tolerance).
 - `confidence`: expected convergence confidence in range `0.0..1.0`.
 - `max_iterations`: maximum LLM compile retries before fallback.
@@ -222,7 +229,7 @@ You can set one key per line, or multiple key-value pairs in one line:
 
 ### 6.2 How Meta Interacts With CLI Flags
 - CLI flags have highest priority (for example `--target` overrides `@meta target=...`).
-- `--nd-policy` overrides `@meta nd_policy=...`.
+- `--nd-policy strict` overrides `@meta nd_policy=...`.
 - If `--target` is omitted, the compiler uses `@meta target` when present.
 - If neither is set, build commands fail with a target-required error.
 - Unknown `@meta` keys fail contract validation unless declared in the target contract (or prefixed with `x_` for extension keys).

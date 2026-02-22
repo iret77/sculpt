@@ -16,6 +16,8 @@ pub struct IrModule {
     pub flows: Vec<IrFlow>,
     pub global_state: Vec<ast::StateStmt>,
     pub rules: Vec<ast::Rule>,
+    #[serde(default)]
+    pub soft_defines: Vec<ast::SoftDefine>,
     pub nd_blocks: Vec<ast::NdBlock>,
 }
 
@@ -38,6 +40,7 @@ pub fn from_ast(module: ast::Module) -> IrModule {
     let mut flows = Vec::new();
     let mut global_state = Vec::new();
     let mut rules = Vec::new();
+    let mut soft_defines = Vec::new();
     let mut nd_blocks = Vec::new();
     let mut fqns = Vec::new();
     fqns.push(module_name.clone());
@@ -77,6 +80,7 @@ pub fn from_ast(module: ast::Module) -> IrModule {
                 fqns.push(format!("{}.{}", module_name, rule.name));
                 rules.push(rule)
             }
+            ast::Item::Define(define) => soft_defines.push(define),
             ast::Item::Nd(nd) => nd_blocks.push(nd),
         }
     }
@@ -93,6 +97,7 @@ pub fn from_ast(module: ast::Module) -> IrModule {
         flows,
         global_state,
         rules,
+        soft_defines,
         nd_blocks,
     }
 }

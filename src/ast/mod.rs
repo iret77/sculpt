@@ -29,6 +29,7 @@ pub enum Item {
     GlobalState(StateBlock),
     Rule(Rule),
     Nd(NdBlock),
+    Define(SoftDefine),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,8 +104,18 @@ pub enum RuleStmt {
 pub struct NdBlock {
     pub name: String,
     pub params: Vec<String>,
+    #[serde(default)]
+    pub defines: Vec<SoftDefine>,
     pub propose: Call,
     pub constraints: Vec<Call>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SoftDefine {
+    pub name: String,
+    #[serde(default)]
+    pub params: Vec<String>,
+    pub template: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

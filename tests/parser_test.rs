@@ -133,6 +133,44 @@ end
 }
 
 #[test]
+fn parses_module_and_nd_defines() {
+    let src = r#"module(App):
+  define collision.stable():
+    "Collision should feel stable."
+  end
+  nd(design):
+    define board.size(width, height):
+      "Board should be {width}x{height}."
+    end
+    propose game("snake")
+    satisfy(
+      playable(),
+      ?collision.stable(),
+      ?board.size(width: 20, height: 30)
+    )
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let defines = module
+        .items
+        .iter()
+        .filter(|i| matches!(i, Item::Define(_)))
+        .count();
+    assert_eq!(defines, 1);
+    let nd = module
+        .items
+        .iter()
+        .find_map(|i| match i {
+            Item::Nd(nd) => Some(nd),
+            _ => None,
+        })
+        .expect("nd");
+    assert_eq!(nd.defines.len(), 1);
+    assert!(nd.constraints.iter().any(|c| c.name == "?collision.stable"));
+}
+
+#[test]
 fn missing_block_colon_fails() {
     let src = r#"module(App)
 end

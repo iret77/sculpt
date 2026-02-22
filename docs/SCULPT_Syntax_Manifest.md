@@ -78,6 +78,7 @@ state(Title): ui.text("HELLO", color: "yellow"); on input.key(Enter) > Play; end
 - `state(name)` -> named state
 - `state()` -> global state block (unnamed)
 - `rule(name)` -> deterministic rule block
+- `define(name)` -> reusable soft ND constraint template
 - `nd(name, ...)` -> non-deterministic solution block
 
 ## 5) Statements Inside `state(...)`
@@ -125,14 +126,21 @@ end
 ## 7) ND Syntax
 ```
 nd(chooseLayout, level):
+  define collision.stable():
+    "Collision should feel stable and predictable."
+  end
   propose layout(type: "rooms")
   satisfy(
     insideBounds(width: 10, height: 5),
     noOverlap(),
-    reachablePathExists()
+    reachablePathExists(),
+    ?collision.stable()
   )
 end
 ```
+
+`define(...)` can exist at module level or inside an `nd(...)` block.
+Inside `satisfy(...)`, `?name(...)` references a soft define.
 
 ## 8) Expressions (Current)
 - Literals: numbers, strings, null

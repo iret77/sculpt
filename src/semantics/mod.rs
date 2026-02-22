@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast::{
-    BinaryOp, Call, Expr, Flow, Item, Module, NdBlock, Rule, RuleStmt, RuleTrigger, StateBlock,
-    StateStmt,
+    BinaryOp, Call, Expr, Flow, Item, Module, NdBlock, Rule, RuleStmt, RuleTrigger, SoftDefine,
+    StateBlock, StateStmt,
 };
 
 #[derive(Debug, Clone)]
@@ -69,11 +69,12 @@ pub fn validate_module_with_imports(
             _ => None,
         })
         .collect();
+    let module_defines = collect_module_defines(module, &mut diagnostics);
 
     let known_fqns = collect_known_fqns(module, &flows, &rules);
     validate_flows(&flows, &mut diagnostics);
     validate_rules(&rules, &mut diagnostics);
-    validate_nd_blocks(&nd_blocks, &mut diagnostics);
+    validate_nd_blocks(&nd_blocks, &module_defines, &mut diagnostics);
     validate_convergence_meta(module, &nd_blocks, &mut diagnostics);
     validate_state_execution(&flows, &mut diagnostics);
     validate_legacy_shorthand(module, &flows, &rules, &mut diagnostics);
@@ -398,7 +399,36 @@ fn validate_rules(rules: &[&Rule], diagnostics: &mut Vec<Diagnostic>) {
     }
 }
 
-fn validate_nd_blocks(nd_blocks: &[&NdBlock], diagnostics: &mut Vec<Diagnostic>) {
+fn collect_module_defines(
+    module: &Module,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> HashMap<String, usize> {
+    let mut out = HashMap::new();
+    for item in &module.items {
+        if let Item::Define(SoftDefine { name, params, .. }) = item {
+            if !is_valid_qualified_ident(name) {
+                diagnostics.push(Diagnostic::new(
+                    "N307",
+                    format!("Invalid module define name '{}'", name),
+                ));
+                continue;
+            }
+            if out.insert(name.clone(), params.len()).is_some() {
+                diagnostics.push(Diagnostic::new(
+                    "N307",
+                    format!("Duplicate module define '{}'", name),
+                ));
+            }
+        }
+    }
+    out
+}
+
+fn validate_nd_blocks(
+    nd_blocks: &[&NdBlock],
+    module_defines: &HashMap<String, usize>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     for nd in nd_blocks {
         if nd.propose.name.is_empty() {
             diagnostics.push(Diagnostic::new(
@@ -412,6 +442,22 @@ fn validate_nd_blocks(nd_blocks: &[&NdBlock], diagnostics: &mut Vec<Diagnostic>)
                 format!("ND '{}' has empty satisfy()", nd.name),
             ));
         }
+        let mut local_defines: HashMap<String, usize> = HashMap::new();
+        for d in &nd.defines {
+            if !is_valid_qualified_ident(&d.name) {
+                diagnostics.push(Diagnostic::new(
+                    "N307",
+                    format!("ND '{}' has invalid define name '{}'", nd.name, d.name),
+                ));
+                continue;
+            }
+            if !local_defines.insert(d.name.clone(), d.params.len()).is_none() {
+                diagnostics.push(Diagnostic::new(
+                    "N307",
+                    format!("ND '{}' has duplicate define '{}'", nd.name, d.name),
+                ));
+            }
+        }
         let mut signatures = HashSet::new();
         for constraint in &nd.constraints {
             let signature = call_signature(constraint);
@@ -423,6 +469,35 @@ fn validate_nd_blocks(nd_blocks: &[&NdBlock], diagnostics: &mut Vec<Diagnostic>)
                         nd.name, signature
                     ),
                 ));
+            }
+            if let Some(raw_name) = constraint.name.strip_prefix('?') {
+                let expected_arity = local_defines
+                    .get(raw_name)
+                    .copied()
+                    .or_else(|| module_defines.get(raw_name).copied());
+                match expected_arity {
+                    Some(expected) => {
+                        if expected != constraint.args.len() {
+                            diagnostics.push(Diagnostic::new(
+                                "N308",
+                                format!(
+                                    "ND '{}' soft define '?{}' expects {} arg(s), got {}",
+                                    nd.name,
+                                    raw_name,
+                                    expected,
+                                    constraint.args.len()
+                                ),
+                            ));
+                        }
+                    }
+                    None => diagnostics.push(Diagnostic::new(
+                        "N309",
+                        format!(
+                            "ND '{}' references unknown soft define '?{}'",
+                            nd.name, raw_name
+                        ),
+                    )),
+                }
             }
         }
     }

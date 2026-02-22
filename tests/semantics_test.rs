@@ -314,6 +314,47 @@ end
 }
 
 #[test]
+fn validates_soft_define_references_in_nd() {
+    let src = r#"module(App.Core):
+  define collision.stable():
+    "Collision should feel stable."
+  end
+  nd(design):
+    define board.size(width, height):
+      "Board size"
+    end
+    propose game("breakout")
+    satisfy(
+      playable(),
+      ?collision.stable(),
+      ?board.size(width: 20, height: 30)
+    )
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let diagnostics = validate_module(&module);
+    assert!(!diagnostics.iter().any(|d| d.code == "N309"));
+    assert!(!diagnostics.iter().any(|d| d.code == "N308"));
+}
+
+#[test]
+fn catches_unknown_soft_define_reference() {
+    let src = r#"module(App.Core):
+  nd(design):
+    propose game("breakout")
+    satisfy(
+      ?unknown.constraint()
+    )
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let diagnostics = validate_module(&module);
+    assert!(diagnostics.iter().any(|d| d.code == "N309"));
+}
+
+#[test]
 fn allows_when_comparison_operators() {
     let src = r#"module(App.Core):
   state():

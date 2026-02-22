@@ -45,6 +45,8 @@ impl Parser {
                 items.push(Item::GlobalState(self.parse_global_state()?));
             } else if self.check_keyword(Keyword::Rule) {
                 items.push(Item::Rule(self.parse_rule(None, None)?));
+            } else if self.check_keyword(Keyword::Define) {
+                items.push(Item::Define(self.parse_define()?));
             } else if self.check_keyword(Keyword::Nd) {
                 items.push(Item::Nd(self.parse_nd()?));
             } else if self.check(TokenKind::Newline) {
@@ -352,37 +354,118 @@ impl Parser {
         self.expect(TokenKind::Colon)?;
         self.consume_newlines();
 
-        self.expect_keyword(Keyword::Propose)?;
-        let propose = self.parse_call()?;
-        self.consume_newlines();
+        let mut defines = Vec::new();
+        let mut propose: Option<Call> = None;
+        let mut constraints: Option<Vec<Call>> = None;
 
-        self.expect_keyword(Keyword::Satisfy)?;
-        self.expect(TokenKind::LParen)?;
-        let mut constraints = Vec::new();
-        self.consume_newlines();
-        if !self.check(TokenKind::RParen) {
-            loop {
+        while !self.check_keyword(Keyword::End) && !self.is_eof() {
+            if self.check(TokenKind::Newline) {
                 self.consume_newlines();
-                constraints.push(self.parse_call()?);
-                self.consume_newlines();
-                if self.check(TokenKind::Comma) {
-                    self.advance();
-                    self.consume_newlines();
-                    continue;
-                }
-                break;
+                continue;
             }
+            if self.check_keyword(Keyword::Define) {
+                defines.push(self.parse_define()?);
+                self.consume_newlines();
+                continue;
+            }
+            if self.check_keyword(Keyword::Propose) {
+                if propose.is_some() {
+                    bail!("ND block '{}' has duplicate propose", name);
+                }
+                self.expect_keyword(Keyword::Propose)?;
+                propose = Some(self.parse_call()?);
+                self.consume_newlines();
+                continue;
+            }
+            if self.check_keyword(Keyword::Satisfy) {
+                if constraints.is_some() {
+                    bail!("ND block '{}' has duplicate satisfy", name);
+                }
+                self.expect_keyword(Keyword::Satisfy)?;
+                self.expect(TokenKind::LParen)?;
+                let mut out = Vec::new();
+                self.consume_newlines();
+                if !self.check(TokenKind::RParen) {
+                    loop {
+                        self.consume_newlines();
+                        out.push(self.parse_constraint_call()?);
+                        self.consume_newlines();
+                        if self.check(TokenKind::Comma) {
+                            self.advance();
+                            self.consume_newlines();
+                            continue;
+                        }
+                        break;
+                    }
+                }
+                self.expect(TokenKind::RParen)?;
+                constraints = Some(out);
+                self.consume_newlines();
+                continue;
+            }
+            bail!(
+                "Expected define/propose/satisfy in nd '{}', got {:?}",
+                name,
+                self.peek_kind()
+            );
         }
-        self.expect(TokenKind::RParen)?;
-        self.consume_newlines();
         self.expect_keyword(Keyword::End)?;
 
         Ok(NdBlock {
             name,
             params,
-            propose,
-            constraints,
+            defines,
+            propose: propose.ok_or_else(|| anyhow::anyhow!("ND block is missing propose"))?,
+            constraints: constraints.unwrap_or_default(),
         })
+    }
+
+    fn parse_define(&mut self) -> Result<SoftDefine> {
+        self.expect_keyword(Keyword::Define)?;
+        let name = self.parse_qualified_ident()?;
+        let mut params = Vec::new();
+        if self.check(TokenKind::LParen) {
+            self.advance();
+            if !self.check(TokenKind::RParen) {
+                loop {
+                    params.push(self.expect_ident()?);
+                    if self.check(TokenKind::Comma) {
+                        self.advance();
+                        continue;
+                    }
+                    break;
+                }
+            }
+            self.expect(TokenKind::RParen)?;
+        }
+        self.expect(TokenKind::Colon)?;
+        self.consume_newlines();
+        let template = match self.peek_kind().cloned() {
+            Some(TokenKind::String(s)) => {
+                self.advance();
+                s
+            }
+            _ => bail!("define '{}' expects a string template body", name),
+        };
+        self.consume_newlines();
+        self.expect_keyword(Keyword::End)?;
+        Ok(SoftDefine {
+            name,
+            params,
+            template,
+        })
+    }
+
+    fn parse_constraint_call(&mut self) -> Result<Call> {
+        let magic = self.check(TokenKind::Question);
+        if magic {
+            self.advance();
+        }
+        let mut call = self.parse_call()?;
+        if magic {
+            call.name = format!("?{}", call.name);
+        }
+        Ok(call)
     }
 
     fn parse_assignment_or_expr(&mut self) -> Result<StateStmt> {
