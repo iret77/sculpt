@@ -76,7 +76,24 @@ sculpt run examples/getting-started/hello_world.sculpt --target cli
 
 If `@meta target=...` is set in the script, you can omit `--target`.
 
-## 6) TUI Mode
+## 6) Create a Project File (Multi-File)
+
+If your scripts use `import(...)`, build via `.sculpt.json` project files.
+
+Create one automatically:
+
+```bash
+sculpt project create billing -p examples/business -f "*.sculpt"
+```
+
+Build/run project:
+
+```bash
+sculpt build examples/business/billing.sculpt.json --provider stub
+sculpt run examples/business/billing.sculpt.json
+```
+
+## 7) TUI Mode
 Start interactive mode:
 
 ```bash
@@ -84,15 +101,15 @@ sculpt
 ```
 
 Core keys:
-- `Enter`: run or build+run for selected file
+- `Enter`: run or build+run for selected file/project
 - `B`: build+run
 - `R`: run only (if executable artifact exists)
 - `F`: freeze
 - `P`: replay
-- `C`: clean selected script artifacts
+- `C`: clean selected script/project artifacts
 - `Esc`: quit
 
-## 7) Build Artifacts
+## 8) Build Artifacts
 Outputs are isolated per script:
 
 - `dist/<script_name>/ir.json`
@@ -100,11 +117,14 @@ Outputs are isolated per script:
 - `dist/<script_name>/nondet.report`
 - `dist/<script_name>/build.meta.json`
 
-## 8) Debug Output
+For project files (`*.sculpt.json`) outputs go to:
+- `dist/<project_name>/...`
+
+## 9) Debug Output
 
 ```bash
-sculpt build <file.sculpt> --target cli --debug
-sculpt build <file.sculpt> --target cli --debug=all
+sculpt build <input.sculpt|project.sculpt.json> --target cli --debug
+sculpt build <input.sculpt|project.sculpt.json> --target cli --debug=all
 ```
 
 For full command reference and workflow details, see:

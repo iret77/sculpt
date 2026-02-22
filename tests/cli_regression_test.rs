@@ -150,3 +150,55 @@ end
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("Imports require a project file"));
 }
+
+#[test]
+fn project_create_with_glob_creates_project_file() {
+    let dir = temp_dir("project_create_glob");
+    fs::write(
+        dir.join("a.sculpt"),
+        r#"module(App.A):
+  state():
+    x = 1
+  end
+end
+"#,
+    )
+    .expect("write a");
+    fs::write(
+        dir.join("b.sculpt"),
+        r#"module(App.B):
+  state():
+    y = 2
+  end
+end
+"#,
+    )
+    .expect("write b");
+
+    let out = Command::new(sculpt_bin())
+        .args([
+            "project",
+            "create",
+            "demo",
+            "-p",
+            dir.to_string_lossy().as_ref(),
+            "-f",
+            "*.sculpt",
+        ])
+        .output()
+        .expect("run");
+    assert!(
+        out.status.success(),
+        "stdout={}\nstderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let project_file = dir.join("demo.sculpt.json");
+    assert!(project_file.exists(), "project file missing");
+    let text = fs::read_to_string(project_file).expect("read project");
+    assert!(text.contains("\"name\": \"demo\""));
+    assert!(text.contains("\"entry\": \"App.A\""));
+    assert!(text.contains("\"a.sculpt\""));
+    assert!(text.contains("\"b.sculpt\""));
+}

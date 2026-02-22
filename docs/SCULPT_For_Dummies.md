@@ -2,177 +2,221 @@
 
 (C) 2026 byte5 GmbH
 
-This guide is not a full reference.  
-It is a practical "how do I get useful results fast?" guide for developers.
+This guide is for developers who want to go from zero to “I can write my own SCULPT script”.
 
-## 1) SCULPT in 60 Seconds
-- You do not write every implementation detail.
-- You write intent, flow, and constraints.
-- SCULPT compiles that into target IR with an LLM.
-- Target providers build a stable, runnable result.
+## 1) SCULPT in Plain Words
 
-Think: less "how to code each line", more "what this software must do and how strict it should be."
+SCULPT is a programming language where you describe:
+- what your app should do,
+- how screens/states connect,
+- and which rules must always be true.
 
-`IR` means **Intermediate Representation**.  
-Plain version: a machine-readable blueprint between your SCULPT script and final runnable code.  
-It is not your final app yet; it is the structured handoff that lets providers build repeatable outputs.
+Then the compiler does two extra jobs for you:
+- it asks an LLM for target code planning,
+- and it builds deterministic output through target providers.
 
-## 2) When SCULPT Is a Good Fit
-Use SCULPT when:
-- You build workflow-heavy features.
-- You want repeatable AI-assisted output.
-- You want clear constraints instead of long prose prompts.
+### Three words you need
 
-Do not start with SCULPT when:
-- You need very low-level, exact step-by-step control from line 1.
-- You already have a stable, mature codebase for the exact same task.
+- `IR` (Intermediate Representation):
+  - a machine blueprint between your SCULPT code and final app output.
+- `ND` (Non-Deterministic):
+  - you allow multiple valid solutions.
+- `Constraint`:
+  - a hard rule that limits ND (“must be readable”, “no overlap”, etc.).
 
-## 3) Mental Workflow
-Use this loop every time:
-1. Define the module and flow.
-2. Add only essential states and transitions.
-3. Add rules for clear, predictable updates.
-4. Add ND blocks only where needed.
-5. Add constraints early.
-6. Build, run, inspect, refine.
-7. Freeze when stable.
+## 2) The 5 Core Blocks You Actually Use
 
-`ND` means: you do not force one exact implementation.
-You define what must be true, and SCULPT+LLM find a valid solution within those limits.
+| Block | What it means (ELI5) | Tiny example |
+|---|---|---|
+| `module(...)` | Your file’s main container/name. | `module(HelloWorld): ... end` |
+| `flow(...)` | The route map of your app. | `start > Menu` |
+| `state(...)` | One screen/mode/step. | `state(Menu): ... end` |
+| `rule(...)` | Automatic logic that runs on trigger. | `when lives < 1: emit done` |
+| `nd(...)` | “Compiler, solve this with AI, but follow these limits.” | `satisfy(noOverlap())` |
 
-## 4) Minimal Building Blocks
-- `module(...)`: root container.
-- `flow(...)`: app flow (screens/states).
-- `state(...)`: one step/screen.
-- `rule(...)`: clear, predictable logic.
-- `nd(...)`: controlled non-determinism.
-- `@meta`: compile-time controls (`target`, `nd_policy`, convergence, strictness).
-- `use(...)`: import target provider namespaces (`ui`, `input`, ...).
-- `import(...)`: import other `.sculpt` files for bigger projects.
-- Newline and `;` are equivalent statement separators.
+## 3) First Program You Can Run
 
-## 5) Copy-Paste Starter Patterns
-
-### Pattern A: Deterministic Hello World
 ```sculpt
 @meta target=cli
+
 module(HelloWorld):
+  use(cli.ui)
+  use(cli.input) as input
+
   flow(App):
     start > Show
+
     state(Show):
-      ui.text("Hello", color: "yellow")
+      ui.text("Hallo", color: "yellow")
+      ui.text("Welt", color: "blue")
+      on input.key(Esc) > Exit
+    end
+
+    state(Exit):
       terminate
     end
   end
 end
 ```
 
-### Pattern B: Workflow Screen to Screen
+Run it:
+
+```bash
+sculpt build hello_world.sculpt --provider stub
+sculpt run hello_world.sculpt
+```
+
+## 4) How to Think While Writing SCULPT
+
+Use this loop:
+1. Build the **flow** first (`flow`, `state`, transitions).
+2. Add **state data** (`state(): ... end`) for variables.
+3. Add **rules** for predictable behavior.
+4. Add **ND blocks** only where flexibility helps.
+5. Build and run often.
+6. Freeze when result is stable.
+
+## 5) State Data vs Rules (Important)
+
+### Global data
+
 ```sculpt
-@meta target=gui
-module(SimpleFlow):
-  flow(App):
-    start > Start
-    state(Start):
-      ui.text("Press Enter", color: "blue")
-      on input.key(Enter) > Done
-    end
-    state(Done):
-      ui.text("Completed", color: "green")
-      terminate
-    end
+state():
+  counter = 0
+  speedMs = 120
+end
+```
+
+### Deterministic logic
+
+```sculpt
+rule(tick):
+  on input.tick:
+    counter += 1
   end
 end
 ```
 
-### Pattern C: Rule-Based Update
-```sculpt
-module(Counter):
-  state():
-    value = 0
-  end
+Think:
+- `state()` = memory
+- `rule()` = automatic behavior
 
-  rule(tickRule):
-    on tick:
-      value += 1
-    end
-  end
+## 6) ND Without Chaos
+
+Bad ND:
+
+```sculpt
+nd(layout):
+  propose dashboard()
 end
 ```
 
-### Pattern D: ND with Tight Constraints
+Better ND:
+
 ```sculpt
-@meta nd_budget=25
-@meta confidence=0.9
-module(LayoutPlan):
-  nd(layout):
-    propose layout(kind: "dashboard")
-    satisfy(
-      hasHeader(),
-      hasPrimaryAction(),
-      noOverlap()
-    )
-  end
+nd(layout):
+  propose dashboard(kind: "ops")
+  satisfy(
+    noOverlap(),
+    highContrast(),
+    keyboardNavigable()
+  )
 end
 ```
 
-### Pattern E: Convergence Controls + Fallback
+Rule of thumb:
+- More `satisfy(...)` constraints = more stable output.
+
+## 7) Where `ui.text` and `input.key` Come From
+
+They are not built-in language keywords.  
+They come from provider namespaces you import via `use(...)`.
+
+Example:
+
 ```sculpt
-@meta target=gui
-@meta max_iterations=3
-@meta fallback=replay
-module(StableGui):
-  flow(App):
-    start > Main
-    state(Main):
-      ui.text("Stable path", color: "white")
-      terminate
-    end
-  end
+use(cli.ui)
+use(cli.input) as input
+```
+
+Now `ui.*` and `input.*` are available in this module.
+
+## 8) Multi-File Projects (When One File Is Not Enough)
+
+If you use `import(...)`, you must build in project mode (`.sculpt.json`).
+
+### Create project file automatically
+
+```bash
+sculpt project create billing -p examples/business -f "*.sculpt"
+```
+
+This creates `billing.sculpt.json`.
+
+### Build project
+
+```bash
+sculpt build examples/business/billing.sculpt.json --provider stub
+```
+
+### Import from another module
+
+```sculpt
+module(Billing.App):
+  import(Billing.Shared.InvoiceRules) as Shared
+  use(cli.ui)
 end
 ```
 
-### What IR looks like in practice
-- `ir.json`: normalized representation of your SCULPT module and logic.
-- `target.ir.json`: target-specific implementation plan generated by the LLM.
-- Final build artifact: executable files generated by the target provider from `target.ir.json`.
+## 9) Meta Keys You Will Really Use
 
-## 6) Commands You Actually Need
+| Meta key | Why you use it |
+|---|---|
+| `@meta target=cli|gui|web` | Default target for this script/project. |
+| `@meta nd_budget=...` | How much ND freedom you allow. |
+| `@meta confidence=...` | Expected convergence confidence. |
+| `@meta fallback=fail|stub|replay` | What to do if LLM compile fails repeatedly. |
+| `@meta max_iterations=...` | Retry limit for convergence loop. |
+
+## 10) Common Errors (Fast Fixes)
+
+| Error | Meaning | Fix |
+|---|---|---|
+| `Target required` | No target in meta and no `--target`. | Set `@meta target=...` or pass `--target`. |
+| `Imports require a project file` | You used `import(...)` in standalone `.sculpt`. | Build a `.sculpt.json` project file and compile that. |
+| Semantic validation failed | Namespaces/rules/meta inconsistent. | Read diagnostics, fix exact line, rebuild. |
+
+## 11) Practical Command Set
+
 ```bash
 sculpt examples
-sculpt build examples/getting-started/hello_world.sculpt --target cli
-sculpt run examples/getting-started/hello_world.sculpt --target cli
-sculpt freeze examples/getting-started/hello_world.sculpt --target cli
-sculpt replay examples/getting-started/hello_world.sculpt --target cli
-sculpt gate check poc/gates/incident_triage_vibe_gate.json
+sculpt build app.sculpt --provider stub
+sculpt run app.sculpt
+sculpt freeze app.sculpt --provider stub
+sculpt replay app.sculpt
+sculpt clean app.sculpt
 ```
 
-## 7) Common Mistakes (and Fixes)
-- Mistake: no target selected.
-  - Fix: set `@meta target=...` or pass `--target`.
-- Mistake: ND too open.
-  - Fix: add stronger `satisfy(...)` constraints and reduce `nd_budget`.
-- Mistake: unstable results.
-  - Fix: set `max_iterations`, `fallback`, and use `freeze/replay`.
-- Mistake: unexpected build rejection.
-  - Fix: check contract/meta errors (`C901..C904`), align script meta with target contract.
+Project mode:
 
-## 8) Team Usage (Plain Version)
-- Split by domain modules (`Billing.*`, `Ops.*`, `UI.*`).
-- Keep flows small.
-- Use strict scopes in critical modules.
-- Use `freeze` for milestones and `replay` in CI.
-- Gate major claims/results with `sculpt gate check`.
+```bash
+sculpt project create myproj -p . -f "*.sculpt"
+sculpt build myproj.sculpt.json --provider stub
+sculpt run myproj.sculpt.json
+```
 
-## 9) Scaling from Small to Large
-- Start with one script proving behavior.
-- Split into multiple module files by domain.
-- Move shared conventions to team standards (meta, constraints, naming).
-- Add contracts and gate files early to prevent drift.
+## 12) Final Checklist Before You Build
 
-## 10) Where To Go Next
-- If you want quick setup: [SCULPT Quick Start](SCULPT_Quick_Start.md)
-- If you want full usage details: [SCULPT Handbook](SCULPT_Handbook.md)
-- If you want target-specific functions/events: [SCULPT Target References](SCULPT_Targets_Reference.md)
-- If you need exact language rules: [SCULPT Syntax Manifest](SCULPT_Syntax_Manifest.md)
-- If you need semantic rules and diagnostics: [SCULPT Semantics](SCULPT_Semantics.md)
+- `module(...)` exists and is valid.
+- `flow` has a clear `start > ...`.
+- every transition target state exists.
+- `use(...)` imports required provider namespaces.
+- ND blocks have useful `satisfy(...)` constraints.
+- target is set by `@meta target=...` or CLI flag.
+
+## 13) Next Docs
+
+- Fast setup: [SCULPT Quick Start](SCULPT_Quick_Start.md)
+- Full behavior: [SCULPT Handbook](SCULPT_Handbook.md)
+- Exact syntax: [SCULPT Syntax Manifest](SCULPT_Syntax_Manifest.md)
+- Target APIs: [SCULPT Target References](SCULPT_Targets_Reference.md)

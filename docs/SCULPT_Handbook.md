@@ -32,33 +32,38 @@ For `sculpt build`:
 8. Write build artifacts and metadata.
 
 ### Artifacts
-Each script gets an isolated output directory:
+Each input gets an isolated output directory:
 - `dist/<script_name>/ir.json`
 - `dist/<script_name>/target.ir.json`
 - `dist/<script_name>/nondet.report`
 - `dist/<script_name>/build.meta.json`
 
-This isolation avoids cross-script collisions and enables clean per-script run/replay behavior.
+For project files (`*.sculpt.json`), `<script_name>` is the project name.
+
+This isolation avoids collisions and enables clean run/replay behavior.
 
 ## 3) Command Guide
 
 ### `sculpt examples`
 Writes curated examples into `examples/` (grouped by `getting-started/`, `games/`, `business/`, `web/`).
 
-### `sculpt build <file.sculpt> --target <cli|gui|web>`
+### `sculpt project create <name> [-p <path>] [-f <files> ...]`
+Creates a `.sculpt.json` project file from module files (supports glob patterns).
+
+### `sculpt build <input.sculpt|project.sculpt.json> --target <cli|gui|web>`
 Runs full compile pipeline and produces artifacts.
 
-### `sculpt run <file.sculpt> [--target ...]`
-Runs the latest build output for the selected script.
+### `sculpt run <input.sculpt|project.sculpt.json> [--target ...]`
+Runs the latest build output for the selected script/project.
 
-### `sculpt freeze <file.sculpt> [--target ...]`
+### `sculpt freeze <input.sculpt|project.sculpt.json> [--target ...]`
 Builds and writes `sculpt.lock` to lock deterministic replay input.
 
-### `sculpt replay <file.sculpt> [--target ...]`
+### `sculpt replay <input.sculpt|project.sculpt.json> [--target ...]`
 Rebuilds using `sculpt.lock` without a fresh LLM generation.
 
-### `sculpt clean <file.sculpt>` / `sculpt clean --all`
-Removes script-specific artifacts or the whole `dist/`.
+### `sculpt clean <input.sculpt|project.sculpt.json>` / `sculpt clean --all`
+Removes script/project-specific artifacts or the whole `dist/`.
 
 ### `sculpt auth check --provider <name> [--verify]`
 Checks provider auth configuration, optionally verifies with API call.
@@ -137,6 +142,7 @@ end
 ```
 
 Project imports are namespace-based and resolved from the project file module index.
+Standalone `.sculpt` files cannot use `import(...)`; use a `.sculpt.json` project file.
 
 ### 5.3 State Transitions
 

@@ -52,6 +52,7 @@ fn print_help_tui() {
         "Commands",
         &[
             " examples   write curated examples into ./examples",
+            " project    create/manage .sculpt.json project files",
             " gate       evaluate release quality gates",
             " build      compile .sculpt or .sculpt.json to target output",
             " freeze     compile + lock deterministic output",
@@ -130,6 +131,34 @@ fn print_subcommand_help(cmd: &str) -> bool {
                 &[
                     " sculpt build examples/getting-started/hello_world.sculpt --target cli",
                     " sculpt build examples/getting-started/native_window.sculpt --target gui",
+                ],
+                accent2,
+                c,
+            );
+            true
+        }
+        "project" => {
+            print_header();
+            print_box(
+                "Usage",
+                &[" sculpt project create <name> [-p <path>] [-f <files> ...]"],
+                accent2,
+                c,
+            );
+            print_box(
+                "Options",
+                &[
+                    " -p, --path <dir>        base directory (default: current dir)",
+                    " -f, --files <glob...>   module files or glob patterns",
+                ],
+                accent2,
+                c,
+            );
+            print_box(
+                "Examples",
+                &[
+                    " sculpt project create app -p . -f \"*.sculpt\"",
+                    " sculpt project create billing -p examples/business -f \"modules/*.sculpt\" -f modular_invoice_app.sculpt",
                 ],
                 accent2,
                 c,

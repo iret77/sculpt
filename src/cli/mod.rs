@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use glob::glob;
 
 use crate::ai::{generate_target_ir, AiProvider, DebugCapture, TargetSpec};
 use crate::build_meta::{dist_dir_for_input, now_unix_ms, write_build_meta, BuildMeta, TokenUsage};
@@ -45,6 +46,10 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Command {
     Examples,
+    Project {
+        #[command(subcommand)]
+        cmd: ProjectCommand,
+    },
     Gate {
         #[command(subcommand)]
         cmd: GateCommand,
@@ -133,6 +138,17 @@ pub enum GateCommand {
 }
 
 #[derive(Subcommand)]
+pub enum ProjectCommand {
+    Create {
+        name: String,
+        #[arg(short = 'p', long = "path")]
+        path: Option<PathBuf>,
+        #[arg(short = 'f', long = "files", num_args = 1..)]
+        files: Option<Vec<String>>,
+    },
+}
+
+#[derive(Subcommand)]
 pub enum AuthCommand {
     Check {
         #[arg(long, default_value = "openai")]
@@ -185,6 +201,11 @@ pub fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
         Command::Examples => write_examples(),
+        Command::Project { cmd } => match cmd {
+            ProjectCommand::Create { name, path, files } => {
+                project_create(&name, path.as_deref(), files.as_deref())
+            }
+        },
         Command::Gate { cmd } => match cmd {
             GateCommand::Check { gate_file } => gate_check(&gate_file),
         },
@@ -1034,6 +1055,123 @@ end
         println!("Wrote {}", path.display());
     }
     Ok(())
+}
+
+fn project_create(name: &str, path: Option<&Path>, files: Option<&[String]>) -> Result<()> {
+    let base_dir = path
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| env::current_dir().expect("current dir"));
+    if !base_dir.exists() {
+        bail!("Path does not exist: {}", base_dir.display());
+    }
+    if !base_dir.is_dir() {
+        bail!("Path is not a directory: {}", base_dir.display());
+    }
+
+    let patterns: Vec<String> = files
+        .map(|v| v.to_vec())
+        .unwrap_or_else(|| vec!["*.sculpt".to_string()]);
+
+    let module_files = resolve_module_files(&base_dir, &patterns)?;
+    if module_files.is_empty() {
+        bail!(
+            "No .sculpt files found for patterns: {}",
+            patterns.join(", ")
+        );
+    }
+
+    let mut entry_module = None;
+    let mut rel_modules = Vec::new();
+    for file in &module_files {
+        let source = fs::read_to_string(file)
+            .with_context(|| format!("Failed to read {}", file.display()))?;
+        let module =
+            parse_source(&source).with_context(|| format!("Failed to parse {}", file.display()))?;
+        if entry_module.is_none() {
+            entry_module = Some(module.name.clone());
+        }
+        let rel = file
+            .strip_prefix(&base_dir)
+            .unwrap_or(file.as_path())
+            .to_string_lossy()
+            .replace('\\', "/");
+        rel_modules.push(rel);
+    }
+
+    let entry = entry_module.ok_or_else(|| anyhow::anyhow!("No module entry found"))?;
+    let project_name = normalize_project_name(name);
+    let project_filename = if name.ends_with(".sculpt.json") {
+        name.to_string()
+    } else {
+        format!("{name}.sculpt.json")
+    };
+    let project_file = base_dir.join(project_filename);
+
+    let json = serde_json::json!({
+        "name": project_name,
+        "entry": entry,
+        "modules": rel_modules,
+    });
+    let text = serde_json::to_string_pretty(&json)?;
+    fs::write(&project_file, format!("{text}\n"))
+        .with_context(|| format!("Failed to write {}", project_file.display()))?;
+
+    println!("Project file created: {}", project_file.display());
+    Ok(())
+}
+
+fn resolve_module_files(base_dir: &Path, patterns: &[String]) -> Result<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+
+    for pattern in patterns {
+        let has_glob = pattern.contains('*')
+            || pattern.contains('?')
+            || pattern.contains('[')
+            || pattern.contains(']');
+        if has_glob {
+            let pat_path = if Path::new(pattern).is_absolute() {
+                PathBuf::from(pattern)
+            } else {
+                base_dir.join(pattern)
+            };
+            let pat = pat_path.to_string_lossy().to_string();
+            for entry in glob(&pat).with_context(|| format!("Invalid glob pattern: {pattern}"))? {
+                let file =
+                    entry.with_context(|| format!("Bad glob match for pattern: {pattern}"))?;
+                if file.is_file()
+                    && file.extension().and_then(|s| s.to_str()) == Some("sculpt")
+                    && seen.insert(file.clone())
+                {
+                    out.push(file);
+                }
+            }
+        } else {
+            let file = if Path::new(pattern).is_absolute() {
+                PathBuf::from(pattern)
+            } else {
+                base_dir.join(pattern)
+            };
+            if !file.exists() {
+                bail!("File not found: {}", file.display());
+            }
+            if file.extension().and_then(|s| s.to_str()) != Some("sculpt") {
+                bail!("Not a .sculpt file: {}", file.display());
+            }
+            if seen.insert(file.clone()) {
+                out.push(file);
+            }
+        }
+    }
+
+    out.sort();
+    Ok(out)
+}
+
+fn normalize_project_name(raw: &str) -> String {
+    raw.trim_end_matches(".sculpt.json")
+        .trim_end_matches(".json")
+        .to_string()
 }
 
 #[derive(Clone, Copy)]
