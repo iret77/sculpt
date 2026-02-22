@@ -1253,6 +1253,9 @@ fn render_log_lines(state: &AppState) -> Vec<Line<'_>> {
         .take(12)
         .rev()
         .map(|l| {
+            if let Some((idx, label, status)) = parse_pipeline_log_line(l) {
+                return render_pipeline_log_line(state, idx, &label, &status);
+            }
             let lower = l.to_lowercase();
             let style = if lower.contains("error") || lower.contains("failed") {
                 Style::default().fg(state.theme.accent2)
@@ -1266,6 +1269,108 @@ fn render_log_lines(state: &AppState) -> Vec<Line<'_>> {
             Line::from(Span::styled(l.clone(), style))
         })
         .collect()
+}
+
+fn parse_pipeline_log_line(line: &str) -> Option<(usize, String, String)> {
+    let s = line.trim_start();
+    let (idx_raw, tail) = s.split_once('.')?;
+    let idx = idx_raw.trim().parse::<usize>().ok()?;
+    if idx == 0 || idx > 3 {
+        return None;
+    }
+    let body = tail.trim_start();
+
+    if let Some(label) = body.strip_suffix(" ok") {
+        return Some((idx, label.trim_end().to_string(), "ok".to_string()));
+    }
+    if let Some(label) = body.strip_suffix(" failed") {
+        return Some((idx, label.trim_end().to_string(), "failed".to_string()));
+    }
+    if let Some(pos) = body.rfind(" running ") {
+        let label = body[..pos].trim_end().to_string();
+        let status = body[pos + 1..].to_string();
+        return Some((idx, label, status));
+    }
+    None
+}
+
+fn render_pipeline_log_line(
+    state: &AppState,
+    idx: usize,
+    label: &str,
+    status: &str,
+) -> Line<'static> {
+    const TOTAL: usize = 3;
+    const WIDTH: usize = 12;
+
+    let completed = if status == "ok" {
+        idx.min(TOTAL)
+    } else {
+        idx.saturating_sub(1).min(TOTAL)
+    };
+    let filled = (completed * WIDTH) / TOTAL;
+    let running = status.starts_with("running");
+
+    let filled_s: String = "█".repeat(filled);
+    let empty_s: String = "░".repeat(WIDTH.saturating_sub(filled));
+    let empty_tail: String = if running && !empty_s.is_empty() {
+        empty_s.chars().skip(1).collect()
+    } else {
+        empty_s.clone()
+    };
+
+    let mut spans = vec![
+        Span::styled(format!("{}.", idx), Style::default().fg(state.theme.dim)),
+        Span::raw(" "),
+        Span::styled("[", Style::default().fg(state.theme.dim)),
+        Span::styled(
+            filled_s,
+            Style::default()
+                .fg(state.theme.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ];
+
+    if running && !empty_s.is_empty() {
+        spans.push(Span::styled(
+            "▌".to_string(),
+            Style::default()
+                .fg(state.theme.accent2)
+                .add_modifier(Modifier::BOLD),
+        ));
+        spans.push(Span::styled(
+            empty_tail,
+            Style::default().fg(state.theme.dim),
+        ));
+    } else {
+        spans.push(Span::styled(empty_s, Style::default().fg(state.theme.dim)));
+    }
+
+    spans.push(Span::styled("]", Style::default().fg(state.theme.dim)));
+    spans.push(Span::raw(" "));
+    spans.push(Span::styled(
+        format!("{}/{}", completed, TOTAL),
+        Style::default().fg(state.theme.dim),
+    ));
+    spans.push(Span::raw(" "));
+    spans.push(Span::styled(
+        label.to_string(),
+        Style::default().fg(state.theme.fg),
+    ));
+    spans.push(Span::raw(" "));
+    spans.push(Span::styled(
+        status.to_string(),
+        Style::default()
+            .fg(if status == "ok" {
+                state.theme.accent
+            } else if status == "failed" {
+                state.theme.accent2
+            } else {
+                state.theme.accent2
+            })
+            .add_modifier(Modifier::BOLD),
+    ));
+    Line::from(spans)
 }
 
 fn extract_target(args: &[String]) -> Option<String> {

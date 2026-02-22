@@ -1,5 +1,5 @@
-pub mod ast;
 pub mod ai;
+pub mod ast;
 pub mod build_meta;
 pub mod cli;
 pub mod codegen;
@@ -12,7 +12,7 @@ pub mod llm_ir;
 pub mod parser;
 pub mod report;
 pub mod semantics;
-pub mod tui;
-pub mod targets;
 pub mod target_ir;
+pub mod targets;
+pub mod tui;
 pub mod versioning;

@@ -7,4 +7,3 @@ pub fn language_line() -> String {
         LANGUAGE_DEFAULT, LANGUAGE_SUPPORT_RANGE
     )
 }
-

@@ -1824,12 +1824,60 @@ fn style_divider() -> String {
     style_dim("────────────────────────────────────────────────────")
 }
 fn style_step(idx: &str, label: &str, status: &str) -> String {
+    let bar = style_progress_bar(idx, status, 16);
     format!(
-        "  {} {} {}",
+        "  {} {} {} {}",
         style_dim(&format!("{idx}.")),
+        bar,
         label,
         style_accent(status)
     )
+}
+
+fn style_progress_bar(idx: &str, status: &str, width: usize) -> String {
+    const TOTAL_STEPS: usize = 3;
+    let idx_num = idx
+        .trim()
+        .parse::<usize>()
+        .ok()
+        .filter(|v| *v > 0)
+        .unwrap_or(1)
+        .min(TOTAL_STEPS);
+
+    let completed_steps = if status == "ok" {
+        idx_num
+    } else {
+        idx_num.saturating_sub(1)
+    };
+    let filled = (completed_steps * width) / TOTAL_STEPS;
+    let running = status.starts_with("running");
+
+    let mut left = String::new();
+    let mut right = String::new();
+    for i in 0..width {
+        if i < filled {
+            left.push('█');
+        } else {
+            right.push('░');
+        }
+    }
+
+    let mut bar = String::new();
+    bar.push_str(&style_dim("["));
+    bar.push_str(&color_24(&left, 0, 255, 255, true));
+    if running && filled < width {
+        bar.push_str(&color_24("▌", 234, 81, 114, true));
+        let tail: String = right.chars().skip(1).collect();
+        if !tail.is_empty() {
+            bar.push_str(&style_dim(&tail));
+        }
+    } else {
+        bar.push_str(&style_dim(&right));
+    }
+    bar.push_str(&style_dim("]"));
+    bar.push(' ');
+    bar.push_str(&style_dim(&format!("{}/{}", completed_steps, TOTAL_STEPS)));
+    bar
 }
 
 fn print_step(idx: &str, label: &str, status: &str) {

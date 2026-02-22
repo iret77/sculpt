@@ -451,7 +451,10 @@ fn validate_nd_blocks(
                 ));
                 continue;
             }
-            if !local_defines.insert(d.name.clone(), d.params.len()).is_none() {
+            if !local_defines
+                .insert(d.name.clone(), d.params.len())
+                .is_none()
+            {
                 diagnostics.push(Diagnostic::new(
                     "N307",
                     format!("ND '{}' has duplicate define '{}'", nd.name, d.name),
