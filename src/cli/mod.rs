@@ -3,6 +3,7 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::process::{Command as ProcCommand, Stdio};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -13,6 +14,7 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use glob::glob;
+use sha2::{Digest, Sha256};
 
 use crate::ai::{generate_target_ir, AiProvider, DebugCapture, TargetSpec};
 use crate::build_meta::{dist_dir_for_input, now_unix_ms, write_build_meta, BuildMeta, TokenUsage};
@@ -22,20 +24,20 @@ use crate::freeze::{create_lock, read_lock, verify_lock, write_lock};
 use crate::ir::{from_ast, to_pretty_json, IrModule};
 use crate::parser::parse_source;
 use crate::report::generate_report;
-use crate::semantics::{format_diagnostics, validate_module_with_imports};
+use crate::semantics::{format_diagnostics, has_errors, validate_module_with_imports};
 use crate::target_ir::{from_json_value, TargetIr};
 use crate::targets::{
     describe_target, emit_cli, emit_gui, emit_web, list_targets, resolve_target, run_cli,
     run_external_target, run_gui, run_web, TargetKind,
 };
-use crate::versioning::{LANGUAGE_DEFAULT, LANGUAGE_SUPPORT_RANGE};
+use crate::versioning::LANGUAGE_DEFAULT;
 use serde_json::Value;
 
 #[derive(Parser)]
 #[command(
     name = "sculpt",
     version,
-    about = "SCULPT compiler — (C) 2026 byte5 GmbH\nLanguage default: 1.0 (supports >=1.0 <2.0)",
+    about = "SCULPT compiler — (C) 2026 byte5 GmbH\nLanguage default: 1.0",
     after_help = "TUI: run `sculpt` with no arguments"
 )]
 pub struct Cli {
@@ -53,6 +55,10 @@ pub enum Command {
     Gate {
         #[command(subcommand)]
         cmd: GateCommand,
+    },
+    Benchmark {
+        #[command(subcommand)]
+        cmd: BenchmarkCommand,
     },
     Auth {
         #[command(subcommand)]
@@ -138,6 +144,32 @@ pub enum GateCommand {
 }
 
 #[derive(Subcommand)]
+pub enum BenchmarkCommand {
+    DataHeavy {
+        #[arg(long, default_value = "examples/business/invoice_reconciliation_batch.sculpt")]
+        script: PathBuf,
+        #[arg(long, default_value = "poc/data")]
+        dataset_root: PathBuf,
+        #[arg(long, default_value = "small,medium,large")]
+        sizes: String,
+        #[arg(long, default_value_t = 5)]
+        repro_runs: usize,
+        #[arg(long, default_value = "poc/data_heavy_sculpt_metrics.json")]
+        output: PathBuf,
+        #[arg(long, default_value = "poc/gates/data_heavy_sculpt_gate_input.json")]
+        gate_output: PathBuf,
+        #[arg(long)]
+        provider: Option<String>,
+        #[arg(long)]
+        model: Option<String>,
+        #[arg(long)]
+        strict_provider: bool,
+        #[arg(long, default_value = "cli")]
+        target: String,
+    },
+}
+
+#[derive(Subcommand)]
 pub enum ProjectCommand {
     Create {
         name: String,
@@ -209,6 +241,31 @@ pub fn run() -> Result<()> {
         Command::Gate { cmd } => match cmd {
             GateCommand::Check { gate_file } => gate_check(&gate_file),
         },
+        Command::Benchmark { cmd } => match cmd {
+            BenchmarkCommand::DataHeavy {
+                script,
+                dataset_root,
+                sizes,
+                repro_runs,
+                output,
+                gate_output,
+                provider,
+                model,
+                strict_provider,
+                target,
+            } => benchmark_data_heavy(
+                &script,
+                &dataset_root,
+                &sizes,
+                repro_runs,
+                &output,
+                &gate_output,
+                provider,
+                model,
+                strict_provider,
+                &target,
+            ),
+        },
         Command::Auth { cmd } => match cmd {
             AuthCommand::Check { provider, verify } => auth_check(&provider, verify),
         },
@@ -274,6 +331,45 @@ struct GateCriterion {
     vibe: f64,
     operator: String,
     min_delta: Option<f64>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct DataHeavyGateSpec {
+    name: String,
+    source_metrics: String,
+    #[serde(default)]
+    thresholds: DataHeavyGateThresholds,
+    #[serde(default)]
+    observed: Option<DataHeavyGateObserved>,
+    #[serde(default)]
+    criteria: Option<DataHeavyGateObserved>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct DataHeavyGateObserved {
+    acceptance_rate: f64,
+    repro_pass: usize,
+    repro_unique_hashes: usize,
+    reproducible: bool,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct DataHeavyGateThresholds {
+    min_acceptance_rate: f64,
+    min_repro_pass: usize,
+    max_repro_unique_hashes: usize,
+    require_reproducible: bool,
+}
+
+impl Default for DataHeavyGateThresholds {
+    fn default() -> Self {
+        Self {
+            min_acceptance_rate: 1.0,
+            min_repro_pass: 5,
+            max_repro_unique_hashes: 1,
+            require_reproducible: true,
+        }
+    }
 }
 
 fn write_examples() -> Result<()> {
@@ -1281,6 +1377,7 @@ fn build(
     if layout_required && target_ir.layout.is_none() {
         bail!("layout=explicit requires layout data in target IR");
     }
+    validate_required_output_contract(&ir, &target_ir, &target)?;
 
     fs::write(
         dist_dir.join("target.ir.json"),
@@ -1296,6 +1393,7 @@ fn build(
         return Err(e);
     }
     finish_step("3", "Build Target", "ok");
+    verify_build_artifacts(&target, &dist_dir)?;
 
     if let Some(level) = debug_level {
         emit_debug(
@@ -1423,6 +1521,7 @@ fn freeze(
     if layout_required && target_ir.layout.is_none() {
         bail!("layout=explicit requires layout data in target IR");
     }
+    validate_required_output_contract(&ir, &target_ir, &target)?;
 
     let lock = create_lock(
         &ir,
@@ -1452,6 +1551,7 @@ fn freeze(
         return Err(e);
     }
     finish_step("3", "Build Target", "ok");
+    verify_build_artifacts(&target, &dist_dir)?;
 
     if let Some(level) = debug_level {
         emit_debug(
@@ -1517,6 +1617,7 @@ fn replay(input: &Path, target: Option<&str>) -> Result<()> {
     if layout_required && target_ir.layout.is_none() {
         bail!("layout=explicit requires layout data in target IR");
     }
+    validate_required_output_contract(&ir, &target_ir, &target)?;
 
     let dist_dir = dist_dir(input);
     fs::create_dir_all(&dist_dir)?;
@@ -1532,6 +1633,7 @@ fn replay(input: &Path, target: Option<&str>) -> Result<()> {
         return Err(e);
     }
     finish_step("3", "Build Target", "ok");
+    verify_build_artifacts(&target, &dist_dir)?;
     let total_ms = started.elapsed().as_millis();
     write_build_meta(
         &dist_dir,
@@ -1664,6 +1766,7 @@ fn run_cmd(input: &Path, target: Option<&str>) -> Result<()> {
         }
     };
     result?;
+    verify_required_outputs(&ir)?;
     let run_ms = started.elapsed().as_millis();
     let meta = BuildMeta {
         version: 1,
@@ -1682,6 +1785,195 @@ fn run_cmd(input: &Path, target: Option<&str>) -> Result<()> {
     };
     write_build_meta(&dist_dir, &meta)?;
     Ok(())
+}
+
+fn verify_build_artifacts(target: &str, dist_dir: &Path) -> Result<()> {
+    let core_files = [
+        dist_dir.join("target.ir.json"),
+        dist_dir.join("ir.json"),
+        dist_dir.join("nondet.report"),
+    ];
+    for f in core_files {
+        if !f.exists() {
+            bail!("Build artifact missing: {}", f.display());
+        }
+    }
+
+    match resolve_target(target) {
+        TargetKind::Cli => {
+            let entry = dist_dir.join("main.js");
+            if !entry.exists() {
+                bail!("Build artifact missing: {}", entry.display());
+            }
+        }
+        TargetKind::Web => {
+            let entry_html = dist_dir.join("index.html");
+            let entry_js = dist_dir.join("main.js");
+            if !entry_html.exists() {
+                bail!("Build artifact missing: {}", entry_html.display());
+            }
+            if !entry_js.exists() {
+                bail!("Build artifact missing: {}", entry_js.display());
+            }
+        }
+        TargetKind::Gui => {
+            let entry = dist_dir.join("app.py");
+            if !entry.exists() {
+                bail!("Build artifact missing: {}", entry.display());
+            }
+        }
+        TargetKind::External(_) => {}
+    }
+    Ok(())
+}
+
+fn validate_required_output_contract(ir: &IrModule, target_ir: &TargetIr, target: &str) -> Result<()> {
+    if target != "cli" {
+        return Ok(());
+    }
+    let Some(raw_outputs) = ir.meta.get("required_outputs") else {
+        return Ok(());
+    };
+    let required_outputs = parse_meta_csv_list(raw_outputs);
+    if required_outputs.is_empty() {
+        return Ok(());
+    }
+
+    let Some(runtime_rules) = target_ir
+        .extensions
+        .get("runtimeRules")
+        .and_then(|v| v.as_array())
+    else {
+        bail!(
+            "C910: required_outputs configured but target IR has no extensions.runtimeRules for writer validation"
+        );
+    };
+
+    let state_strings = target_ir
+        .state
+        .as_object()
+        .map(|obj| {
+            obj.iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                .collect::<HashMap<String, String>>()
+        })
+        .unwrap_or_default();
+
+    let mut writer_paths: Vec<(String, String)> = Vec::new();
+    for rule in runtime_rules {
+        let Some(assigns) = rule.get("assign").and_then(|v| v.as_array()) else {
+            continue;
+        };
+        for assign in assigns {
+            let Some(call) = assign.pointer("/value/call") else {
+                continue;
+            };
+            let Some(name) = call.get("name").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            if name != "writeJson" && name != "writeCsv" {
+                continue;
+            }
+            let path_value = call.pointer("/args/0/value");
+            let Some(output_path) = extract_runtime_path(path_value, &state_strings) else {
+                continue;
+            };
+            writer_paths.push((name.to_string(), output_path));
+        }
+    }
+
+    for required in required_outputs {
+        let req_norm = normalize_path_like(&required);
+        let needed_writer = if req_norm.ends_with(".json") {
+            "writeJson"
+        } else if req_norm.ends_with(".csv") {
+            "writeCsv"
+        } else {
+            bail!(
+                "C910: required_outputs entry '{}' has unsupported extension (expected .json or .csv)",
+                required
+            );
+        };
+
+        let matched = writer_paths
+            .iter()
+            .any(|(writer, p)| writer == needed_writer && path_like_match(p, &req_norm));
+        if !matched {
+            bail!(
+                "C911: required output '{}' is not backed by deterministic '{}' call in runtime rules",
+                required,
+                needed_writer
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn extract_runtime_path(path_value: Option<&Value>, state_strings: &HashMap<String, String>) -> Option<String> {
+    let v = path_value?;
+    if let Some(s) = v.as_str() {
+        return Some(s.to_string());
+    }
+    if let Some(id) = v.get("ident").and_then(|x| x.as_str()) {
+        if let Some(resolved) = state_strings.get(id) {
+            return Some(resolved.clone());
+        }
+        return Some(id.to_string());
+    }
+    None
+}
+
+fn normalize_path_like(input: &str) -> String {
+    input.replace('\\', "/")
+}
+
+fn path_like_match(actual: &str, expected: &str) -> bool {
+    let a = normalize_path_like(actual);
+    let e = normalize_path_like(expected);
+    a == e || a.ends_with(&format!("/{e}"))
+}
+
+fn verify_required_outputs(ir: &IrModule) -> Result<()> {
+    let raw = match ir.meta.get("required_outputs") {
+        Some(v) => v,
+        None => return Ok(()),
+    };
+
+    let outputs = parse_meta_csv_list(raw);
+    if outputs.is_empty() {
+        return Ok(());
+    }
+
+    let mut missing = Vec::new();
+    for item in outputs {
+        let p = PathBuf::from(&item);
+        if !p.exists() {
+            missing.push(format!("missing '{}'", p.display()));
+            continue;
+        }
+        if let Ok(meta) = fs::metadata(&p) {
+            if meta.is_file() && meta.len() == 0 {
+                missing.push(format!("empty '{}'", p.display()));
+            }
+        }
+    }
+
+    if !missing.is_empty() {
+        bail!(
+            "Required outputs check failed (@meta required_outputs): {}",
+            missing.join(", ")
+        );
+    }
+    Ok(())
+}
+
+fn parse_meta_csv_list(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(|s| s.trim().trim_matches('"'))
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect()
 }
 
 fn clean_cmd(input: Option<&Path>, all: bool) -> Result<()> {
@@ -1756,12 +2048,7 @@ fn print_unified_header(action: &str, target: &str, input: &Path, provider: Opti
     let rest = style_title(&format!("Compiler {}", env!("CARGO_PKG_VERSION")));
     let copyright = style_dim("(C) 2026 byte5 GmbH");
     println!("{title} {rest} - {copyright}");
-    println!(
-        "{} {} (supports {})",
-        style_dim("Language:"),
-        style_dim(LANGUAGE_DEFAULT),
-        style_dim(LANGUAGE_SUPPORT_RANGE)
-    );
+    println!("{} {}", style_dim("Language:"), style_dim(LANGUAGE_DEFAULT));
     let action_s = style_accent(action);
     println!("{} {}", style_dim("Action:"), action_s);
     println!("{} {}", style_dim("Target:"), style_dim(target));
@@ -1834,22 +2121,14 @@ fn style_step(idx: &str, label: &str, status: &str) -> String {
     )
 }
 
-fn style_progress_bar(idx: &str, status: &str, width: usize) -> String {
-    const TOTAL_STEPS: usize = 3;
-    let idx_num = idx
-        .trim()
-        .parse::<usize>()
-        .ok()
-        .filter(|v| *v > 0)
-        .unwrap_or(1)
-        .min(TOTAL_STEPS);
-
-    let completed_steps = if status == "ok" {
-        idx_num
+fn style_progress_bar(_idx: &str, status: &str, width: usize) -> String {
+    let filled = if status == "ok" || status == "failed" {
+        width
+    } else if status.starts_with("running") {
+        width / 2
     } else {
-        idx_num.saturating_sub(1)
+        0
     };
-    let filled = (completed_steps * width) / TOTAL_STEPS;
     let running = status.starts_with("running");
 
     let mut left = String::new();
@@ -1876,7 +2155,12 @@ fn style_progress_bar(idx: &str, status: &str, width: usize) -> String {
     }
     bar.push_str(&style_dim("]"));
     bar.push(' ');
-    bar.push_str(&style_dim(&format!("{}/{}", completed_steps, TOTAL_STEPS)));
+    let percent = if width == 0 {
+        0
+    } else {
+        (filled * 100) / width
+    };
+    bar.push_str(&style_dim(&format!("{:>3}%", percent)));
     bar
 }
 
@@ -1947,10 +2231,7 @@ fn color_24(s: &str, r: u8, g: u8, b: u8, bold: bool) -> String {
 
 fn target_list() -> Result<()> {
     let targets = list_targets()?;
-    println!(
-        "Language: default {} (supports {})",
-        LANGUAGE_DEFAULT, LANGUAGE_SUPPORT_RANGE
-    );
+    println!("Language: default {}", LANGUAGE_DEFAULT);
     println!("Available targets:");
     for t in targets {
         println!("  {}", t);
@@ -1961,8 +2242,24 @@ fn target_list() -> Result<()> {
 fn gate_check(gate_file: &Path) -> Result<()> {
     let raw = fs::read_to_string(gate_file)
         .with_context(|| format!("Failed to read gate file {}", gate_file.display()))?;
-    let spec: GateSpec = serde_json::from_str(&raw)
+    let raw_json: serde_json::Value = serde_json::from_str(&raw)
         .with_context(|| format!("Invalid gate JSON in {}", gate_file.display()))?;
+    if raw_json
+        .get("criteria")
+        .and_then(|c| c.as_array())
+        .is_some()
+    {
+        let spec: GateSpec = serde_json::from_value(raw_json)
+            .with_context(|| format!("Invalid classic gate JSON in {}", gate_file.display()))?;
+        return gate_check_classic(gate_file, &spec);
+    }
+
+    let spec: DataHeavyGateSpec = serde_json::from_str(&raw)
+        .with_context(|| format!("Invalid data-heavy gate JSON in {}", gate_file.display()))?;
+    gate_check_data_heavy(gate_file, &spec)
+}
+
+fn gate_check_classic(gate_file: &Path, spec: &GateSpec) -> Result<()> {
 
     println!();
     println!(
@@ -2014,6 +2311,788 @@ fn gate_check(gate_file: &Path) -> Result<()> {
     } else {
         bail!("Gate Result: FAIL ({} criteria failed)", failed)
     }
+}
+
+fn gate_check_data_heavy(gate_file: &Path, spec: &DataHeavyGateSpec) -> Result<()> {
+    let observed = spec
+        .observed
+        .as_ref()
+        .or(spec.criteria.as_ref())
+        .ok_or_else(|| anyhow::anyhow!("Missing observed/criteria object in data-heavy gate"))?;
+
+    println!();
+    println!(
+        "{} {}",
+        style_title("SCULPT"),
+        style_title(&format!("Gate Check {}", env!("CARGO_PKG_VERSION")))
+    );
+    println!("{} {}", style_dim("Gate: "), style_dim(&spec.name));
+    println!(
+        "{} {}",
+        style_dim("File: "),
+        style_dim(&gate_file.display().to_string())
+    );
+    println!(
+        "{} {}",
+        style_dim("Metrics:"),
+        style_dim(&spec.source_metrics)
+    );
+    println!("{}", style_divider());
+
+    let mut failed = 0usize;
+    let checks = vec![
+        (
+            "G1",
+            "Acceptance rate",
+            observed.acceptance_rate >= spec.thresholds.min_acceptance_rate,
+            format!(
+                "observed {:.3}, required >= {:.3}",
+                observed.acceptance_rate, spec.thresholds.min_acceptance_rate
+            ),
+        ),
+        (
+            "G2",
+            "Repro pass count",
+            observed.repro_pass >= spec.thresholds.min_repro_pass,
+            format!(
+                "observed {}, required >= {}",
+                observed.repro_pass, spec.thresholds.min_repro_pass
+            ),
+        ),
+        (
+            "G3",
+            "Repro unique hashes",
+            observed.repro_unique_hashes <= spec.thresholds.max_repro_unique_hashes,
+            format!(
+                "observed {}, required <= {}",
+                observed.repro_unique_hashes, spec.thresholds.max_repro_unique_hashes
+            ),
+        ),
+        (
+            "G4",
+            "Reproducibility flag",
+            !spec.thresholds.require_reproducible || observed.reproducible,
+            format!(
+                "observed {}, required {}",
+                observed.reproducible, spec.thresholds.require_reproducible
+            ),
+        ),
+    ];
+
+    for (id, desc, ok, detail) in checks {
+        let status = if ok {
+            style_title("PASS")
+        } else {
+            style_accent("FAIL")
+        };
+        println!("{} {} {}", style_dim(&format!("[{}]", id)), style_dim(desc), status);
+        println!("  {} {}", style_dim("detail:"), style_dim(&detail));
+        if !ok {
+            failed += 1;
+        }
+    }
+
+    println!("{}", style_divider());
+    if failed == 0 {
+        println!("{} {}", style_title("Gate Result:"), style_title("PASS"));
+        Ok(())
+    } else {
+        bail!("Gate Result: FAIL ({} criteria failed)", failed)
+    }
+}
+
+#[derive(serde::Serialize)]
+struct DataHeavyRunResult {
+    size: String,
+    build_rc: i32,
+    run_rc: i32,
+    build_s: f64,
+    run_s: f64,
+    ok: bool,
+    report_exists: bool,
+    exceptions_exists: bool,
+    provider_used: String,
+    model_used: Option<String>,
+    fallback_used: bool,
+    provider_attempts: Vec<serde_json::Value>,
+    report_path: String,
+    exceptions_path: String,
+    normalized_hash: Option<String>,
+    errors: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct BenchmarkBuildAttempt {
+    provider: Option<String>,
+    model: Option<String>,
+    ok: bool,
+    error: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct BenchmarkBuildResult {
+    rc: i32,
+    elapsed_s: f64,
+    provider_used: String,
+    model_used: Option<String>,
+    fallback_used: bool,
+    attempts: Vec<BenchmarkBuildAttempt>,
+}
+
+fn benchmark_data_heavy(
+    script: &Path,
+    dataset_root: &Path,
+    sizes: &str,
+    repro_runs: usize,
+    output: &Path,
+    gate_output: &Path,
+    provider: Option<String>,
+    model: Option<String>,
+    strict_provider: bool,
+    target: &str,
+) -> Result<()> {
+    if target != "cli" {
+        bail!("benchmark data-heavy currently supports only --target cli");
+    }
+
+    let sizes: Vec<String> = sizes
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect();
+    if sizes.is_empty() {
+        bail!("No benchmark sizes provided");
+    }
+
+    let script_text = fs::read_to_string(script)
+        .with_context(|| format!("Failed to read benchmark script {}", script.display()))?;
+
+    let tmp_dir = PathBuf::from("poc/tmp/data_heavy_benchmark");
+    if tmp_dir.exists() {
+        fs::remove_dir_all(&tmp_dir)?;
+    }
+    fs::create_dir_all(&tmp_dir)?;
+
+    println!();
+    println!(
+        "{} {}",
+        style_title("SCULPT"),
+        style_title(&format!("Benchmark {}", env!("CARGO_PKG_VERSION")))
+    );
+    println!("{} {}", style_dim("Type:"), style_dim("data-heavy"));
+    println!("{} {}", style_dim("Script:"), style_dim(&script.display().to_string()));
+    println!("{}", style_divider());
+
+    let provider_chain = benchmark_provider_chain(provider.clone(), strict_provider);
+    let mut runs: Vec<DataHeavyRunResult> = Vec::new();
+    for size in &sizes {
+        let ds_dir = dataset_root.join(size);
+        let invoices = ds_dir.join("invoices.csv");
+        let payments = ds_dir.join("payments.csv");
+        if !invoices.exists() || !payments.exists() {
+            bail!(
+                "Missing dataset files for size '{}': {} / {}",
+                size,
+                invoices.display(),
+                payments.display()
+            );
+        }
+
+        let run_dir = PathBuf::from("poc/runs/data_heavy_sculpt").join(size);
+        fs::create_dir_all(&run_dir)?;
+        let report_path = run_dir.join("reconciliation_report.json");
+        let exceptions_path = run_dir.join("exceptions.csv");
+        let _ = fs::remove_file(&report_path);
+        let _ = fs::remove_file(&exceptions_path);
+
+        let variant_script = tmp_dir.join(format!("invoice_reconciliation_batch_{}.sculpt", size));
+        let variant_source = with_data_paths(
+            &script_text,
+            &invoices,
+            &payments,
+            &report_path,
+            &exceptions_path,
+        )?;
+        fs::write(&variant_script, variant_source)?;
+
+        let build_result = benchmark_build_with_fallback(
+            &variant_script,
+            target,
+            &provider_chain,
+            model.clone(),
+            strict_provider,
+        );
+        let build_rc = build_result.rc;
+        let build_s = build_result.elapsed_s;
+
+        let mut run_rc = 1;
+        let mut run_s = 0.0f64;
+        if build_rc == 0 {
+            let run_start = Instant::now();
+            run_rc = run_cli_noninteractive(&dist_dir(&variant_script), &report_path, &exceptions_path)
+                .unwrap_or(1);
+            run_s = run_start.elapsed().as_secs_f64();
+        }
+        let mut errors: Vec<String> = Vec::new();
+        for attempt in &build_result.attempts {
+            if let Some(err) = &attempt.error {
+                errors.push(format!(
+                    "provider {} failed: {}",
+                    attempt.provider.as_deref().unwrap_or("default"),
+                    err
+                ));
+            }
+        }
+
+        let (ok, normalized_hash, mut validation_errors) =
+            validate_data_heavy_outputs(&report_path, &exceptions_path);
+        errors.append(&mut validation_errors);
+        runs.push(DataHeavyRunResult {
+            size: size.clone(),
+            build_rc,
+            run_rc,
+            build_s,
+            run_s,
+            ok: build_rc == 0 && run_rc == 0 && ok,
+            report_exists: report_path.exists(),
+            exceptions_exists: exceptions_path.exists(),
+            provider_used: build_result.provider_used,
+            model_used: build_result.model_used,
+            fallback_used: build_result.fallback_used,
+            provider_attempts: build_result
+                .attempts
+                .iter()
+                .map(|a| {
+                    serde_json::json!({
+                        "provider": a.provider.as_deref().unwrap_or("default"),
+                        "model": a.model,
+                        "ok": a.ok,
+                        "error": a.error,
+                    })
+                })
+                .collect(),
+            report_path: report_path.display().to_string(),
+            exceptions_path: exceptions_path.display().to_string(),
+            normalized_hash,
+            errors,
+        });
+    }
+
+    let repro_size = if sizes.iter().any(|s| s == "medium") {
+        "medium".to_string()
+    } else {
+        sizes[0].clone()
+    };
+    let mut repro: Vec<serde_json::Value> = Vec::new();
+    for i in 0..repro_runs {
+        let ds_dir = dataset_root.join(&repro_size);
+        let invoices = ds_dir.join("invoices.csv");
+        let payments = ds_dir.join("payments.csv");
+        let run_dir = PathBuf::from("poc/runs/data_heavy_sculpt")
+            .join("repro")
+            .join(format!("run_{}", i + 1));
+        fs::create_dir_all(&run_dir)?;
+        let report_path = run_dir.join("reconciliation_report.json");
+        let exceptions_path = run_dir.join("exceptions.csv");
+        let _ = fs::remove_file(&report_path);
+        let _ = fs::remove_file(&exceptions_path);
+
+        let variant_script = tmp_dir.join(format!(
+            "invoice_reconciliation_batch_repro_{}.sculpt",
+            i + 1
+        ));
+        let variant_source = with_data_paths(
+            &script_text,
+            &invoices,
+            &payments,
+            &report_path,
+            &exceptions_path,
+        )?;
+        fs::write(&variant_script, variant_source)?;
+
+        let build_result = benchmark_build_with_fallback(
+            &variant_script,
+            target,
+            &provider_chain,
+            model.clone(),
+            strict_provider,
+        );
+        let build_rc = build_result.rc;
+        let build_s = build_result.elapsed_s;
+
+        let run_start = Instant::now();
+        let run_rc = if build_rc == 0 {
+            run_cli_noninteractive(&dist_dir(&variant_script), &report_path, &exceptions_path)
+                .unwrap_or(1)
+        } else {
+            1
+        };
+        let run_s = run_start.elapsed().as_secs_f64();
+
+        let mut errors: Vec<String> = Vec::new();
+        for attempt in &build_result.attempts {
+            if let Some(err) = &attempt.error {
+                errors.push(format!(
+                    "provider {} failed: {}",
+                    attempt.provider.as_deref().unwrap_or("default"),
+                    err
+                ));
+            }
+        }
+        let (ok, normalized_hash, mut validation_errors) =
+            validate_data_heavy_outputs(&report_path, &exceptions_path);
+        errors.append(&mut validation_errors);
+        repro.push(serde_json::json!({
+            "run": i + 1,
+            "size": repro_size,
+            "build_rc": build_rc,
+            "run_rc": run_rc,
+            "build_s": build_s,
+            "run_s": run_s,
+            "ok": build_rc == 0 && run_rc == 0 && ok,
+            "hash": normalized_hash,
+            "errors": errors,
+            "provider_used": build_result.provider_used,
+            "model_used": build_result.model_used,
+            "fallback_used": build_result.fallback_used,
+            "provider_attempts": build_result
+                .attempts
+                .iter()
+                .map(|a| {
+                    serde_json::json!({
+                        "provider": a.provider.as_deref().unwrap_or("default"),
+                        "model": a.model,
+                        "ok": a.ok,
+                        "error": a.error
+                    })
+                })
+                .collect::<Vec<_>>()
+        }));
+    }
+
+    let accepted_runs = runs.iter().filter(|r| r.ok).count();
+    let repro_ok: Vec<&serde_json::Value> = repro
+        .iter()
+        .filter(|r| r.get("ok").and_then(|v| v.as_bool()) == Some(true))
+        .collect();
+    let mut unique_hashes = HashSet::new();
+    for r in &repro_ok {
+        if let Some(h) = r.get("hash").and_then(|v| v.as_str()) {
+            unique_hashes.insert(h.to_string());
+        }
+    }
+    let reproducible = !repro_ok.is_empty() && unique_hashes.len() == 1;
+
+    let fallback_runs = runs.iter().filter(|r| r.fallback_used).count();
+    let fallback_repro_runs = repro
+        .iter()
+        .filter(|r| r.get("fallback_used").and_then(|v| v.as_bool()) == Some(true))
+        .count();
+
+    let metrics = serde_json::json!({
+        "provider": provider.clone().unwrap_or_else(|| "stub".to_string()),
+        "model": model,
+        "provider_strategy": {
+            "requested_provider": provider,
+            "requested_model": model,
+            "strict_provider": strict_provider,
+            "fallback_chain": provider_chain
+        },
+        "target": target,
+        "runs": runs,
+        "repro": repro,
+        "summary": {
+            "matrix_total": sizes.len(),
+            "matrix_pass": accepted_runs,
+            "acceptance_rate": if sizes.is_empty() { 0.0 } else { accepted_runs as f64 / sizes.len() as f64 },
+            "repro_runs": repro_runs,
+            "repro_pass": repro_ok.len(),
+            "repro_unique_hashes": unique_hashes.len(),
+            "reproducible": reproducible,
+            "fallback_runs": fallback_runs,
+            "fallback_repro_runs": fallback_repro_runs
+        }
+    });
+
+    if let Some(parent) = output.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(output, format!("{}\n", serde_json::to_string_pretty(&metrics)?))?;
+
+    let gate = serde_json::json!({
+        "name": "data_heavy_sculpt_gate_input_v1",
+        "source_metrics": output.display().to_string(),
+        "thresholds": {
+            "min_acceptance_rate": 1.0,
+            "min_repro_pass": 5,
+            "max_repro_unique_hashes": 1,
+            "require_reproducible": true
+        },
+        "observed": {
+            "acceptance_rate": metrics["summary"]["acceptance_rate"],
+            "repro_pass": metrics["summary"]["repro_pass"],
+            "repro_unique_hashes": metrics["summary"]["repro_unique_hashes"],
+            "reproducible": metrics["summary"]["reproducible"]
+        }
+    });
+    if let Some(parent) = gate_output.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(gate_output, format!("{}\n", serde_json::to_string_pretty(&gate)?))?;
+
+    println!("{}", style_divider());
+    println!(
+        "{} {} / {}",
+        style_dim("Matrix pass:"),
+        accepted_runs,
+        sizes.len()
+    );
+    println!(
+        "{} {} / {}",
+        style_dim("Repro pass:"),
+        repro_ok.len(),
+        repro_runs
+    );
+    println!(
+        "{} {}",
+        style_dim("Repro unique hashes:"),
+        unique_hashes.len()
+    );
+    println!(
+        "{} {} / {}",
+        style_dim("Fallback runs:"),
+        fallback_runs,
+        sizes.len()
+    );
+    println!("{} {}", style_dim("Metrics:"), style_dim(&output.display().to_string()));
+    println!(
+        "{} {}",
+        style_dim("Gate input:"),
+        style_dim(&gate_output.display().to_string())
+    );
+    Ok(())
+}
+
+fn benchmark_provider_chain(requested_provider: Option<String>, strict_provider: bool) -> Vec<String> {
+    if strict_provider {
+        return vec![requested_provider.unwrap_or_else(|| "stub".to_string())];
+    }
+
+    let requested = requested_provider.unwrap_or_else(|| "openai".to_string());
+    let mut chain = Vec::new();
+    chain.push(requested.clone());
+    match requested.as_str() {
+        "openai" => {
+            chain.push("gemini".to_string());
+            chain.push("stub".to_string());
+        }
+        "gemini" => {
+            chain.push("openai".to_string());
+            chain.push("stub".to_string());
+        }
+        "anthropic" => {
+            chain.push("openai".to_string());
+            chain.push("gemini".to_string());
+            chain.push("stub".to_string());
+        }
+        "stub" => {}
+        _ => {
+            chain.push("stub".to_string());
+        }
+    }
+
+    let mut seen = HashSet::new();
+    chain
+        .into_iter()
+        .filter(|p| seen.insert(p.clone()))
+        .collect()
+}
+
+fn benchmark_build_with_fallback(
+    input: &Path,
+    target: &str,
+    provider_chain: &[String],
+    model: Option<String>,
+    strict_provider: bool,
+) -> BenchmarkBuildResult {
+    let started = Instant::now();
+    let mut attempts = Vec::new();
+    let mut provider_used = "unknown".to_string();
+    let mut model_used = model.clone();
+    let mut fallback_used = false;
+    let mut last_error = None::<String>;
+
+    for (idx, candidate) in provider_chain.iter().enumerate() {
+        let candidate_model = if idx == 0 { model.clone() } else { None };
+        match build(
+            input,
+            Some(target),
+            None,
+            Some(candidate.clone()),
+            candidate_model.clone(),
+            strict_provider,
+            None,
+        ) {
+            Ok(()) => {
+                attempts.push(BenchmarkBuildAttempt {
+                    provider: Some(candidate.clone()),
+                    model: candidate_model.clone(),
+                    ok: true,
+                    error: None,
+                });
+                provider_used = candidate.clone();
+                model_used = candidate_model;
+                fallback_used = idx > 0;
+                return BenchmarkBuildResult {
+                    rc: 0,
+                    elapsed_s: started.elapsed().as_secs_f64(),
+                    provider_used,
+                    model_used,
+                    fallback_used,
+                    attempts,
+                };
+            }
+            Err(e) => {
+                let msg = e.to_string();
+                attempts.push(BenchmarkBuildAttempt {
+                    provider: Some(candidate.clone()),
+                    model: candidate_model,
+                    ok: false,
+                    error: Some(msg.clone()),
+                });
+                last_error = Some(msg.clone());
+                if strict_provider || idx + 1 >= provider_chain.len() || !is_provider_unavailable_error(&msg) {
+                    break;
+                }
+                if let Some(next) = provider_chain.get(idx + 1) {
+                    eprintln!(
+                        "{} switching to fallback provider '{}'...",
+                        style_dim("Benchmark provider fallback:"),
+                        style_dim(next)
+                    );
+                }
+            }
+        }
+    }
+
+    if let Some(err) = last_error {
+        eprintln!("{} {}", style_accent("Build failed:"), err);
+    }
+
+    BenchmarkBuildResult {
+        rc: 1,
+        elapsed_s: started.elapsed().as_secs_f64(),
+        provider_used,
+        model_used,
+        fallback_used,
+        attempts,
+    }
+}
+
+fn is_provider_unavailable_error(msg: &str) -> bool {
+    let m = msg.to_ascii_lowercase();
+    [
+        "insufficient_quota",
+        "status 429",
+        "too many requests",
+        "rate limit",
+        "api key",
+        "authentication",
+        "unauthorized",
+        "forbidden",
+        "openai error",
+        "gemini error",
+        "anthropic error",
+        "connection reset",
+        "timed out",
+        "strict-provider",
+    ]
+    .iter()
+    .any(|needle| m.contains(needle))
+}
+
+fn with_data_paths(
+    source: &str,
+    invoices: &Path,
+    payments: &Path,
+    report: &Path,
+    exceptions: &Path,
+) -> Result<String> {
+    let mut out = source.to_string();
+    out = replace_string_assignment(&out, "invoicesPath", &invoices.display().to_string())?;
+    out = replace_string_assignment(&out, "paymentsPath", &payments.display().to_string())?;
+    out = replace_string_assignment(&out, "reportPath", &report.display().to_string())?;
+    out = replace_string_assignment(&out, "exceptionsPath", &exceptions.display().to_string())?;
+    Ok(out)
+}
+
+fn replace_string_assignment(source: &str, variable: &str, value: &str) -> Result<String> {
+    let mut changed = false;
+    let mut lines = Vec::new();
+    for line in source.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with(&format!("{variable} = \"")) {
+            let indent_len = line.len().saturating_sub(trimmed.len());
+            let indent = &line[..indent_len];
+            let escaped = value.replace('\\', "/");
+            lines.push(format!("{indent}{variable} = \"{escaped}\""));
+            changed = true;
+        } else {
+            lines.push(line.to_string());
+        }
+    }
+    if !changed {
+        bail!("Could not patch assignment '{} = \"...\"' in benchmark script", variable);
+    }
+    Ok(lines.join("\n") + "\n")
+}
+
+fn run_cli_noninteractive(dist_dir: &Path, report_path: &Path, exceptions_path: &Path) -> Result<i32> {
+    let entry = dist_dir.join("main.js");
+    if !entry.exists() {
+        bail!("{} not found", entry.display());
+    }
+    let mut child = ProcCommand::new("node")
+        .arg(&entry)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .with_context(|| format!("Failed to run benchmark cli target (node {})", entry.display()))?;
+
+    thread::sleep(Duration::from_millis(200));
+    if let Some(stdin) = child.stdin.as_mut() {
+        let _ = stdin.write_all(b"\n");
+    }
+
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let mut produced = false;
+    while Instant::now() < deadline {
+        if report_path.exists() && exceptions_path.exists() {
+            let report_ok = fs::metadata(report_path).map(|m| m.len() > 2).unwrap_or(false);
+            let exceptions_ok = fs::metadata(exceptions_path).map(|m| m.len() > 0).unwrap_or(false);
+            if report_ok && exceptions_ok {
+                produced = true;
+                break;
+            }
+        }
+        if let Some(status) = child.try_wait()? {
+            return Ok(status.code().unwrap_or(1));
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+
+    if produced {
+        if let Some(stdin) = child.stdin.as_mut() {
+            let _ = stdin.write_all(b"\x1b");
+        }
+        let wait_deadline = Instant::now() + Duration::from_secs(2);
+        while Instant::now() < wait_deadline {
+            if let Some(status) = child.try_wait()? {
+                return Ok(status.code().unwrap_or(0));
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    let _ = child.kill();
+    let status = child.wait()?;
+    Ok(status.code().unwrap_or(if produced { 0 } else { 1 }))
+}
+
+fn validate_data_heavy_outputs(report_path: &Path, exceptions_path: &Path) -> (bool, Option<String>, Vec<String>) {
+    let mut errors = Vec::new();
+    if !report_path.exists() {
+        errors.push("missing report json".to_string());
+        return (false, None, errors);
+    }
+    if !exceptions_path.exists() {
+        errors.push("missing exceptions csv".to_string());
+        return (false, None, errors);
+    }
+
+    let report_raw = match fs::read_to_string(report_path) {
+        Ok(s) => s,
+        Err(e) => {
+            errors.push(format!("report read error: {e}"));
+            return (false, None, errors);
+        }
+    };
+    let mut report_val: serde_json::Value = match serde_json::from_str(&report_raw) {
+        Ok(v) => v,
+        Err(e) => {
+            errors.push(format!("report parse error: {e}"));
+            return (false, None, errors);
+        }
+    };
+    let Some(root) = report_val.as_object() else {
+        errors.push("report root is not an object".to_string());
+        return (false, None, errors);
+    };
+
+    let required_counts = [
+        "matched_full",
+        "matched_partial",
+        "overpaid",
+        "missing_payment",
+        "duplicate_payment",
+        "ambiguous",
+        "suspicious",
+    ];
+    if root.get("input_stats").and_then(|v| v.as_object()).is_none() {
+        errors.push("report.input_stats missing".to_string());
+    }
+    let counts = root.get("classification_counts").and_then(|v| v.as_object());
+    if counts.is_none() {
+        errors.push("report.classification_counts missing".to_string());
+    } else if let Some(c) = counts {
+        for key in required_counts {
+            if c.get(key).and_then(|v| v.as_f64()).is_none() {
+                errors.push(format!("classification_counts.{key} missing or non-number"));
+            }
+        }
+    }
+
+    let csv_raw = match fs::read_to_string(exceptions_path) {
+        Ok(s) => s,
+        Err(e) => {
+            errors.push(format!("exceptions read error: {e}"));
+            return (false, None, errors);
+        }
+    };
+    let mut lines = csv_raw.lines();
+    let header = lines.next().unwrap_or_default();
+    if header.trim() != "invoice_id,payment_id,classification,reason" {
+        errors.push("exceptions header mismatch".to_string());
+    }
+    let mut prev: Option<(String, String)> = None;
+    for line in lines {
+        let mut parts = line.splitn(4, ',');
+        let invoice_id = parts.next().unwrap_or_default().to_string();
+        let payment_id = parts.next().unwrap_or_default().to_string();
+        let current = (invoice_id, payment_id);
+        if let Some(p) = &prev {
+            if current < *p {
+                errors.push("exceptions rows not sorted by invoice_id,payment_id".to_string());
+                break;
+            }
+        }
+        prev = Some(current);
+    }
+
+    if let Some(obj) = report_val.as_object_mut() {
+        obj.remove("generated_at");
+        obj.remove("processing_ms");
+    }
+    let canonical = serde_json::to_string(&report_val).unwrap_or_default();
+    let mut hasher = Sha256::new();
+    hasher.update(canonical.as_bytes());
+    hasher.update(b"\n");
+    hasher.update(csv_raw.as_bytes());
+    let normalized_hash = Some(hex::encode(hasher.finalize()));
+
+    (errors.is_empty(), normalized_hash, errors)
 }
 
 struct GateEvalResult {
@@ -2319,10 +3398,15 @@ fn load_ir(input: &Path, nd_policy_override: Option<&str>) -> Result<crate::ir::
     }
     let diagnostics = validate_module_with_imports(&module, &imported_roots);
     if !diagnostics.is_empty() {
+        let rendered = format_diagnostics(&diagnostics);
+        if !has_errors(&diagnostics) {
+            eprintln!("Semantic validation warnings:\n{}", rendered);
+        } else {
         bail!(
             "Semantic validation failed:\n{}",
-            format_diagnostics(&diagnostics)
+            rendered
         );
+        }
     }
     Ok(from_ast(module))
 }
@@ -2727,6 +3811,8 @@ fn load_config() -> Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ir::from_ast;
+    use crate::parser::parse_source;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_workspace() -> PathBuf {
@@ -2792,5 +3878,90 @@ mod tests {
         };
         let eval = evaluate_gate_criterion(&criterion).expect("eval");
         assert!(!eval.passed);
+    }
+
+    #[test]
+    fn required_output_contract_passes_when_writer_calls_match_meta() {
+        let src = r#"@meta target=cli
+@meta required_outputs="reconciliation_report.json,exceptions.csv"
+module(App.Core):
+  flow(Main):
+    start > Exit
+    state(Exit):
+      terminate
+    end
+  end
+end
+"#;
+        let module = parse_source(src).expect("parse");
+        let ir = from_ast(module);
+        let target_ir: TargetIr = serde_json::from_value(serde_json::json!({
+            "type":"cli-ir",
+            "version":1,
+            "state": {
+                "reportPath":"reconciliation_report.json",
+                "exceptionsPath":"exceptions.csv"
+            },
+            "views":{},
+            "flow":{"start":"Exit","transitions":{"Exit":{}}},
+            "extensions":{
+                "runtimeRules":[
+                    {"name":"a","assign":[{"value":{"call":{"name":"writeJson","args":[{"value":{"ident":"reportPath"}},{"value":{"k":"v"}}]}}}],"emit":[]},
+                    {"name":"b","assign":[{"value":{"call":{"name":"writeCsv","args":[{"value":{"ident":"exceptionsPath"}},{"value":[]}]}}}],"emit":[]}
+                ]
+            }
+        }))
+        .expect("target ir");
+        validate_required_output_contract(&ir, &target_ir, "cli").expect("contract valid");
+    }
+
+    #[test]
+    fn required_output_contract_fails_when_writer_call_missing() {
+        let src = r#"@meta target=cli
+@meta required_outputs="exceptions.csv"
+module(App.Core):
+  flow(Main):
+    start > Exit
+    state(Exit):
+      terminate
+    end
+  end
+end
+"#;
+        let module = parse_source(src).expect("parse");
+        let ir = from_ast(module);
+        let target_ir: TargetIr = serde_json::from_value(serde_json::json!({
+            "type":"cli-ir",
+            "version":1,
+            "state": {},
+            "views":{},
+            "flow":{"start":"Exit","transitions":{"Exit":{}}},
+            "extensions":{"runtimeRules":[]}
+        }))
+        .expect("target ir");
+        let err = validate_required_output_contract(&ir, &target_ir, "cli").expect_err("must fail");
+        assert!(format!("{err}").contains("C911"));
+    }
+
+    #[test]
+    fn benchmark_provider_chain_openai_falls_back_to_gemini_then_stub() {
+        let chain = benchmark_provider_chain(Some("openai".to_string()), false);
+        assert_eq!(chain, vec!["openai", "gemini", "stub"]);
+    }
+
+    #[test]
+    fn benchmark_provider_chain_strict_keeps_requested_only() {
+        let chain = benchmark_provider_chain(Some("openai".to_string()), true);
+        assert_eq!(chain, vec!["openai"]);
+    }
+
+    #[test]
+    fn provider_unavailable_detection_handles_quota_message() {
+        assert!(is_provider_unavailable_error(
+            "OpenAI error: status 429 Too Many Requests code=insufficient_quota"
+        ));
+        assert!(!is_provider_unavailable_error(
+            "C901: Unknown state reference in deterministic path"
+        ));
     }
 }
