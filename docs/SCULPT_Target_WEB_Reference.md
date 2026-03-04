@@ -11,6 +11,29 @@ Standard IR: `web-ir`
 - Keyboard-driven transitions
 - Per-item inline CSS object support in target IR
 
+## Provider Packages
+Inspect live package metadata with:
+- `sculpt target packages --target web`
+- `sculpt target exports --target web --package builtin.web.ui@1`
+- `sculpt target exports --target web --package builtin.web.input@1`
+- `sculpt target exports --target web --package builtin.web.data@1`
+- `sculpt target exports --target web --package builtin.web.net@1`
+- `sculpt target exports --target web --package builtin.web.guide@1`
+
+Current built-in namespaces:
+- `ui.*` from `builtin.web.ui@1`
+- `input.*` from `builtin.web.input@1`
+- `data.*` from `builtin.web.data@1`
+- `net.*` from `builtin.web.net@1`
+- `guide.*` from `builtin.web.guide@1` (ND constraints for `satisfy(...)`)
+
+Key exports:
+- `ui`: app UI building blocks (`heading`, `panel`, `card`, `tabs`, `modal`, `toast`, `metric`, `chart`, ...)
+- `input`: UI events (`key`, `click`, `submit`, `change`, `focus`, `blur`, `navigate`, ...)
+- `data`: query primitives (`query`, `filter`, `sort`, `paginate`, `group`, `aggregate`, `join`)
+- `net`: API primitives (`get`, `post`, `put`, `patch`, `delete`, `upload`, `download`)
+- `guide`: ND constraints (`noOverlap`, `responsiveBreakpoints`, `accessibleColorContrast`, ...)
+
 ## Supported Render Calls
 Practical SCULPT pattern:
 - `ui.text("...", color: "...")`
@@ -58,8 +81,14 @@ The built-in web emitter is `builtin.web.standard@1`.
 
 ## Known Limits (Current)
 - No built-in web component system in this target yet
-- No built-in button/action primitives in current schema
-- Styling is basic unless target IR extensions are used
+- Runtime behavior parity across all advanced widgets is still evolving
+- Styling depth still depends on target IR extensions and providers
+
+## ND Constraints (Strict Mode)
+- In `satisfy(...)`, use:
+  - `guide.*(...)` (contract constraint),
+  - `?name(...)` (soft define),
+  - `?"..."` (inline ND prompt).
 
 ## Minimal Example
 ```sculpt

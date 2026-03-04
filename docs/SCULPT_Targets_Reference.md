@@ -31,4 +31,7 @@ What they mean at build/run time depends on:
 
 ## Language vs Target (Quick Rule)
 - `flow`, `state`, `rule`, `nd`, `on`, `when`, `emit`, `run`, `terminate` are language-level.
-- Calls like `input.key(...)`, `ui.text(...)`, and many ND call names are interpreted through imported provider packages and target contracts.
+- Calls like `input.key(...)`, `ui.text(...)`, and ND constraints like `guide.*(...)` are interpreted through imported provider packages and target contracts.
+
+ND quick rule (strict):
+- `satisfy(...)` accepts only `guide.*(...)`, `?softDefine(...)`, or `?"inline prompt"`.

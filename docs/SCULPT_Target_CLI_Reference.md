@@ -17,10 +17,17 @@ Inspect live package metadata with:
 - `sculpt target packages --target cli`
 - `sculpt target exports --target cli --package builtin.cli.ui@1`
 - `sculpt target exports --target cli --package builtin.cli.input@1`
+- `sculpt target exports --target cli --package builtin.cli.guide@1`
 
 Current built-in namespaces:
 - `ui.*` from `builtin.cli.ui@1`
 - `input.*` from `builtin.cli.input@1`
+- `guide.*` from `builtin.cli.guide@1` (ND constraints for `satisfy(...)`)
+
+Key exports:
+- `ui`: `text`, `line`, `clear`, `panel`, `list`, `table`, `progress`, `status`, `banner`, `separator`, `metric`, `chart`
+- `input`: `key`, `tick`, `submit`, `confirm`, `select`, `cancel`, `resize`
+- `guide`: gameplay/UI-style constraints such as `playable`, `compactTerminalLayout`, `highContrast`, `professionalTone`, `clearOperationalSummary`
 
 ## Supported UI Calls
 Recommended (explicit import + namespace):
@@ -49,6 +56,13 @@ Useful keys:
 - `on input.key(...) > <State>` transitions are used at runtime.
 - `run` and `terminate` are language-level and validated before build.
 - State-local rules are supported and scoped to their state.
+
+## ND Constraints (Strict Mode)
+- In `satisfy(...)`, use:
+  - `guide.*(...)` (contract constraint),
+  - `?name(...)` (soft define),
+  - `?"..."` (inline ND prompt).
+- Unqualified ND calls like `playable()` are invalid.
 
 ## Target Meta/Contract Notes
 - Typical:

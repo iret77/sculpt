@@ -518,25 +518,67 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "id": "builtin.web.ui@1",
                 "namespace": "ui",
                 "description": "Web rendering primitives",
-                "exports": ["text", "button", "list", "table", "input"]
+                "exports": [
+                  "text",
+                  "heading",
+                  "button",
+                  "badge",
+                  "list",
+                  "table",
+                  "input",
+                  "textarea",
+                  "select",
+                  "checkbox",
+                  "radio",
+                  "panel",
+                  "card",
+                  "tabs",
+                  "modal",
+                  "toast",
+                  "banner",
+                  "progress",
+                  "metric",
+                  "chart",
+                  "link",
+                  "image"
+                ]
               },
               {
                 "id": "builtin.web.input@1",
                 "namespace": "input",
                 "description": "Web input events",
-                "exports": ["key", "click", "submit", "change"]
+                "exports": [
+                  "key",
+                  "click",
+                  "submit",
+                  "change",
+                  "focus",
+                  "blur",
+                  "navigate",
+                  "back",
+                  "refresh"
+                ]
               },
               {
                 "id": "builtin.web.data@1",
                 "namespace": "data",
                 "description": "Data and query primitives",
-                "exports": ["query", "mutate", "filter", "sort", "paginate"]
+                "exports": [
+                  "query",
+                  "mutate",
+                  "filter",
+                  "sort",
+                  "paginate",
+                  "group",
+                  "aggregate",
+                  "join"
+                ]
               },
               {
                 "id": "builtin.web.net@1",
                 "namespace": "net",
                 "description": "HTTP/API integration primitives",
-                "exports": ["get", "post", "put", "delete"]
+                "exports": ["get", "post", "put", "patch", "delete", "upload", "download"]
               },
               {
                 "id": "builtin.web.guide@1",
@@ -546,10 +588,16 @@ pub fn describe_target(name: &str) -> Result<Value> {
                   "clearPriorityContrast",
                   "keyboardFirstNavigation",
                   "readableOnLaptopScreens",
+                  "mobileFirstLayout",
+                  "desktopDensityBalanced",
+                  "responsiveBreakpoints",
                   "noOverlap",
                   "clearSeverityHierarchy",
+                  "clearInformationHierarchy",
                   "keyboardNavigable",
-                  "mobileFallbackExists"
+                  "mobileFallbackExists",
+                  "accessibleColorContrast",
+                  "formValidationClarity"
                 ]
               }
             ])),
@@ -593,13 +641,34 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "id": "builtin.cli.ui@1",
                 "namespace": "ui",
                 "description": "CLI rendering primitives",
-                "exports": ["text", "clear", "line"]
+                "exports": [
+                  "text",
+                  "line",
+                  "clear",
+                  "panel",
+                  "list",
+                  "table",
+                  "progress",
+                  "status",
+                  "banner",
+                  "separator",
+                  "metric",
+                  "chart"
+                ]
               },
               {
                 "id": "builtin.cli.input@1",
                 "namespace": "input",
                 "description": "CLI input events",
-                "exports": ["key", "tick"]
+                "exports": [
+                  "key",
+                  "tick",
+                  "submit",
+                  "confirm",
+                  "select",
+                  "cancel",
+                  "resize"
+                ]
               },
               {
                 "id": "builtin.cli.guide@1",
@@ -607,7 +676,9 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "description": "CLI ND constraint vocabulary",
                 "exports": [
                   "playable",
+                  "menuClarity",
                   "readableHud",
+                  "readableTableLayout",
                   "responsiveControls",
                   "visuallyDistinctHeadAndFood",
                   "smoothDifficultyCurve",
@@ -617,6 +688,7 @@ pub fn describe_target(name: &str) -> Result<Value> {
                   "exact",
                   "exactPalette",
                   "highContrast",
+                  "lowFlickerOutput",
                   "clearOperationalSummary",
                   "professionalTone",
                   "conciseLanguage",
@@ -680,19 +752,38 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "id": "builtin.gui.ui@1",
                 "namespace": "ui",
                 "description": "GUI rendering primitives",
-                "exports": ["text", "button", "image", "spacer"]
+                "exports": [
+                  "text",
+                  "heading",
+                  "button",
+                  "input",
+                  "textarea",
+                  "select",
+                  "checkbox",
+                  "radio",
+                  "image",
+                  "icon",
+                  "list",
+                  "table",
+                  "panel",
+                  "card",
+                  "tabs",
+                  "spacer",
+                  "progress",
+                  "status"
+                ]
               },
               {
                 "id": "builtin.gui.input@1",
                 "namespace": "input",
                 "description": "GUI input events",
-                "exports": ["key", "click"]
+                "exports": ["key", "click", "submit", "change", "focus", "blur", "closeWindow"]
               },
               {
                 "id": "builtin.gui.window@1",
                 "namespace": "window",
                 "description": "Window and modal controls",
-                "exports": ["open", "close", "modalOk"]
+                "exports": ["open", "close", "resize", "modalOk", "modalConfirm", "notify"]
               },
               {
                 "id": "builtin.gui.guide@1",
@@ -701,7 +792,10 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "exports": [
                   "highContrast",
                   "professionalTone",
-                  "clearOperationalSummary"
+                  "clearOperationalSummary",
+                  "desktopNativeLook",
+                  "focusOrderStable",
+                  "dialogCopyClarity"
                 ]
               }
             ])),

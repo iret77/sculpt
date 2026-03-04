@@ -26,6 +26,26 @@ Effective item kinds in `gui-ir`:
 - `kind: "text"`
 - `kind: "button"`
 
+## Provider Packages
+Inspect live package metadata with:
+- `sculpt target packages --target gui`
+- `sculpt target exports --target gui --package builtin.gui.ui@1`
+- `sculpt target exports --target gui --package builtin.gui.input@1`
+- `sculpt target exports --target gui --package builtin.gui.window@1`
+- `sculpt target exports --target gui --package builtin.gui.guide@1`
+
+Current built-in namespaces:
+- `ui.*` from `builtin.gui.ui@1`
+- `input.*` from `builtin.gui.input@1`
+- `window.*` from `builtin.gui.window@1`
+- `guide.*` from `builtin.gui.guide@1` (ND constraints for `satisfy(...)`)
+
+Key exports:
+- `ui`: text/form/layout primitives (`text`, `button`, `input`, `select`, `checkbox`, `table`, `tabs`, `progress`, ...)
+- `input`: interaction events (`key`, `click`, `submit`, `change`, `focus`, `blur`, `closeWindow`)
+- `window`: shell controls (`open`, `close`, `resize`, `modalOk`, `modalConfirm`, `notify`)
+- `guide`: ND constraints (`desktopNativeLook`, `focusOrderStable`, `dialogCopyClarity`, ...)
+
 ## Layout Support
 `gui` supports explicit layout mode:
 - `@meta layout=explicit`
@@ -42,6 +62,12 @@ Relevant layout fields:
   - `@meta layout=explicit` (optional)
 - Capability requirements can be declared via:
   - `@meta requires="layout.explicit,ui.modal.ok"`
+
+## ND Constraints (Strict Mode)
+- In `satisfy(...)`, use:
+  - `guide.*(...)` (contract constraint),
+  - `?name(...)` (soft define),
+  - `?"..."` (inline ND prompt).
 
 ## Important Current Limitation
 Current GUI runtime generation is focused on the start view and static UI output.
