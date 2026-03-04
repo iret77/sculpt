@@ -8,6 +8,7 @@
 module(Ops.Incident.Triage):
   use(cli.ui)
   use(cli.input) as input
+  use(cli.guide) as guide
 
   flow(Main):
     start > Intro
@@ -67,10 +68,10 @@ module(Ops.Incident.Triage):
   nd(incidentPlaybookShape):
     propose responseGuide(format: "step-list", audience: "on-call")
     satisfy(
-      hasClearTitle(),
-      hasActionableSteps(min: 4),
-      usesOperationalLanguage(),
-      supportsQuickKeyNavigation()
+      guide.hasClearTitle(),
+      guide.hasActionableSteps(min: 4),
+      guide.usesOperationalLanguage(),
+      guide.supportsQuickKeyNavigation()
     )
   end
 

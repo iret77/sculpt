@@ -9,6 +9,7 @@
 module(BreakoutHighND):
   use(cli.ui)
   use(cli.input) as input
+  use(cli.guide) as guide
 
   define arcade.classic():
     "Breakout must follow classic arcade pacing and readability."
@@ -86,32 +87,32 @@ module(BreakoutHighND):
 
     propose game("breakout", view: "terminal", style: "arcade")
     satisfy(
-      playable(),
+      guide.playable(),
       ?arcade.classic(),
       ?controls.standard(),
-      followsClassicBreakoutRules(),
-      hasPaddleBallBrickLoop(),
-      supportsControls(primary: "left-right-space", secondary: "a-d-space"),
-      launchesBallOnSpace(),
-      bouncesOnWallsAndPaddle(),
-      removesBricksOnImpact(),
-      tracksScoreAndLives(),
-      emitsWinWhenBricksCleared(),
-      emitsDoneWhenLivesDepleted(),
-      preservesArcadePacing(targetMs: 72),
-      includesReadableHud(fields: "score,lives,level"),
-      usesHighContrastTerminalColors(),
-      noSoftLocks(),
-      deterministicCoreWithOptionalStyleVariance()
+      guide.followsClassicBreakoutRules(),
+      guide.hasPaddleBallBrickLoop(),
+      guide.supportsControls(primary: "left-right-space", secondary: "a-d-space"),
+      guide.launchesBallOnSpace(),
+      guide.bouncesOnWallsAndPaddle(),
+      guide.removesBricksOnImpact(),
+      guide.tracksScoreAndLives(),
+      guide.emitsWinWhenBricksCleared(),
+      guide.emitsDoneWhenLivesDepleted(),
+      guide.preservesArcadePacing(targetMs: 72),
+      guide.includesReadableHud(fields: "score,lives,level"),
+      guide.usesHighContrastTerminalColors(),
+      guide.noSoftLocks(),
+      guide.deterministicCoreWithOptionalStyleVariance()
     )
   end
 
   nd(tuneDifficulty):
     propose difficultyCurve(mode: "classic")
     satisfy(
-      startsForgiving(),
-      increasesAfterEachStage(),
-      keepsRunDurationReasonable(minMinutes: 3, maxMinutes: 10)
+      guide.startsForgiving(),
+      guide.increasesAfterEachStage(),
+      guide.keepsRunDurationReasonable(minMinutes: 3, maxMinutes: 10)
     )
   end
 end

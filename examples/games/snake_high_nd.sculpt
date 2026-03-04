@@ -7,6 +7,7 @@
 module(SnakeHighND):
   use(cli.ui)
   use(cli.input) as input
+  use(cli.guide) as guide
 
   flow(Game):
     start > Boot
@@ -104,14 +105,14 @@ module(SnakeHighND):
   nd(designSnake):
     propose game("snake", style: "neon", view: "terminal", pacing: "arcade")
     satisfy(
-      playable(),
-      readableHud(),
-      responsiveControls(keys: "wasd+arrows"),
-      visuallyDistinctHeadAndFood(),
-      smoothDifficultyCurve(),
-      clearWinOrLossFeedback(),
-      loopedGameplay(),
-      compactTerminalLayout(maxWidth: 80, maxHeight: 28)
+      guide.playable(),
+      guide.readableHud(),
+      guide.responsiveControls(keys: "wasd+arrows"),
+      guide.visuallyDistinctHeadAndFood(),
+      guide.smoothDifficultyCurve(),
+      guide.clearWinOrLossFeedback(),
+      guide.loopedGameplay(),
+      guide.compactTerminalLayout(maxWidth: 80, maxHeight: 28)
     )
   end
 end

@@ -9,6 +9,7 @@
 module(InvoiceReconciliation.Batch):
   use(cli.ui)
   use(cli.input) as input
+  use(cli.guide) as guide
 
   flow(Batch):
     start > Boot
@@ -182,8 +183,8 @@ module(InvoiceReconciliation.Batch):
   nd(outputStyle):
     propose reportPresentation("operations")
     satisfy(
-      clearOperationalSummary(),
-      highContrast(),
+      guide.clearOperationalSummary(),
+      guide.highContrast(),
       ?"prefer concise labels for finance teams"
     )
   end

@@ -8,6 +8,7 @@
 module(Ops.Web.IncidentDashboard):
   use(web.ui)
   use(web.input) as input
+  use(web.guide) as guide
 
   flow(App):
     start > Overview
@@ -55,10 +56,10 @@ module(Ops.Web.IncidentDashboard):
   nd(layout):
     propose dashboardLayout(kind: "ops", density: "medium")
     satisfy(
-      noOverlap(),
-      clearSeverityHierarchy(),
-      keyboardNavigable(),
-      mobileFallbackExists()
+      guide.noOverlap(),
+      guide.clearSeverityHierarchy(),
+      guide.keyboardNavigable(),
+      guide.mobileFallbackExists()
     )
   end
 

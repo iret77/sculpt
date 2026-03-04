@@ -238,6 +238,71 @@ end
 }
 
 #[test]
+fn rejects_unqualified_nd_constraint_magic_word() {
+    let src = r#"@meta target=cli
+module(App.Core):
+  use(cli.ui)
+  use(cli.input) as input
+  use(cli.guide) as guide
+  flow(Main):
+    start > A
+    state(A):
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+  nd(shape):
+    propose guide.layoutProfile("compact")
+    satisfy(
+      playable()
+    )
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "cli", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C910"));
+}
+
+#[test]
+fn rejects_nd_constraint_unknown_alias() {
+    let src = r#"@meta target=cli
+module(App.Core):
+  use(cli.ui)
+  use(cli.input) as input
+  flow(Main):
+    start > A
+    state(A):
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+  nd(shape):
+    propose ui.text("x")
+    satisfy(
+      guide.playable()
+    )
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "cli", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C911"));
+}
+
+#[test]
 fn rejects_build_report_json_field_type_mismatch() {
     let src = r#"@meta target=cli
 module(App.Core):

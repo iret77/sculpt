@@ -126,14 +126,15 @@ end
 ## 7) ND Syntax
 ```
 nd(chooseLayout, level):
+  use(cli.guide) as guide
   define collision.stable():
     "Collision should feel stable and predictable."
   end
   propose layout(type: "rooms")
   satisfy(
-    insideBounds(width: 10, height: 5),
-    noOverlap(),
-    reachablePathExists(),
+    guide.insideBounds(width: 10, height: 5),
+    guide.noOverlap(),
+    guide.reachablePathExists(),
     ?collision.stable()
   )
 end
@@ -141,6 +142,13 @@ end
 
 `define(...)` can exist at module level or inside an `nd(...)` block.
 Inside `satisfy(...)`, `?name(...)` references a soft define.
+
+`satisfy(...)` is **strict** in SCULPT 1.0:
+- `?name(...)` (soft define),
+- `?"..."` (inline ND prompt),
+- or **namespaced contract constraints** (for example `guide.playable(...)`).
+
+Unqualified constraint names like `playable()` are invalid.
 
 ## 7.1 `?` Prefix (Question Prefix)
 `?` is a dedicated SCULPT marker for **explicit soft/ND intent**.

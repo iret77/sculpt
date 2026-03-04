@@ -7,6 +7,7 @@
 module(Business.Finance.ExpenseApproval):
   use(cli.ui)
   use(cli.input) as input
+  use(cli.guide) as guide
 
   flow(App):
     start > Inbox
@@ -80,9 +81,9 @@ module(Business.Finance.ExpenseApproval):
   nd(copyStyle):
     propose reviewCopyTone(audience: "finance-team")
     satisfy(
-      conciseLanguage(),
-      noLegalRiskTerms(),
-      professionalTone()
+      guide.conciseLanguage(),
+      guide.noLegalRiskTerms(),
+      guide.professionalTone()
     )
   end
 

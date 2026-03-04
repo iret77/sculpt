@@ -8,6 +8,7 @@
 module(ServiceDesk.Web.SupportBoard):
   use(web.ui)
   use(web.input) as input
+  use(web.guide) as guide
 
   flow(App):
     start > Board
@@ -71,9 +72,9 @@ module(ServiceDesk.Web.SupportBoard):
   nd(layout):
     propose boardLayout(kind: "service-desk")
     satisfy(
-      clearPriorityContrast(),
-      keyboardFirstNavigation(),
-      readableOnLaptopScreens()
+      guide.clearPriorityContrast(),
+      guide.keyboardFirstNavigation(),
+      guide.readableOnLaptopScreens()
     )
   end
 

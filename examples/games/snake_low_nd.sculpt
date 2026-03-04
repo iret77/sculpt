@@ -7,6 +7,7 @@
 module(SnakeLowND):
   use(cli.ui)
   use(cli.input) as input
+  use(cli.guide) as guide
 
   flow(Game):
     start > Boot
@@ -194,9 +195,9 @@ module(SnakeLowND):
   nd(theme):
     propose theme("terminal")
     satisfy(
-      exact("terminal"),
-      exactPalette(background: "black", border: "cyan", head: "yellow", body: "green", food: "magenta", danger: "red", hud: "blue"),
-      highContrast()
+      guide.exact("terminal"),
+      guide.exactPalette(background: "black", border: "cyan", head: "yellow", body: "green", food: "magenta", danger: "red", hud: "blue"),
+      guide.highContrast()
     )
   end
 end

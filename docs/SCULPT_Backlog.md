@@ -105,6 +105,11 @@
 - Continuously benchmark SCULPT improvements against prompt-first/vibe baselines.
 - Track drift over releases to verify SCULPT remains materially superior in its target category.
 
+6. Baseline Provider Practicality Program (P1)
+- Execute `/Users/cwendler/Dev/App/sculpt/docs/SCULPT_Baseline_Provider_Plan.md`.
+- Expand contract-exported symbol coverage (`ui/input/data/nd`) for `cli/gui/web`.
+- Add provider conformance checks and cross-platform parity gates.
+
 ## Milestone-Priority Queue (Roadmap-Aligned)
 
 1. A. Data-Path Safety Completion (P1)

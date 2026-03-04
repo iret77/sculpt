@@ -9,6 +9,7 @@
 module(BreakoutLowND):
   use(cli.ui)
   use(cli.input) as input
+  use(cli.guide) as guide
 
   flow(Game):
     start > Boot
@@ -239,12 +240,12 @@ module(BreakoutLowND):
   nd(levelLayout):
     propose brickLayout(rows: 6, cols: 11, style: "arcade", density: "medium")
     satisfy(
-      fullyInsideBounds(width: 44, height: 14),
-      mirroredDifficultyCurve(),
-      guaranteedLaunchLane(minWidth: 2),
-      noUnreachableBricks(),
-      firstLevelIsForgiving(),
-      visualPalette(colorA: "cyan", colorB: "blue", colorC: "magenta")
+      guide.fullyInsideBounds(width: 44, height: 14),
+      guide.mirroredDifficultyCurve(),
+      guide.guaranteedLaunchLane(minWidth: 2),
+      guide.noUnreachableBricks(),
+      guide.firstLevelIsForgiving(),
+      guide.visualPalette(colorA: "cyan", colorB: "blue", colorC: "magenta")
     )
   end
 

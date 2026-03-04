@@ -537,6 +537,20 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "namespace": "net",
                 "description": "HTTP/API integration primitives",
                 "exports": ["get", "post", "put", "delete"]
+              },
+              {
+                "id": "builtin.web.guide@1",
+                "namespace": "guide",
+                "description": "Web ND constraint vocabulary",
+                "exports": [
+                  "clearPriorityContrast",
+                  "keyboardFirstNavigation",
+                  "readableOnLaptopScreens",
+                  "noOverlap",
+                  "clearSeverityHierarchy",
+                  "keyboardNavigable",
+                  "mobileFallbackExists"
+                ]
               }
             ])),
         ),
@@ -586,6 +600,55 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "namespace": "input",
                 "description": "CLI input events",
                 "exports": ["key", "tick"]
+              },
+              {
+                "id": "builtin.cli.guide@1",
+                "namespace": "guide",
+                "description": "CLI ND constraint vocabulary",
+                "exports": [
+                  "playable",
+                  "readableHud",
+                  "responsiveControls",
+                  "visuallyDistinctHeadAndFood",
+                  "smoothDifficultyCurve",
+                  "clearWinOrLossFeedback",
+                  "loopedGameplay",
+                  "compactTerminalLayout",
+                  "exact",
+                  "exactPalette",
+                  "highContrast",
+                  "clearOperationalSummary",
+                  "professionalTone",
+                  "conciseLanguage",
+                  "noLegalRiskTerms",
+                  "hasClearTitle",
+                  "hasActionableSteps",
+                  "usesOperationalLanguage",
+                  "supportsQuickKeyNavigation",
+                  "fullyInsideBounds",
+                  "mirroredDifficultyCurve",
+                  "guaranteedLaunchLane",
+                  "noUnreachableBricks",
+                  "firstLevelIsForgiving",
+                  "visualPalette",
+                  "followsClassicBreakoutRules",
+                  "hasPaddleBallBrickLoop",
+                  "supportsControls",
+                  "launchesBallOnSpace",
+                  "bouncesOnWallsAndPaddle",
+                  "removesBricksOnImpact",
+                  "tracksScoreAndLives",
+                  "emitsWinWhenBricksCleared",
+                  "emitsDoneWhenLivesDepleted",
+                  "preservesArcadePacing",
+                  "includesReadableHud",
+                  "usesHighContrastTerminalColors",
+                  "noSoftLocks",
+                  "deterministicCoreWithOptionalStyleVariance",
+                  "startsForgiving",
+                  "increasesAfterEachStage",
+                  "keepsRunDurationReasonable"
+                ]
               }
             ])),
         ),
@@ -630,6 +693,16 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "namespace": "window",
                 "description": "Window and modal controls",
                 "exports": ["open", "close", "modalOk"]
+              },
+              {
+                "id": "builtin.gui.guide@1",
+                "namespace": "guide",
+                "description": "GUI ND constraint vocabulary",
+                "exports": [
+                  "highContrast",
+                  "professionalTone",
+                  "clearOperationalSummary"
+                ]
               }
             ])),
         ),

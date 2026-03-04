@@ -183,6 +183,44 @@ fn validate_symbols_against_packages(
         alias_to_namespace.insert(alias, namespace);
     }
 
+    for nd in &ir.nd_blocks {
+        for c in &nd.constraints {
+            if c.name == "?prompt" || c.name.starts_with('?') {
+                continue;
+            }
+            let Some((root, symbol)) = split_qualified_call(&c.name) else {
+                errors.push(format!(
+                    "C910: ND constraint '{}' in nd '{}' must be explicit: use '?define(...)', '?\"...\"', or a namespaced contract call (e.g. guide.{})",
+                    c.name, nd.name, c.name
+                ));
+                continue;
+            };
+            let Some(namespace) = alias_to_namespace.get(root) else {
+                errors.push(format!(
+                    "C911: ND constraint '{}.{}' in nd '{}' uses unknown alias '{}' (import the package with use(...))",
+                    root, symbol, nd.name, root
+                ));
+                continue;
+            };
+            let Some(pkg) = contract.packages.get(namespace) else {
+                continue;
+            };
+            if !pkg.exports.contains(symbol) {
+                let mut exports: Vec<_> = pkg.exports.iter().cloned().collect();
+                exports.sort();
+                errors.push(format!(
+                    "C906: Symbol '{}.{}' not exported by package '{}' (target '{}', context: nd '{}' satisfy, exports: {})",
+                    root,
+                    symbol,
+                    pkg.id,
+                    target,
+                    nd.name,
+                    exports.join(", ")
+                ));
+            }
+        }
+    }
+
     let mut check_call = |call: &Call, ctx: &str| {
         let Some((root, symbol)) = split_qualified_call(&call.name) else {
             return;

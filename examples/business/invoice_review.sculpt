@@ -6,6 +6,7 @@
 module(InvoiceReview):
   use(cli.ui)
   use(cli.input) as input
+  use(cli.guide) as guide
 
   flow(App):
     start > List
@@ -51,8 +52,8 @@ module(InvoiceReview):
   nd(theme):
     propose dashboardTheme("clean")
     satisfy(
-      highContrast(),
-      professionalTone()
+      guide.highContrast(),
+      guide.professionalTone()
     )
   end
 end
