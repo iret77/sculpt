@@ -1,0 +1,39 @@
+{
+  "scenario": "SCENARIO_20260222_data_heavy_invoice_reconciliation",
+  "approach": "vibe",
+  "repro_runs": [
+    {
+      "run": "run_1",
+      "ok": true,
+      "raw_hash": "bca3c721bbc8508b9b83524ab2c78a0417abd6b3d49c6c8b3ce6393d4ccf2343",
+      "normalized_hash": "e6f5ccda39fa0708644b80b325e69750a85f1cb3a2f586423f9271d079063856"
+    },
+    {
+      "run": "run_2",
+      "ok": true,
+      "raw_hash": "7a8884e038b775d690f1ad248ec1baa9784425cc7f7e86e2be9590362c6abbb0",
+      "normalized_hash": "e6f5ccda39fa0708644b80b325e69750a85f1cb3a2f586423f9271d079063856"
+    },
+    {
+      "run": "run_3",
+      "ok": true,
+      "raw_hash": "73accbdefd8132bd30c0ca2f134112141ebe3d96a7c82475a7a9426f4a3b273d",
+      "normalized_hash": "e6f5ccda39fa0708644b80b325e69750a85f1cb3a2f586423f9271d079063856"
+    },
+    {
+      "run": "run_4",
+      "ok": true,
+      "raw_hash": "82aa056ec3a5a74e748802f27ccf452c5ea69601c0e7ad440920f14d2378953d",
+      "normalized_hash": "e6f5ccda39fa0708644b80b325e69750a85f1cb3a2f586423f9271d079063856"
+    },
+    {
+      "run": "run_5",
+      "ok": true,
+      "raw_hash": "ac98c5699539c317a4477f76387755d5ed176ef20d58bcf9afb0d4313c9aa298",
+      "normalized_hash": "e6f5ccda39fa0708644b80b325e69750a85f1cb3a2f586423f9271d079063856"
+    }
+  ],
+  "normalized_unique_hash_count": 1,
+  "reproducibility_score": 5,
+  "normalization": "drop processing_ms and generated_at before hashing; keep all other report fields + exceptions.csv"
+}

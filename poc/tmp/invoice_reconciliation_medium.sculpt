@@ -1,0 +1,184 @@
+# Invoice Reconciliation Batch Processor (Data-Heavy Benchmark)
+# Goal: deterministic business pipeline for large CSV datasets with clear outputs.
+# This script is intended for the SCULPT vs Vibe data-heavy case study.
+
+@meta target=cli
+
+module(InvoiceReconciliation.Batch):
+  use(cli.ui)
+  use(cli.input) as input
+
+  flow(Batch):
+    start > Boot
+
+    state(Boot):
+      ui.clear()
+      ui.line("================================================", color: "cyan")
+      ui.text("INVOICE RECONCILIATION BATCH", color: "yellow")
+      ui.line("================================================", color: "cyan")
+      ui.text("Input A: invoices.csv", color: "white")
+      ui.text("Input B: payments.csv", color: "white")
+      ui.text("Outputs: reconciliation_report.json + exceptions.csv", color: "blue")
+      ui.text("Enter: start   Esc: quit", color: "cyan")
+      on input.key(enter) > LoadInputs
+      on input.key(esc) > Exit
+    end
+
+    state(LoadInputs):
+      ui.clear()
+      ui.text("Step 1/4 - Loading CSV files...", color: "yellow")
+      rule(loadInvoices):
+        on input.tick:
+          invoices = csvRead(invoicesPath)
+          invoiceCount = rowCount(invoices)
+        end
+      end
+      rule(loadPayments):
+        on input.tick:
+          payments = csvRead(paymentsPath)
+          paymentCount = rowCount(payments)
+        end
+      end
+      rule(validateInputShape):
+        on input.tick:
+          inputValid = csvHasColumns(invoices, "invoice_id,customer_id,amount_due,currency,invoice_date,due_date") and csvHasColumns(payments, "payment_id,invoice_id,customer_id,amount_paid,currency,payment_date")
+        end
+      end
+      rule(inputLoadDone):
+        when inputValid >= 1:
+          emit loaded
+        end
+      end
+      rule(inputLoadFailed):
+        when inputValid < 1:
+          errorText = "Input schema invalid: missing required CSV columns"
+          emit failed
+        end
+      end
+      on loaded > Reconcile
+      on failed > Failed
+    end
+
+    state(Reconcile):
+      ui.clear()
+      ui.text("Step 2/4 - Matching invoices and payments...", color: "yellow")
+      rule(runMatching):
+        on input.tick:
+          reconciliation = reconcileInvoices(invoices, payments, dateToleranceDays, amountTolerance)
+          matchedFull = metric(reconciliation, "matched_full")
+          matchedPartial = metric(reconciliation, "matched_partial")
+          overpaid = metric(reconciliation, "overpaid")
+          missing = metric(reconciliation, "missing_payment")
+          duplicates = metric(reconciliation, "duplicate_payment")
+          ambiguous = metric(reconciliation, "ambiguous")
+          suspicious = metric(reconciliation, "suspicious")
+          exceptionRows = buildExceptions(reconciliation)
+          emit reconciled
+        end
+      end
+      on reconciled > WriteOutputs
+    end
+
+    state(WriteOutputs):
+      ui.clear()
+      ui.text("Step 3/4 - Writing output artifacts...", color: "yellow")
+      rule(writeReport):
+        on input.tick:
+          reportJson = buildReportJson(invoiceCount, paymentCount, matchedFull, matchedPartial, overpaid, missing, duplicates, ambiguous, suspicious, rulesVersion, processingMs(reconciliation))
+          writeOk1 = writeJson(reportPath, reportJson)
+        end
+      end
+      rule(writeExceptions):
+        on input.tick:
+          sortedExceptions = sortBy(exceptionRows, "invoice_id,payment_id")
+          writeOk2 = writeCsv(exceptionsPath, sortedExceptions)
+        end
+      end
+      rule(outputsDone):
+        when writeOk1 >= 1 and writeOk2 >= 1:
+          emit done
+        end
+      end
+      rule(outputsFailed):
+        when writeOk1 < 1 and writeOk2 < 1:
+          errorText = "Could not write output artifacts"
+          emit failed
+        end
+      end
+      on done > Summary
+      on failed > Failed
+    end
+
+    state(Summary):
+      ui.clear()
+      ui.text("Step 4/4 - Completed", color: "green")
+      ui.text(summaryLine("matched_full", matchedFull), color: "white")
+      ui.text(summaryLine("matched_partial", matchedPartial), color: "white")
+      ui.text(summaryLine("overpaid", overpaid), color: "white")
+      ui.text(summaryLine("missing_payment", missing), color: "white")
+      ui.text(summaryLine("duplicate_payment", duplicates), color: "white")
+      ui.text(summaryLine("ambiguous", ambiguous), color: "white")
+      ui.text(summaryLine("suspicious", suspicious), color: "white")
+      ui.text("report: reconciliation_report.json", color: "cyan")
+      ui.text("exceptions: exceptions.csv", color: "cyan")
+      ui.text("Enter: rerun   Esc: quit", color: "blue")
+      on input.key(enter) > LoadInputs
+      on input.key(esc) > Exit
+    end
+
+    state(Failed):
+      ui.clear()
+      ui.text("RECONCILIATION FAILED", color: "red")
+      ui.text(errorText, color: "white")
+      ui.text("Enter: retry   Esc: quit", color: "cyan")
+      on input.key(enter) > LoadInputs
+      on input.key(esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    invoicesPath = "poc/data/medium/invoices.csv"
+    paymentsPath = "poc/data/medium/payments.csv"
+    reportPath = "poc/runs/data_heavy_sculpt/medium/reconciliation_report.json"
+    exceptionsPath = "poc/runs/data_heavy_sculpt/medium/exceptions.csv"
+    rulesVersion = "1.0"
+    dateToleranceDays = 30
+    amountTolerance = 0
+
+    invoices = null
+    payments = null
+    reconciliation = null
+    exceptionRows = null
+    sortedExceptions = null
+    reportJson = null
+
+    inputValid = 0
+    writeOk1 = 0
+    writeOk2 = 0
+    errorText = ""
+
+    invoiceCount = 0
+    paymentCount = 0
+    matchedFull = 0
+    matchedPartial = 0
+    overpaid = 0
+    missing = 0
+    duplicates = 0
+    ambiguous = 0
+    suspicious = 0
+  end
+
+  # Keep ND small and explicit: only output readability framing.
+  nd(outputStyle):
+    propose reportPresentation("operations")
+    satisfy(
+      clearOperationalSummary(),
+      highContrast(),
+      ?"prefer concise labels for finance teams"
+    )
+  end
+end

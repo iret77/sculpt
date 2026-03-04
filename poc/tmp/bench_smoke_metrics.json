@@ -1,0 +1,93 @@
+{
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "provider_strategy": {
+    "fallback_chain": [
+      "openai",
+      "gemini",
+      "stub"
+    ],
+    "requested_model": "gpt-4.1-mini",
+    "requested_provider": "openai",
+    "strict_provider": false
+  },
+  "repro": [
+    {
+      "build_rc": 0,
+      "build_s": 48.884140875,
+      "errors": [
+        "provider openai failed: LLM compile failed after 1 attempt(s) and fallback=fail: OpenAI error: status 429 Too Many Requests body {\n  \"error\": {\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\",\n    \"type\": \"insufficient_quota\",\n    \"param\": null,\n    \"code\": \"insufficient_quota\"\n  }\n}"
+      ],
+      "fallback_used": true,
+      "hash": "02a10d40388af156ac05327084c8dd7d84c001cede056dc96940a8fd6a8805aa",
+      "model_used": null,
+      "ok": true,
+      "provider_attempts": [
+        {
+          "error": "LLM compile failed after 1 attempt(s) and fallback=fail: OpenAI error: status 429 Too Many Requests body {\n  \"error\": {\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\",\n    \"type\": \"insufficient_quota\",\n    \"param\": null,\n    \"code\": \"insufficient_quota\"\n  }\n}",
+          "model": "gpt-4.1-mini",
+          "ok": false,
+          "provider": "openai"
+        },
+        {
+          "error": null,
+          "model": null,
+          "ok": true,
+          "provider": "gemini"
+        }
+      ],
+      "provider_used": "gemini",
+      "run": 1,
+      "run_rc": 0,
+      "run_s": 0.575027792,
+      "size": "small"
+    }
+  ],
+  "runs": [
+    {
+      "build_rc": 0,
+      "build_s": 70.257835625,
+      "errors": [
+        "provider openai failed: LLM compile failed after 1 attempt(s) and fallback=fail: OpenAI error: status 429 Too Many Requests body {\n  \"error\": {\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\",\n    \"type\": \"insufficient_quota\",\n    \"param\": null,\n    \"code\": \"insufficient_quota\"\n  }\n}"
+      ],
+      "exceptions_exists": true,
+      "exceptions_path": "poc/runs/data_heavy_sculpt/small/exceptions.csv",
+      "fallback_used": true,
+      "model_used": null,
+      "normalized_hash": "02a10d40388af156ac05327084c8dd7d84c001cede056dc96940a8fd6a8805aa",
+      "ok": true,
+      "provider_attempts": [
+        {
+          "error": "LLM compile failed after 1 attempt(s) and fallback=fail: OpenAI error: status 429 Too Many Requests body {\n  \"error\": {\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\",\n    \"type\": \"insufficient_quota\",\n    \"param\": null,\n    \"code\": \"insufficient_quota\"\n  }\n}",
+          "model": "gpt-4.1-mini",
+          "ok": false,
+          "provider": "openai"
+        },
+        {
+          "error": null,
+          "model": null,
+          "ok": true,
+          "provider": "gemini"
+        }
+      ],
+      "provider_used": "gemini",
+      "report_exists": true,
+      "report_path": "poc/runs/data_heavy_sculpt/small/reconciliation_report.json",
+      "run_rc": 0,
+      "run_s": 0.575464166,
+      "size": "small"
+    }
+  ],
+  "summary": {
+    "acceptance_rate": 1.0,
+    "fallback_repro_runs": 1,
+    "fallback_runs": 1,
+    "matrix_pass": 1,
+    "matrix_total": 1,
+    "repro_pass": 1,
+    "repro_runs": 1,
+    "repro_unique_hashes": 1,
+    "reproducible": true
+  },
+  "target": "cli"
+}

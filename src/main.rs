@@ -54,6 +54,7 @@ fn print_help_tui() {
             " examples   write curated examples into ./examples",
             " project    create/manage .sculpt.json project files",
             " gate       evaluate release quality gates",
+            " benchmark  run reproducible benchmark harnesses",
             " build      compile .sculpt or .sculpt.json to target output",
             " freeze     compile + lock deterministic output",
             " replay     build from sculpt.lock (no LLM)",
@@ -185,6 +186,38 @@ fn print_subcommand_help(cmd: &str) -> bool {
             );
             true
         }
+        "benchmark" => {
+            print_header();
+            print_box(
+                "Usage",
+                &[" sculpt benchmark data-heavy [options]"],
+                accent2,
+                c,
+            );
+            print_box(
+                "Options",
+                &[
+                    " --script <file>         benchmark sculpt script",
+                    " --dataset-root <dir>    root directory with size datasets",
+                    " --sizes <csv>           e.g. small,medium,large",
+                    " --repro-runs <n>        reproducibility run count",
+                    " --output <file>         metrics json output",
+                    " --gate-output <file>    gate input json output",
+                    " --provider <name>       llm provider",
+                    " --model <name>          model override",
+                    " --target cli            required target",
+                ],
+                accent2,
+                c,
+            );
+            print_box(
+                "Example",
+                &[" sculpt benchmark data-heavy --provider stub --sizes small,medium,large"],
+                accent2,
+                c,
+            );
+            true
+        }
         "freeze" => {
             print_header();
             print_box(
@@ -290,6 +323,7 @@ fn print_subcommand_help(cmd: &str) -> bool {
                 &[
                     " sculpt clean <input.sculpt|project.sculpt.json>",
                     " sculpt clean --all",
+                    " sculpt clean [--max-age-days <n>] [--keep-latest <n>] [--max-size-mb <n>]",
                 ],
                 accent2,
                 c,
@@ -299,6 +333,7 @@ fn print_subcommand_help(cmd: &str) -> bool {
                 &[
                     " clean <input>: removes dist/<script_name>/",
                     " clean --all  : removes entire dist/ directory",
+                    " retention    : prunes dist/ by age/count/size budget",
                 ],
                 accent2,
                 c,

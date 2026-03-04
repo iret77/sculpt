@@ -1,0 +1,22 @@
+
+[1;38;2;0;255;255mSCULPT[0m [1;38;2;0;255;255mGate Check 0.2.2[0m
+[38;2;150;160;170mGate: [0m [38;2;150;160;170mdata_heavy_vibe_gate_v1[0m
+[38;2;150;160;170mFile: [0m [38;2;150;160;170mpoc/gates/data_heavy_vibe_gate.json[0m
+[38;2;150;160;170mStudy:[0m [38;2;150;160;170mpoc/SCULPT_vs_Vibe_Data_Heavy_Report.md[0m
+[38;2;150;160;170m────────────────────────────────────────────────────[0m
+[38;2;150;160;170m[G1][0m [38;2;150;160;170mReproducibility is clearly higher[0m sculpt=0.000 vibe=5.000 op=sculpt_gt_vibe [1;38;2;234;81;114mFAIL[0m
+  [38;2;150;160;170mmin_delta:[0m 1.000
+  [38;2;150;160;170mdetail:[0m [38;2;150;160;170mdelta=-5.000, requires sculpt>vibe and delta>=1.000[0m
+[38;2;150;160;170m[G2][0m [38;2;150;160;170mRegression count is lower[0m sculpt=1.000 vibe=0.000 op=sculpt_lt_vibe [1;38;2;234;81;114mFAIL[0m
+  [38;2;150;160;170mmin_delta:[0m 1.000
+  [38;2;150;160;170mdetail:[0m [38;2;150;160;170mdelta=-1.000, requires sculpt<vibe and delta>=1.000[0m
+[38;2;150;160;170m[G3][0m [38;2;150;160;170mIterations to accepted result are lower[0m sculpt=8.000 vibe=1.000 op=sculpt_lt_vibe [1;38;2;234;81;114mFAIL[0m
+  [38;2;150;160;170mmin_delta:[0m 1.000
+  [38;2;150;160;170mdetail:[0m [38;2;150;160;170mdelta=-7.000, requires sculpt<vibe and delta>=1.000[0m
+[38;2;150;160;170m[G4][0m [38;2;150;160;170mDeveloper UX score is clearly better[0m sculpt=14.000 vibe=31.000 op=sculpt_gt_vibe [1;38;2;234;81;114mFAIL[0m
+  [38;2;150;160;170mmin_delta:[0m 5.000
+  [38;2;150;160;170mdetail:[0m [38;2;150;160;170mdelta=-17.000, requires sculpt>vibe and delta>=5.000[0m
+[38;2;150;160;170m[G5][0m [38;2;150;160;170mFinal acceptance quality is at least equal[0m sculpt=0.000 vibe=1.000 op=sculpt_gte_vibe [1;38;2;234;81;114mFAIL[0m
+  [38;2;150;160;170mdetail:[0m [38;2;150;160;170mdelta=-1.000, requires sculpt>=vibe and delta>=0.000[0m
+[38;2;150;160;170m────────────────────────────────────────────────────[0m
+Error: Gate Result: FAIL (5 criteria failed)

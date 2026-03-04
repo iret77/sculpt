@@ -26,7 +26,7 @@ module(SnakeLowND):
       ui.text("Enter: Start  |  C: Controls  |  Esc: Quit", color: "cyan")
       ui.text("Deterministic rules + explicit gameplay constraints", color: "green")
       ui.text("Target score: 18 food pickups", color: "blue")
-      on input.key(enter) > Countdown
+      on input.key(enter) > Play
       on input.key(c) > Controls
       on input.key(esc) > Exit
     end
@@ -40,25 +40,6 @@ module(SnakeLowND):
       ui.text("Enter or Space: back", color: "cyan")
       on input.key(enter) > Title
       on input.key(space) > Title
-      on input.key(esc) > Exit
-    end
-
-    state(Countdown):
-      ui.clear()
-      ui.text("Get ready...", color: "cyan")
-      ui.text("3", color: "yellow")
-      rule(countdownTick):
-        on input.tick:
-          countdown = dec(countdown)
-        end
-      end
-      rule(countdownDone):
-        when countdown < 1:
-          countdown = 3
-          emit done
-        end
-      end
-      on done > Play
       on input.key(esc) > Exit
     end
 
@@ -135,7 +116,6 @@ module(SnakeLowND):
     score = 0
     lives = 3
     ticks = 0
-    countdown = 3
 
     # collision/result flags
     wallHit = 0

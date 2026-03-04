@@ -13,7 +13,7 @@ use crossterm::terminal::{
 };
 use crossterm::{execute, terminal};
 use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
@@ -22,13 +22,17 @@ use ratatui::widgets::{
 use ratatui::Terminal;
 use serde::{Deserialize, Serialize};
 
-use crate::build_meta::{dist_dir_for_input, read_build_meta};
+use crate::build_meta::{
+    dist_dir_for_input, now_unix_ms, read_build_history, read_build_meta, BuildMeta,
+};
 use crate::targets::list_targets;
-use crate::versioning::{LANGUAGE_DEFAULT, LANGUAGE_SUPPORT_RANGE};
+use crate::versioning::LANGUAGE_DEFAULT;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Focus {
     Files,
+    Details,
+    Log,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -128,6 +132,8 @@ struct AppState {
     targets: Vec<String>,
     target_state: ListState,
     focus: Focus,
+    details_scroll: usize,
+    log_scroll: usize,
     log: Vec<String>,
     history: Vec<String>,
     status: String,
@@ -220,12 +226,11 @@ impl AppState {
             targets,
             target_state,
             focus: Focus::Files,
+            details_scroll: 0,
+            log_scroll: 0,
             log: vec![
                 "SCULPT TUI ready".to_string(),
-                format!(
-                    "Language {} (supports {})",
-                    LANGUAGE_DEFAULT, LANGUAGE_SUPPORT_RANGE
-                ),
+                format!("Language {}", LANGUAGE_DEFAULT),
             ],
             history: Vec::new(),
             status: "Ready".to_string(),
@@ -261,6 +266,8 @@ impl AppState {
         let idx = min(idx, self.entries.len().saturating_sub(1));
         self.file_state.select(Some(idx));
         self.update_preview_from_selection();
+        self.details_scroll = 0;
+        self.log_scroll = 0;
         Ok(())
     }
 
@@ -303,9 +310,11 @@ impl AppState {
 
     fn update_preview_from_selection(&mut self) {
         let Some(idx) = self.file_state.selected() else {
+            self.clear_preview();
             return;
         };
         let Some(entry) = self.entries.get(idx) else {
+            self.clear_preview();
             return;
         };
         if !entry.is_sculpt && !entry.is_project {
@@ -318,6 +327,7 @@ impl AppState {
             SelectedKind::Script
         };
         let _ = self.set_selected_input(entry.path.clone(), kind);
+        self.details_scroll = 0;
     }
 
     fn clear_preview(&mut self) {
@@ -329,6 +339,7 @@ impl AppState {
         self.preview_size = 0;
         self.preview_intro.clear();
         self.project_preview = None;
+        self.details_scroll = 0;
     }
 
     fn active_target(&self) -> Option<String> {
@@ -377,6 +388,7 @@ impl AppState {
             .push(format!("$ {} {}", cmd_display, args.join(" ")));
         self.log.extend(normalize_log_output(&output.stdout));
         self.log.extend(normalize_log_output(&output.stderr));
+        self.log_scroll = 0;
         let ok = output.status.success();
         let (provider, model) = extract_provider_model(&output);
         let target = extract_target(args);
@@ -397,6 +409,84 @@ impl AppState {
         self.status = "Ready".to_string();
         Ok(())
     }
+
+    fn run_sculpt_interactive(&mut self, args: &[String]) -> Result<()> {
+        let cmd_display = self.sculpt_cmd.display().to_string();
+        self.status = format!("Running: {} {}", cmd_display, args.join(" "));
+        self.history.push(args.join(" "));
+        if self.history.len() > 10 {
+            self.history.remove(0);
+        }
+        self.log
+            .push(format!("$ {} {}", cmd_display, args.join(" ")));
+        self.log.push("Launching interactive run...".to_string());
+        self.log_scroll = 0;
+
+        let started = Instant::now();
+        let mut out = stdout();
+        let _ = disable_raw_mode();
+        let _ = execute!(out, LeaveAlternateScreen);
+        let status_res = Command::new(&self.sculpt_cmd).args(args).status();
+        let _ = execute!(out, EnterAlternateScreen);
+        let _ = enable_raw_mode();
+        let duration = started.elapsed();
+
+        let action = args.get(0).cloned().unwrap_or_else(|| "run".to_string());
+        let target = extract_target(args);
+
+        match status_res {
+            Ok(status) => {
+                let ok = status.success();
+                self.last_run = Some(LastRun {
+                    action,
+                    target,
+                    duration_ms: duration.as_millis(),
+                    when: Instant::now(),
+                    provider: None,
+                    model: None,
+                    ok,
+                });
+                if ok {
+                    self.log.push("Interactive run finished.".to_string());
+                    self.status = "Ready".to_string();
+                    Ok(())
+                } else {
+                    self.log.push(format!(
+                        "Interactive run failed (exit={:?}).",
+                        status.code()
+                    ));
+                    self.status = format!("Failed: status {:?}", status.code());
+                    bail!("Command failed");
+                }
+            }
+            Err(err) => {
+                self.last_run = Some(LastRun {
+                    action,
+                    target,
+                    duration_ms: duration.as_millis(),
+                    when: Instant::now(),
+                    provider: None,
+                    model: None,
+                    ok: false,
+                });
+                self.log
+                    .push(format!("Interactive run failed to start: {}", err));
+                self.status = "Failed: could not launch interactive run".to_string();
+                Err(err.into())
+            }
+        }
+    }
+}
+
+fn cycle_focus(current: Focus, reverse: bool) -> Focus {
+    match (current, reverse) {
+        (Focus::Files, false) => Focus::Details,
+        (Focus::Details, false) => Focus::Log,
+        (Focus::Log, false) => Focus::Files,
+        (Focus::Files, true) => Focus::Log,
+        (Focus::Details, true) => Focus::Files,
+        (Focus::Log, true) => Focus::Details,
+    }
 }
 
 fn handle_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
@@ -416,34 +506,58 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
         KeyCode::Char('q') => return Ok(true),
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => return Ok(true),
         KeyCode::Esc => return Ok(true),
-        KeyCode::Up => {
-            move_selection(&mut state.file_state, state.entries.len(), -1);
-            state.update_preview_from_selection();
+        KeyCode::Tab => {
+            state.focus = cycle_focus(state.focus, false);
         }
-        KeyCode::Down => {
-            move_selection(&mut state.file_state, state.entries.len(), 1);
-            state.update_preview_from_selection();
+        KeyCode::BackTab => {
+            state.focus = cycle_focus(state.focus, true);
         }
+        KeyCode::Up => match state.focus {
+            Focus::Files => {
+                move_selection(&mut state.file_state, state.entries.len(), -1);
+                state.update_preview_from_selection();
+            }
+            Focus::Details => {
+                state.details_scroll = state.details_scroll.saturating_sub(1);
+            }
+            Focus::Log => {
+                state.log_scroll = state.log_scroll.saturating_sub(1);
+            }
+        },
+        KeyCode::Down => match state.focus {
+            Focus::Files => {
+                move_selection(&mut state.file_state, state.entries.len(), 1);
+                state.update_preview_from_selection();
+            }
+            Focus::Details => {
+                state.details_scroll = state.details_scroll.saturating_add(1);
+            }
+            Focus::Log => {
+                state.log_scroll = state.log_scroll.saturating_add(1);
+            }
+        },
         KeyCode::Enter => {
-            if let Some(idx) = state.file_state.selected() {
-                if let Some(entry) = state.entries.get(idx) {
-                    if entry.is_dir {
-                        state.cwd = entry.path.clone();
-                        state.refresh_entries()?;
-                    } else if entry.is_sculpt || entry.is_project {
-                        let kind = if entry.is_project {
-                            SelectedKind::Project
-                        } else {
-                            SelectedKind::Script
-                        };
-                        state.set_selected_input(entry.path.clone(), kind)?;
-                        state.pending_action = PendingAction::BuildRun;
-                        if state.meta_target.is_some() {
-                            execute_pending_action(state)?;
-                        } else {
-                            state.modal_open = true;
-                            state.active_modal = ActiveModal::Target;
-                            state.modal_focus = ModalFocus::Targets;
+            if state.focus == Focus::Files {
+                if let Some(idx) = state.file_state.selected() {
+                    if let Some(entry) = state.entries.get(idx) {
+                        if entry.is_dir {
+                            state.cwd = entry.path.clone();
+                            state.refresh_entries()?;
+                        } else if entry.is_sculpt || entry.is_project {
+                            let kind = if entry.is_project {
+                                SelectedKind::Project
+                            } else {
+                                SelectedKind::Script
+                            };
+                            state.set_selected_input(entry.path.clone(), kind)?;
+                            state.pending_action = PendingAction::BuildRun;
+                            if state.meta_target.is_some() {
+                                execute_pending_action(state)?;
+                            } else {
+                                state.modal_open = true;
+                                state.active_modal = ActiveModal::Target;
+                                state.modal_focus = ModalFocus::Targets;
+                            }
                         }
                     }
                 }
@@ -632,18 +746,18 @@ fn execute_pending_action(state: &mut AppState) -> Result<()> {
         }
         PendingAction::RunOnly => {
             if can_run_for_selected(state) {
-                let _ = state.run_sculpt(&build_args(state, "run"));
+                let _ = state.run_sculpt_interactive(&build_args(state, "run"));
             } else {
                 state.info_modal = Some("Run not available. Build first.".to_string());
             }
         }
         PendingAction::BuildRun => {
-            if can_run_for_selected(state) {
-                let _ = state.run_sculpt(&build_args(state, "run"));
+            if can_run_for_selected(state) && !selected_output_stale(state) {
+                let _ = state.run_sculpt_interactive(&build_args(state, "run"));
             } else {
                 let _ = state.run_sculpt(&build_args(state, "build"));
                 if can_run_for_selected(state) {
-                    let _ = state.run_sculpt(&build_args(state, "run"));
+                    let _ = state.run_sculpt_interactive(&build_args(state, "run"));
                 }
             }
         }
@@ -693,35 +807,85 @@ fn ui(f: &mut ratatui::Frame, state: &mut AppState) {
         .constraints([Constraint::Percentage(55), Constraint::Percentage(45)].as_ref())
         .split(layout[1]);
 
+    let files_active = state.focus == Focus::Files;
+    let details_active = state.focus == Focus::Details;
+    let log_active = state.focus == Focus::Log;
+    let active_border = |active: bool| {
+        if active {
+            Style::default()
+                .fg(state.theme.accent2)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(state.theme.fg)
+        }
+    };
+    let active_title = |active: bool| {
+        if active {
+            Style::default()
+                .fg(state.theme.accent2)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(state.theme.fg)
+        }
+    };
+
     let files = list_files(state);
     let mut file_state = state.file_state.clone();
     f.render_stateful_widget(files, body[0], &mut file_state);
     state.file_state = file_state;
 
-    let details = Paragraph::new(render_details(state))
+    let details_lines = render_details(state);
+    let details_inner_h = body[1].height.saturating_sub(2) as usize;
+    let details_max_scroll = details_lines.len().saturating_sub(details_inner_h);
+    let details_scroll = min(state.details_scroll, details_max_scroll);
+    let details = Paragraph::new(details_lines.clone())
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(Span::styled(
-                    "[Details]",
-                    Style::default().fg(state.theme.fg),
-                ))
+                .title(Span::styled("[Details]", active_title(details_active)))
                 .padding(Padding::horizontal(1))
+                .border_style(active_border(details_active))
                 .style(Style::default().bg(state.theme.panel_bg)),
         )
+        .scroll((details_scroll as u16, 0))
         .wrap(Wrap { trim: true });
     f.render_widget(details, body[1]);
 
-    let log = Paragraph::new(render_log_lines(state))
+    let log_lines = render_log_lines(state);
+    let log_inner_h = layout[2].height.saturating_sub(2) as usize;
+    let log_max_scroll = log_lines.len().saturating_sub(log_inner_h);
+    let log_scroll = min(state.log_scroll, log_max_scroll);
+    let log = Paragraph::new(log_lines.clone())
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(Span::styled("[Log]", Style::default().fg(state.theme.fg)))
+                .title(Span::styled("[Log]", active_title(log_active)))
                 .padding(Padding::horizontal(1))
+                .border_style(active_border(log_active))
                 .style(Style::default().bg(state.theme.panel_bg)),
         )
+        .scroll((log_scroll as u16, 0))
         .wrap(Wrap { trim: true });
     f.render_widget(log, layout[2]);
+    let files_up = state.file_state.selected().unwrap_or(0) > 0;
+    let files_down = state.file_state.selected().unwrap_or(0) + 1 < state.entries.len();
+    render_scroll_markers(f, body[0], files_up, files_down, files_active, state);
+    render_scroll_markers(
+        f,
+        body[1],
+        details_scroll > 0,
+        details_scroll < details_max_scroll,
+        details_active,
+        state,
+    );
+    render_scroll_markers(
+        f,
+        layout[2],
+        log_scroll > 0,
+        log_scroll < log_max_scroll,
+        log_active,
+        state,
+    );
 
     let footer = Paragraph::new(vec![Line::from(vec![
         Span::styled(
@@ -731,6 +895,13 @@ fn ui(f: &mut ratatui::Frame, state: &mut AppState) {
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw(" move  "),
+        Span::styled(
+            "Tab",
+            Style::default()
+                .fg(state.theme.accent2)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" pane  "),
         Span::styled(
             "Enter",
             Style::default()
@@ -797,7 +968,22 @@ fn ui(f: &mut ratatui::Frame, state: &mut AppState) {
                 .fg(state.theme.accent2)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::raw(" rerun"),
+        Span::raw(" rerun  "),
+        Span::styled("↑↓", Style::default().fg(state.theme.dim)),
+        Span::raw(" move/scroll  "),
+        Span::raw("  "),
+        Span::styled("active:", Style::default().fg(state.theme.dim)),
+        Span::raw(" "),
+        Span::styled(
+            if files_active {
+                "files"
+            } else if details_active {
+                "details"
+            } else {
+                "log"
+            },
+            Style::default().fg(state.theme.accent),
+        ),
     ])])
     .block(
         Block::default()
@@ -858,8 +1044,22 @@ fn list_files(state: &AppState) -> List<'_> {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(Span::styled("[Files]", Style::default().fg(state.theme.fg)))
+                .title(Span::styled(
+                    "[Files]",
+                    Style::default().fg(if state.focus == Focus::Files {
+                        state.theme.accent2
+                    } else {
+                        state.theme.fg
+                    }),
+                ))
                 .padding(Padding::horizontal(1))
+                .border_style(if state.focus == Focus::Files {
+                    Style::default()
+                        .fg(state.theme.accent2)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(state.theme.fg)
+                })
                 .style(Style::default().bg(state.theme.panel_bg)),
         )
         .highlight_style(
@@ -876,6 +1076,38 @@ fn list_files(state: &AppState) -> List<'_> {
         );
     }
     list
+}
+
+fn render_scroll_markers(
+    f: &mut ratatui::Frame,
+    rect: Rect,
+    can_up: bool,
+    can_down: bool,
+    active: bool,
+    state: &AppState,
+) {
+    if rect.width < 3 || rect.height < 3 {
+        return;
+    }
+    let color = if active {
+        state.theme.accent2
+    } else {
+        state.theme.dim
+    };
+    let style = Style::default().fg(color).add_modifier(Modifier::BOLD);
+    let x = rect.x + rect.width - 1;
+    if can_up {
+        f.render_widget(
+            Paragraph::new("▲").style(style),
+            Rect::new(x, rect.y + 1, 1, 1),
+        );
+    }
+    if can_down {
+        f.render_widget(
+            Paragraph::new("▼").style(style),
+            Rect::new(x, rect.y + rect.height - 2, 1, 1),
+        );
+    }
 }
 
 fn read_entries(dir: &Path) -> Result<Vec<Entry>> {
@@ -1088,20 +1320,20 @@ fn render_details(state: &AppState) -> Vec<Line<'_>> {
             ]));
             lines.push(Line::from(vec![
                 Span::styled("  llm_ms ", Style::default().fg(state.theme.dim)),
-                Span::styled(
-                    meta.llm_ms
-                        .map(|v| v.to_string())
-                        .unwrap_or_else(|| "-".to_string()),
-                    Style::default().fg(state.theme.fg),
-                ),
+                Span::styled(fmt_opt_ms(meta.llm_ms), Style::default().fg(state.theme.fg)),
                 Span::raw("  "),
                 Span::styled("build_ms ", Style::default().fg(state.theme.dim)),
                 Span::styled(
-                    meta.build_ms
-                        .map(|v| v.to_string())
-                        .unwrap_or_else(|| "-".to_string()),
+                    fmt_opt_ms(meta.build_ms),
                     Style::default().fg(state.theme.fg),
                 ),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled("  run_ms ", Style::default().fg(state.theme.dim)),
+                Span::styled(fmt_opt_ms(meta.run_ms), Style::default().fg(state.theme.fg)),
+                Span::raw("  "),
+                Span::styled("total ", Style::default().fg(state.theme.dim)),
+                Span::styled(fmt_ms(meta.total_ms), Style::default().fg(state.theme.fg)),
             ]));
             if let Some(tokens) = meta.token_usage.clone() {
                 lines.push(Line::from(vec![
@@ -1140,18 +1372,36 @@ fn render_details(state: &AppState) -> Vec<Line<'_>> {
                 ]));
             }
             lines.push(Line::from(vec![
-                Span::styled("  total_ms ", Style::default().fg(state.theme.dim)),
+                Span::styled("  age ", Style::default().fg(state.theme.dim)),
                 Span::styled(
-                    meta.total_ms.to_string(),
+                    fmt_age_ms(now_unix_ms().saturating_sub(meta.timestamp_unix_ms)),
                     Style::default().fg(state.theme.fg),
                 ),
                 Span::raw("  "),
-                Span::styled("ts ", Style::default().fg(state.theme.dim)),
-                Span::styled(
-                    meta.timestamp_unix_ms.to_string(),
-                    Style::default().fg(state.theme.fg),
-                ),
+                Span::styled("status ", Style::default().fg(state.theme.dim)),
+                {
+                    let status_text = meta.status.clone();
+                    Span::styled(
+                        status_text.clone(),
+                        Style::default().fg(if status_text == "ok" {
+                            state.theme.accent
+                        } else {
+                            state.theme.accent2
+                        }),
+                    )
+                },
             ]));
+        }
+        let history = read_build_history(&dist_dir);
+        if !history.is_empty() {
+            lines.push(Line::from(""));
+            lines.push(Line::from(Span::styled(
+                "Recent Trend (last 5):",
+                Style::default().fg(state.theme.dim),
+            )));
+            for entry in history.iter().rev().take(5) {
+                lines.push(render_trend_line(state, entry));
+            }
         }
         if let Some(last) = &state.last_run {
             lines.push(Line::from(""));
@@ -1225,16 +1475,81 @@ fn render_details(state: &AppState) -> Vec<Line<'_>> {
     lines
 }
 
+fn render_trend_line(state: &AppState, entry: &BuildMeta) -> Line<'static> {
+    let action = match entry.action.as_str() {
+        "build" => "B",
+        "run" => "R",
+        "freeze" => "F",
+        "replay" => "P",
+        _ => "?",
+    };
+    let status_color = if entry.status == "ok" {
+        state.theme.accent
+    } else {
+        state.theme.accent2
+    };
+    let age = fmt_age_ms(now_unix_ms().saturating_sub(entry.timestamp_unix_ms));
+    let total_tokens = entry
+        .token_usage
+        .as_ref()
+        .and_then(|t| t.total_tokens)
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "-".to_string());
+
+    Line::from(vec![
+        Span::styled("  ", Style::default().fg(state.theme.dim)),
+        Span::styled(
+            action,
+            Style::default()
+                .fg(state.theme.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" ", Style::default().fg(state.theme.dim)),
+        Span::styled(entry.target.clone(), Style::default().fg(state.theme.fg)),
+        Span::styled(" ", Style::default().fg(state.theme.dim)),
+        Span::styled(entry.status.clone(), Style::default().fg(status_color)),
+        Span::styled(" ", Style::default().fg(state.theme.dim)),
+        Span::styled("t=", Style::default().fg(state.theme.dim)),
+        Span::styled(fmt_ms(entry.total_ms), Style::default().fg(state.theme.fg)),
+        Span::styled(" ", Style::default().fg(state.theme.dim)),
+        Span::styled("tok=", Style::default().fg(state.theme.dim)),
+        Span::styled(total_tokens, Style::default().fg(state.theme.fg)),
+        Span::styled(" ", Style::default().fg(state.theme.dim)),
+        Span::styled("age=", Style::default().fg(state.theme.dim)),
+        Span::styled(age, Style::default().fg(state.theme.fg)),
+    ])
+}
+
+fn fmt_opt_ms(v: Option<u128>) -> String {
+    v.map(fmt_ms).unwrap_or_else(|| "-".to_string())
+}
+
+fn fmt_ms(ms: u128) -> String {
+    if ms >= 10_000 {
+        format!("{:.1}s", ms as f64 / 1000.0)
+    } else {
+        format!("{}ms", ms)
+    }
+}
+
+fn fmt_age_ms(delta_ms: u128) -> String {
+    let secs = (delta_ms / 1000) as u64;
+    if secs < 60 {
+        format!("{}s", secs)
+    } else if secs < 3600 {
+        format!("{}m", secs / 60)
+    } else if secs < 86_400 {
+        format!("{}h", secs / 3600)
+    } else {
+        format!("{}d", secs / 86_400)
+    }
+}
+
 fn extract_recent_diagnostics(log: &[String]) -> Vec<String> {
     let mut out = Vec::new();
     for line in log.iter().rev() {
         let trimmed = line.trim();
-        let is_diag = trimmed
-            .split(':')
-            .next()
-            .map(|head| head.len() >= 4 && head.chars().take(1).all(|c| c.is_ascii_uppercase()))
-            .unwrap_or(false);
-        if trimmed.starts_with("Error:") || is_diag {
+        if looks_like_diagnostic_line(trimmed) {
             out.push(trimmed.to_string());
         }
         if out.len() >= 12 {
@@ -1245,13 +1560,36 @@ fn extract_recent_diagnostics(log: &[String]) -> Vec<String> {
     out
 }
 
+fn looks_like_diagnostic_line(line: &str) -> bool {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    if trimmed.starts_with("Error:") {
+        return true;
+    }
+    // Accept compiler-style diagnostic codes such as:
+    // N309: ...
+    // M701: ...
+    // NS504: ...
+    if let Some((head, _rest)) = trimmed.split_once(':') {
+        if head.len() >= 4
+            && head
+                .chars()
+                .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+            && head.chars().any(|c| c.is_ascii_digit())
+            && head.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+        {
+            return true;
+        }
+    }
+    false
+}
+
 fn render_log_lines(state: &AppState) -> Vec<Line<'_>> {
     state
         .log
         .iter()
-        .rev()
-        .take(12)
-        .rev()
         .map(|l| {
             if let Some((idx, label, status)) = parse_pipeline_log_line(l) {
                 return render_pipeline_log_line(state, idx, &label, &status);
@@ -1300,15 +1638,15 @@ fn render_pipeline_log_line(
     label: &str,
     status: &str,
 ) -> Line<'static> {
-    const TOTAL: usize = 3;
     const WIDTH: usize = 12;
 
-    let completed = if status == "ok" {
-        idx.min(TOTAL)
+    let filled = if status == "ok" || status == "failed" {
+        WIDTH
+    } else if status.starts_with("running") {
+        WIDTH / 2
     } else {
-        idx.saturating_sub(1).min(TOTAL)
+        0
     };
-    let filled = (completed * WIDTH) / TOTAL;
     let running = status.starts_with("running");
 
     let filled_s: String = "█".repeat(filled);
@@ -1348,8 +1686,13 @@ fn render_pipeline_log_line(
 
     spans.push(Span::styled("]", Style::default().fg(state.theme.dim)));
     spans.push(Span::raw(" "));
+    let percent = if WIDTH == 0 {
+        0
+    } else {
+        (filled * 100) / WIDTH
+    };
     spans.push(Span::styled(
-        format!("{}/{}", completed, TOTAL),
+        format!("{:>3}%", percent),
         Style::default().fg(state.theme.dim),
     ));
     spans.push(Span::raw(" "));
@@ -1455,6 +1798,41 @@ fn can_run_for_selected(state: &AppState) -> bool {
         }
         _ => true,
     }
+}
+
+fn selected_output_stale(state: &AppState) -> bool {
+    let Some(target) = state.active_target() else {
+        return false;
+    };
+    let Some(file) = &state.selected_file else {
+        return false;
+    };
+    if state.selected_kind != Some(SelectedKind::Script) {
+        return false;
+    }
+    let src_mtime = match fs::metadata(file).and_then(|m| m.modified()) {
+        Ok(t) => t,
+        Err(_) => return false,
+    };
+    let dist_dir = dist_dir_for(file);
+    let artifact = match target.as_str() {
+        "cli" => dist_dir.join("main.js"),
+        "web" => dist_dir.join("index.html"),
+        "gui" => {
+            let native = dist_dir.join("gui/.build/release/SculptGui");
+            if native.exists() {
+                native
+            } else {
+                dist_dir.join("gui/main.py")
+            }
+        }
+        _ => return false,
+    };
+    let out_mtime = match fs::metadata(&artifact).and_then(|m| m.modified()) {
+        Ok(t) => t,
+        Err(_) => return true,
+    };
+    src_mtime > out_mtime
 }
 
 fn preflight_issue(state: &AppState) -> Option<String> {
@@ -1735,7 +2113,7 @@ fn render_config_modal(f: &mut ratatui::Frame, state: &mut AppState) {
                 .fg(state.theme.accent2)
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::raw(" edit/apply  "),
+        Span::raw(" edit/apply inline  "),
         Span::styled(
             "Esc",
             Style::default()
@@ -1810,6 +2188,18 @@ fn config_fields() -> [ConfigField; 10] {
         ConfigField::Test,
         ConfigField::Cancel,
     ]
+}
+
+fn is_editable_config_field(field: ConfigField) -> bool {
+    matches!(
+        field,
+        ConfigField::OpenAiKey
+            | ConfigField::OpenAiModel
+            | ConfigField::AnthropicKey
+            | ConfigField::AnthropicModel
+            | ConfigField::GeminiKey
+            | ConfigField::GeminiModel
+    )
 }
 
 fn config_move_field(state: &mut AppState, delta: i32) {
@@ -1928,8 +2318,9 @@ fn render_config_lines(state: &AppState) -> Vec<Line<'static>> {
         state,
         ConfigField::Provider,
         "Default Provider".to_string(),
-        provider,
+        format!("< {} >", provider),
         selected,
+        false,
     ));
     lines.push(config_line(
         state,
@@ -1944,6 +2335,7 @@ fn render_config_lines(state: &AppState) -> Vec<Line<'static>> {
                 .unwrap_or_default(),
         ),
         selected,
+        true,
     ));
     lines.push(config_line(
         state,
@@ -1956,6 +2348,7 @@ fn render_config_lines(state: &AppState) -> Vec<Line<'static>> {
             .and_then(|c| c.model.clone())
             .unwrap_or_else(|| "gpt-4.1".to_string()),
         selected,
+        true,
     ));
     lines.push(config_line(
         state,
@@ -1970,6 +2363,7 @@ fn render_config_lines(state: &AppState) -> Vec<Line<'static>> {
                 .unwrap_or_default(),
         ),
         selected,
+        true,
     ));
     lines.push(config_line(
         state,
@@ -1982,6 +2376,7 @@ fn render_config_lines(state: &AppState) -> Vec<Line<'static>> {
             .and_then(|c| c.model.clone())
             .unwrap_or_else(|| "claude-3-7-sonnet-latest".to_string()),
         selected,
+        true,
     ));
     lines.push(config_line(
         state,
@@ -1996,6 +2391,7 @@ fn render_config_lines(state: &AppState) -> Vec<Line<'static>> {
                 .unwrap_or_default(),
         ),
         selected,
+        true,
     ));
     lines.push(config_line(
         state,
@@ -2008,6 +2404,7 @@ fn render_config_lines(state: &AppState) -> Vec<Line<'static>> {
             .and_then(|c| c.model.clone())
             .unwrap_or_else(|| "gemini-2.5-pro".to_string()),
         selected,
+        true,
     ));
     lines.push(Line::from(""));
     lines.push(config_line(
@@ -2016,6 +2413,7 @@ fn render_config_lines(state: &AppState) -> Vec<Line<'static>> {
         "[Save]".to_string(),
         "".to_string(),
         selected,
+        false,
     ));
     lines.push(config_line(
         state,
@@ -2023,6 +2421,7 @@ fn render_config_lines(state: &AppState) -> Vec<Line<'static>> {
         "[Test Provider Auth]".to_string(),
         "".to_string(),
         selected,
+        false,
     ));
     lines.push(config_line(
         state,
@@ -2030,17 +2429,8 @@ fn render_config_lines(state: &AppState) -> Vec<Line<'static>> {
         "[Cancel]".to_string(),
         "".to_string(),
         selected,
+        false,
     ));
-    if state.config_editing {
-        lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled("Editing: ", Style::default().fg(state.theme.dim)),
-            Span::styled(
-                state.config_input.clone(),
-                Style::default().fg(state.theme.accent),
-            ),
-        ]));
-    }
     lines
 }
 
@@ -2050,6 +2440,7 @@ fn config_line(
     label: String,
     value: String,
     selected: ConfigField,
+    has_value_box: bool,
 ) -> Line<'static> {
     let is_selected = field == selected;
     let marker = if is_selected { ">" } else { " " };
@@ -2060,12 +2451,44 @@ fn config_line(
     } else {
         Style::default().fg(state.theme.fg)
     };
-    if value.is_empty() {
+    if value.is_empty() || !has_value_box {
         Line::from(vec![Span::styled(format!("{} {}", marker, label), style)])
     } else {
+        let editing_here = is_selected && state.config_editing && is_editable_config_field(field);
+        let display_value = if editing_here {
+            state.config_input.clone()
+        } else {
+            value
+        };
+        const BOX_WIDTH: usize = 40;
+        let clipped: String = display_value
+            .chars()
+            .take(BOX_WIDTH.saturating_sub(1))
+            .collect();
+        let mut box_value = clipped.clone();
+        if editing_here {
+            box_value.push('▌');
+        }
+        let current_len = box_value.chars().count();
+        if current_len < BOX_WIDTH {
+            box_value.push_str(&" ".repeat(BOX_WIDTH - current_len));
+        }
+
+        let value_style = if editing_here {
+            Style::default()
+                .fg(state.theme.accent)
+                .add_modifier(Modifier::BOLD)
+        } else if is_selected {
+            Style::default().fg(state.theme.fg)
+        } else {
+            Style::default().fg(state.theme.dim)
+        };
+
         Line::from(vec![
             Span::styled(format!("{} {:18}", marker, label), style),
-            Span::styled(value, Style::default().fg(state.theme.fg)),
+            Span::styled("│", Style::default().fg(state.theme.accent2)),
+            Span::styled(box_value, value_style),
+            Span::styled("│", Style::default().fg(state.theme.accent2)),
         ])
     }
 }
@@ -2172,6 +2595,80 @@ fn extract_module_name_and_meta(content: &str) -> Result<(String, BTreeMap<Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::SystemTime;
+
+    fn temp_case_dir(name: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("sculpt_tui_{name}_{unique}"));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn script_file(dir: &Path, name: &str) -> PathBuf {
+        let p = dir.join(name);
+        fs::write(&p, "module(Test)\nend\n").unwrap();
+        p
+    }
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    fn test_state(dir: &Path, selected: &Path) -> AppState {
+        let mut file_state = ListState::default();
+        file_state.select(Some(0));
+        let mut target_state = ListState::default();
+        target_state.select(Some(0));
+
+        AppState {
+            cwd: dir.to_path_buf(),
+            sculpt_cmd: PathBuf::from("/usr/bin/true"),
+            entries: vec![Entry {
+                name: selected
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("app.sculpt")
+                    .to_string(),
+                path: selected.to_path_buf(),
+                is_dir: false,
+                is_sculpt: true,
+                is_project: false,
+            }],
+            file_state,
+            targets: vec!["cli".to_string(), "gui".to_string(), "web".to_string()],
+            target_state,
+            focus: Focus::Files,
+            details_scroll: 0,
+            log_scroll: 0,
+            log: vec![],
+            history: vec![],
+            status: "Ready".to_string(),
+            selected_file: None,
+            selected_kind: None,
+            meta_target: None,
+            preview_meta: BTreeMap::new(),
+            preview_lines: 0,
+            preview_size: 0,
+            preview_intro: vec![],
+            project_preview: None,
+            last_run: None,
+            last_refresh: Instant::now(),
+            theme: Theme::dark(),
+            modal_open: false,
+            active_modal: ActiveModal::Target,
+            modal_focus: ModalFocus::Targets,
+            info_modal: None,
+            pending_action: PendingAction::BuildRun,
+            config: TuiConfig::default(),
+            config_path: dir.join("sculpt.config.json"),
+            config_field: ConfigField::Provider,
+            config_editing: false,
+            config_input: String::new(),
+        }
+    }
 
     #[test]
     fn strip_ansi_sequences() {
@@ -2186,5 +2683,95 @@ mod tests {
             normalize_log_output(bytes),
             vec!["Error".to_string(), "ok".to_string()]
         );
+    }
+
+    #[test]
+    fn enter_on_selected_script_opens_target_modal() {
+        let dir = temp_case_dir("enter_modal");
+        let file = script_file(&dir, "enter_modal.sculpt");
+        let mut state = test_state(&dir, &file);
+
+        let should_quit = handle_key(&mut state, key(KeyCode::Enter)).unwrap();
+
+        assert!(!should_quit);
+        assert!(state.modal_open);
+        assert!(matches!(state.active_modal, ActiveModal::Target));
+        assert!(matches!(state.pending_action, PendingAction::BuildRun));
+        assert_eq!(state.selected_file.as_deref(), Some(file.as_path()));
+    }
+
+    #[test]
+    fn b_key_opens_target_modal_for_build_only() {
+        let dir = temp_case_dir("build_only_modal");
+        let file = script_file(&dir, "build_only_modal.sculpt");
+        let mut state = test_state(&dir, &file);
+
+        handle_key(&mut state, key(KeyCode::Char('b'))).unwrap();
+
+        assert!(state.modal_open);
+        assert!(matches!(state.pending_action, PendingAction::BuildOnly));
+        assert!(matches!(state.active_modal, ActiveModal::Target));
+    }
+
+    #[test]
+    fn r_key_shows_info_modal_when_run_not_available() {
+        let dir = temp_case_dir("run_missing_artifact");
+        let file = script_file(&dir, "run_missing_artifact.sculpt");
+        let mut state = test_state(&dir, &file);
+
+        handle_key(&mut state, key(KeyCode::Char('r'))).unwrap();
+        assert!(state.modal_open);
+
+        handle_key(&mut state, key(KeyCode::Enter)).unwrap();
+        assert!(!state.modal_open);
+        assert_eq!(state.info_modal.as_deref(), Some("Run not available. Build first."));
+    }
+
+    #[test]
+    fn f_p_c_keys_execute_commands_for_selected_script() {
+        let dir = temp_case_dir("fpc_commands");
+        let file = script_file(&dir, "fpc_commands.sculpt");
+        let mut state = test_state(&dir, &file);
+
+        handle_key(&mut state, key(KeyCode::Char('f'))).unwrap();
+        handle_key(&mut state, key(KeyCode::Char('p'))).unwrap();
+        handle_key(&mut state, key(KeyCode::Char('c'))).unwrap();
+
+        assert_eq!(state.history.len(), 3);
+        assert!(state.history[0].starts_with("freeze "));
+        assert!(state.history[1].starts_with("replay "));
+        assert!(state.history[2].starts_with("clean "));
+    }
+
+    #[test]
+    fn esc_closes_target_modal_without_quitting() {
+        let dir = temp_case_dir("modal_esc");
+        let file = script_file(&dir, "modal_esc.sculpt");
+        let mut state = test_state(&dir, &file);
+        state.modal_open = true;
+        state.active_modal = ActiveModal::Target;
+
+        let should_quit = handle_key(&mut state, key(KeyCode::Esc)).unwrap();
+
+        assert!(!should_quit);
+        assert!(!state.modal_open);
+    }
+
+    #[test]
+    fn enter_with_meta_target_buildrun_executes_without_modal() {
+        let dir = temp_case_dir("meta_target_enter");
+        let file = script_file(&dir, "meta_target_enter.sculpt");
+        fs::write(&file, "@meta target=cli\nmodule(Test)\nend\n").unwrap();
+        let dist = dist_dir_for(&file);
+        fs::create_dir_all(&dist).unwrap();
+        fs::write(dist.join("main.js"), "console.log('ok')").unwrap();
+
+        let mut state = test_state(&dir, &file);
+        state.meta_target = Some("cli".to_string());
+
+        handle_key(&mut state, key(KeyCode::Enter)).unwrap();
+
+        assert!(!state.modal_open);
+        assert!(state.history.iter().any(|h| h.starts_with("run ")));
     }
 }

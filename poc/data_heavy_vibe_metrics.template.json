@@ -1,0 +1,15 @@
+{
+  "model": "<provider-model>",
+  "dataset": "<small|medium|large|combined>",
+  "iterations": [
+    {
+      "iter": 1,
+      "seconds": 0.0,
+      "chars": 0,
+      "notes": ""
+    }
+  ],
+  "accepted_iteration": 0,
+  "regressions": 0,
+  "acceptance_quality": 0
+}

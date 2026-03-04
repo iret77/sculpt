@@ -64,6 +64,7 @@
   - Added buildReportJson field diagnostics (`C912`) for clearer schema-level report assembly errors.
   - Added benchmark provider fallback strategy (`openai -> gemini -> stub` when non-strict).
   - Added benchmark metrics markings for fallback usage and provider-attempt traces.
+  - Added explicit benchmark failure classification (`infra` vs `product`) and `infra_blocked` gate signaling.
   - Executed full benchmark re-run and gate check with `openai/gpt-4.1-mini` (2026-03-03).
   - Re-run remains blocked by provider quota (`HTTP 429 insufficient_quota`), so matrix/repro acceptance still fail due missing output artifacts.
 - DoD:
@@ -81,10 +82,20 @@
 2. Persisted Build Telemetry Expansion (P2)
 - Surface normalized timestamps and durations in TUI details.
 - Add compact per-run trend view (last N builds) for debugging performance drift.
+- Progress:
+  - Persisted rolling build/run history per script in `dist/<script>/build.history.json` (last 30 entries).
+  - TUI details now show normalized timings (`llm/build/run/total`), age, status, and compact trend lines (last 5).
 
 3. Dist Retention Policy (P2)
 - Add retention options to `sculpt clean` (age, count, size budget).
 - Optional auto-clean behavior configurable in `sculpt.config.json`.
+- Progress:
+  - Added retention options to CLI clean command:
+    - `--max-age-days <n>`
+    - `--keep-latest <n>`
+    - `--max-size-mb <n>`
+  - Retention mode now works without `--all`/input by pruning `dist/` entries safely.
+  - Added optional auto-clean policy via `sculpt.config.json` (`clean.auto` + retention settings), applied after successful build/freeze/replay/run.
 
 4. CLI/TUI Regression Coverage (P2)
 - Add integration tests for per-script `dist` isolation and run/build behavior parity.

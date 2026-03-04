@@ -1,0 +1,46 @@
+{
+  "scenario": "SCENARIO_20260222_data_heavy_invoice_reconciliation",
+  "approach": "sculpt",
+  "provider": "stub",
+  "openai_attempt": "failed_before_benchmark_due_to_insufficient_quota",
+  "repro_runs": [
+    {
+      "run": 1,
+      "ok": false,
+      "build_rc": 0,
+      "run_rc": 0,
+      "hash": null
+    },
+    {
+      "run": 2,
+      "ok": false,
+      "build_rc": 0,
+      "run_rc": 0,
+      "hash": null
+    },
+    {
+      "run": 3,
+      "ok": false,
+      "build_rc": 0,
+      "run_rc": 0,
+      "hash": null
+    },
+    {
+      "run": 4,
+      "ok": false,
+      "build_rc": 0,
+      "run_rc": 0,
+      "hash": null
+    },
+    {
+      "run": 5,
+      "ok": false,
+      "build_rc": 0,
+      "run_rc": 0,
+      "hash": null
+    }
+  ],
+  "normalized_unique_hash_count": 0,
+  "reproducibility_score": 0,
+  "normalization": "n/a (no valid output artifacts generated)"
+}

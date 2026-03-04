@@ -43,10 +43,13 @@ Status: `completed (last re-run: 2026-03-03)`
   - Repro unique hashes: `0`
 - Gate check:
   - `sculpt gate check poc/gates/data_heavy_sculpt_gate_input.json`
-  - Verdict: `FAIL (3 criteria failed)`
+  - Verdict (current logic): `INFRA BLOCKED` when provider quota/availability blocks all evaluable runs.
 - Benchmark fallback behavior is now explicit:
   - non-strict runs automatically attempt `openai -> gemini -> stub`
   - metrics include `provider_strategy`, `provider_used`, `fallback_used`, and `provider_attempts`
+- Benchmark failure classification is now explicit:
+  - run-level `failure_kind`: `none | infra | product`
+  - summary-level `infra_blocked` and `infra_failures`
 - Blocking reason remains unchanged:
   - OpenAI requests fail with `HTTP 429` / `insufficient_quota`, so no deterministic output artifacts are produced for benchmark scoring.
 

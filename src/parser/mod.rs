@@ -460,6 +460,16 @@ impl Parser {
         let magic = self.check(TokenKind::Question);
         if magic {
             self.advance();
+            if let Some(TokenKind::String(s)) = self.peek_kind().cloned() {
+                self.advance();
+                return Ok(Call {
+                    name: "?prompt".to_string(),
+                    args: vec![CallArg {
+                        name: None,
+                        value: Expr::String(s),
+                    }],
+                });
+            }
         }
         let mut call = self.parse_call()?;
         if magic {
@@ -835,5 +845,41 @@ impl Parser {
 
     fn is_eof(&self) -> bool {
         matches!(self.peek_kind(), Some(TokenKind::Eof))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_inline_nd_prompt_constraint() {
+        let src = r#"
+module(Test):
+  nd(layout):
+    propose ui(kind: "demo")
+    satisfy(
+      ?"keep spacing calm",
+      noOverlap()
+    )
+  end
+end
+"#;
+        let module = parse_source(src).expect("parse ok");
+        let nd = module
+            .items
+            .iter()
+            .find_map(|i| match i {
+                Item::Nd(nd) => Some(nd),
+                _ => None,
+            })
+            .expect("nd block");
+        assert_eq!(nd.constraints.len(), 2);
+        assert_eq!(nd.constraints[0].name, "?prompt");
+        assert_eq!(nd.constraints[0].args.len(), 1);
+        assert!(matches!(
+            nd.constraints[0].args[0].value,
+            Expr::String(ref s) if s == "keep spacing calm"
+        ));
     }
 }

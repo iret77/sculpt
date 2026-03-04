@@ -1,0 +1,68 @@
+{
+  "runs": [
+    {
+      "size": "small",
+      "returncode": 0,
+      "seconds": 0.034,
+      "ok": true,
+      "hash": "7edb5c08cd44a9572a8b57e766ad6f85ac858c27d53b35bebb4768f762a60716",
+      "report_path": "/Users/cwendler/Dev/App/sculpt/poc/runs/data_heavy_vibe/small/reconciliation_report.json",
+      "exceptions_path": "/Users/cwendler/Dev/App/sculpt/poc/runs/data_heavy_vibe/small/exceptions.csv"
+    },
+    {
+      "size": "medium",
+      "returncode": 0,
+      "seconds": 0.497,
+      "ok": true,
+      "hash": "ce844793a76fad1c428c7a2398036ae871d6458bc99c1fef4f064f6815248e5c",
+      "report_path": "/Users/cwendler/Dev/App/sculpt/poc/runs/data_heavy_vibe/medium/reconciliation_report.json",
+      "exceptions_path": "/Users/cwendler/Dev/App/sculpt/poc/runs/data_heavy_vibe/medium/exceptions.csv"
+    },
+    {
+      "size": "large",
+      "returncode": 0,
+      "seconds": 7.902,
+      "ok": true,
+      "hash": "8d30c1b995aaec386b8ce0cfb791ce4ce51bc0ae9fb0d0731bc0d66aca4e435f",
+      "report_path": "/Users/cwendler/Dev/App/sculpt/poc/runs/data_heavy_vibe/large/reconciliation_report.json",
+      "exceptions_path": "/Users/cwendler/Dev/App/sculpt/poc/runs/data_heavy_vibe/large/exceptions.csv"
+    }
+  ],
+  "repro": [
+    {
+      "run": 1,
+      "seconds": 0.501,
+      "ok": true,
+      "hash": "b77be3f117600cd1b7bdafe15f660f9e6809161ac0303ffe7026871fe649912a",
+      "returncode": 0
+    },
+    {
+      "run": 2,
+      "seconds": 0.51,
+      "ok": true,
+      "hash": "e020d8a56731ec150ea8f1712eac8cdf461fdb9c888487bea7f43889075d33eb",
+      "returncode": 0
+    },
+    {
+      "run": 3,
+      "seconds": 0.517,
+      "ok": true,
+      "hash": "6ecb3c20c95aa937b372f4f12da6e9f92cf6203fa3a798b4a1e2d98a27b56773",
+      "returncode": 0
+    },
+    {
+      "run": 4,
+      "seconds": 0.498,
+      "ok": true,
+      "hash": "89046667d6e29dc23d7a6d77e766ba6e61d44c7dc29ff54c023506f1625c2295",
+      "returncode": 0
+    },
+    {
+      "run": 5,
+      "seconds": 0.499,
+      "ok": true,
+      "hash": "9b0f5a7844baab0561ef5b9eedc202b20b34eb1b49b0422cfe662620c729126e",
+      "returncode": 0
+    }
+  ]
+}

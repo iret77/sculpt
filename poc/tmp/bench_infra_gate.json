@@ -1,0 +1,18 @@
+{
+  "name": "data_heavy_sculpt_gate_input_v1",
+  "observed": {
+    "acceptance_rate": 0.0,
+    "infra_blocked": true,
+    "infra_failures": 1,
+    "repro_pass": 0,
+    "repro_unique_hashes": 0,
+    "reproducible": false
+  },
+  "source_metrics": "/Users/cwendler/Dev/App/sculpt/poc/tmp/bench_infra_metrics.json",
+  "thresholds": {
+    "max_repro_unique_hashes": 1,
+    "min_acceptance_rate": 1.0,
+    "min_repro_pass": 5,
+    "require_reproducible": true
+  }
+}

@@ -78,11 +78,24 @@ Rebuilds using `sculpt.lock` without a fresh LLM generation.
 ### `sculpt clean <input.sculpt|project.sculpt.json>` / `sculpt clean --all`
 Removes script/project-specific artifacts or the whole `dist/`.
 
+Retention mode (dist root pruning):
+- `sculpt clean --max-age-days <n>`
+- `sculpt clean --keep-latest <n>`
+- `sculpt clean --max-size-mb <n>`
+
+You can combine retention options, for example:
+- `sculpt clean --max-age-days 14 --max-size-mb 2048`
+
 ### `sculpt auth check --provider <name> [--verify]`
 Checks provider auth configuration, optionally verifies with API call.
 
 ### `sculpt gate check <gate.json>`
 Evaluates pre-registered release quality gates and returns non-zero on failure.
+
+### `sculpt benchmark data-heavy [options]`
+Runs dataset-matrix + reproducibility benchmark for data-heavy workflows (CLI target), validates required artifacts, and writes:
+- metrics JSON (`--output`, default `poc/data_heavy_sculpt_metrics.json`)
+- gate input JSON (`--gate-output`, default `poc/gates/data_heavy_sculpt_gate_input.json`)
 
 ## 4) Build vs Freeze vs Replay
 - **Build**: regular compile path, typically LLM-backed.
@@ -245,6 +258,8 @@ You can set one key per line, or multiple key-value pairs in one line:
 - `max_iterations`: maximum LLM compile retries before fallback.
 - `fallback`: fallback policy when LLM compile keeps failing (`fail`, `stub`, `replay`).
 - `requires`: comma-separated capability requirements checked against the selected target contract.
+- `required_outputs`: comma-separated runtime artifact paths; build validates matching writer calls and run verifies files exist.
+- `nd_critical_path`: ND marker policy in deterministic business/data paths (`off`, `warn`, `error`).
 
 ### 6.2 How Meta Interacts With CLI Flags
 - CLI flags have highest priority (for example `--target` overrides `@meta target=...`).
@@ -261,6 +276,8 @@ You can set one key per line, or multiple key-value pairs in one line:
   - `@meta layout=explicit`
 - Strict validation for critical modules:
   - `@meta strict_scopes=true`
+- Runtime artifact enforcement:
+  - `@meta required_outputs="reconciliation_report.json,exceptions.csv"`
 - Convergence controls:
   - `@meta nd_budget=35`
   - `@meta confidence=0.80`
@@ -279,6 +296,21 @@ Provider selection order:
 2. `sculpt.config.json` default provider
 
 `--model` overrides provider default model.
+
+Optional auto-clean in `sculpt.config.json`:
+
+```json
+{
+  "clean": {
+    "auto": true,
+    "max_age_days": 14,
+    "keep_latest": 50,
+    "max_size_mb": 2048
+  }
+}
+```
+
+When enabled, successful `build/freeze/replay/run` applies retention to `dist/`.
 
 ### 7.2 Target Providers
 Built-in targets:

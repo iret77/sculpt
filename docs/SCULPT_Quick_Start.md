@@ -50,7 +50,13 @@ Example:
 ```json
 {
   "provider": "gemini",
-  "gemini": { "api_key": "YOUR_KEY", "model": "gemini-2.5-pro" }
+  "gemini": { "api_key": "YOUR_KEY", "model": "gemini-2.5-pro" },
+  "clean": {
+    "auto": true,
+    "max_age_days": 14,
+    "keep_latest": 50,
+    "max_size_mb": 2048
+  }
 }
 ```
 

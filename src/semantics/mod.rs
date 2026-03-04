@@ -9,6 +9,13 @@ use crate::ast::{
 pub struct Diagnostic {
     pub code: &'static str,
     pub message: String,
+    pub level: DiagnosticLevel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticLevel {
+    Error,
+    Warning,
 }
 
 impl Diagnostic {
@@ -16,6 +23,15 @@ impl Diagnostic {
         Self {
             code,
             message: message.into(),
+            level: DiagnosticLevel::Error,
+        }
+    }
+
+    fn warn(code: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+            level: DiagnosticLevel::Warning,
         }
     }
 }
@@ -76,6 +92,7 @@ pub fn validate_module_with_imports(
     validate_rules(&rules, &mut diagnostics);
     validate_nd_blocks(&nd_blocks, &module_defines, &mut diagnostics);
     validate_convergence_meta(module, &nd_blocks, &mut diagnostics);
+    validate_nd_guardrails(module, &flows, &rules, &mut diagnostics);
     validate_state_execution(&flows, &mut diagnostics);
     validate_legacy_shorthand(module, &flows, &rules, &mut diagnostics);
     validate_symbol_references(
@@ -161,9 +178,16 @@ fn validate_legacy_shorthand(
 pub fn format_diagnostics(diags: &[Diagnostic]) -> String {
     diags
         .iter()
-        .map(|d| format!("{}: {}", d.code, d.message))
+        .map(|d| match d.level {
+            DiagnosticLevel::Error => format!("{}: {}", d.code, d.message),
+            DiagnosticLevel::Warning => format!("{} [warn]: {}", d.code, d.message),
+        })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+pub fn has_errors(diags: &[Diagnostic]) -> bool {
+    diags.iter().any(|d| d.level == DiagnosticLevel::Error)
 }
 
 fn validate_module_name(module: &Module, diagnostics: &mut Vec<Diagnostic>) {
@@ -473,6 +497,28 @@ fn validate_nd_blocks(
                     ),
                 ));
             }
+            if constraint.name == "?prompt" {
+                if constraint.args.len() != 1 {
+                    diagnostics.push(Diagnostic::new(
+                        "N310",
+                        format!(
+                            "ND '{}' inline prompt '?\"...\"' expects exactly 1 string argument",
+                            nd.name
+                        ),
+                    ));
+                    continue;
+                }
+                if !matches!(constraint.args[0].value, Expr::String(_)) {
+                    diagnostics.push(Diagnostic::new(
+                        "N310",
+                        format!(
+                            "ND '{}' inline prompt '?\"...\"' must be a string literal",
+                            nd.name
+                        ),
+                    ));
+                }
+                continue;
+            }
             if let Some(raw_name) = constraint.name.strip_prefix('?') {
                 let expected_arity = local_defines
                     .get(raw_name)
@@ -667,6 +713,116 @@ fn validate_state_execution(flows: &[&Flow], diagnostics: &mut Vec<Diagnostic>) 
             }
         }
     }
+}
+
+fn validate_nd_guardrails(
+    module: &Module,
+    flows: &[&Flow],
+    rules: &[&Rule],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let mode = module
+        .meta
+        .get("nd_critical_path")
+        .map(|v| v.trim().to_ascii_lowercase())
+        .unwrap_or_else(|| "warn".to_string());
+    if mode == "off" {
+        return;
+    }
+    if mode != "warn" && mode != "error" {
+        diagnostics.push(Diagnostic::new(
+            "M706",
+            format!(
+                "Invalid nd_critical_path '{}': expected off|warn|error",
+                mode
+            ),
+        ));
+        return;
+    }
+
+    let mut report = |context: String| {
+        let msg = format!(
+            "Critical deterministic path contains ND marker in {} (use deterministic symbols only)",
+            context
+        );
+        if mode == "error" {
+            diagnostics.push(Diagnostic::new("N320", msg));
+        } else {
+            diagnostics.push(Diagnostic::warn("N320", msg));
+        }
+    };
+
+    for flow in flows {
+        for state in &flow.states {
+            let state_name = state.name.as_deref().unwrap_or("<unnamed>");
+            for stmt in &state.statements {
+                match stmt {
+                    StateStmt::Assign { value, .. } => {
+                        if expr_has_nd_marker(value) {
+                            report(format!(
+                                "flow '{}', state '{}', assignment",
+                                flow.name, state_name
+                            ));
+                        }
+                    }
+                    StateStmt::Expr(call) => {
+                        if call_has_nd_marker(call) {
+                            report(format!(
+                                "flow '{}', state '{}', expression '{}'",
+                                flow.name, state_name, call.name
+                            ));
+                        }
+                    }
+                    StateStmt::Rule(rule) => {
+                        if let RuleTrigger::When(expr) = &rule.trigger {
+                            if expr_has_nd_marker(expr) {
+                                report(format!("rule '{}' when-condition", rule.name));
+                            }
+                        }
+                        for body in &rule.body {
+                            if let RuleStmt::Assign { value, .. } = body {
+                                if expr_has_nd_marker(value) {
+                                    report(format!("rule '{}' assignment", rule.name));
+                                }
+                            }
+                        }
+                    }
+                    StateStmt::On { .. } | StateStmt::Run { .. } | StateStmt::Terminate => {}
+                }
+            }
+        }
+    }
+
+    for rule in rules {
+        if let RuleTrigger::When(expr) = &rule.trigger {
+            if expr_has_nd_marker(expr) {
+                report(format!("module rule '{}' when-condition", rule.name));
+            }
+        }
+        for body in &rule.body {
+            if let RuleStmt::Assign { value, .. } = body {
+                if expr_has_nd_marker(value) {
+                    report(format!("module rule '{}' assignment", rule.name));
+                }
+            }
+        }
+    }
+}
+
+fn expr_has_nd_marker(expr: &Expr) -> bool {
+    match expr {
+        Expr::Ident(id) => id.starts_with('?'),
+        Expr::Call(call) => call_has_nd_marker(call),
+        Expr::Binary { left, right, .. } => expr_has_nd_marker(left) || expr_has_nd_marker(right),
+        Expr::Number(_) | Expr::String(_) | Expr::Null => false,
+    }
+}
+
+fn call_has_nd_marker(call: &Call) -> bool {
+    if call.name.starts_with('?') {
+        return true;
+    }
+    call.args.iter().any(|a| expr_has_nd_marker(&a.value))
 }
 
 fn validate_symbol_references(

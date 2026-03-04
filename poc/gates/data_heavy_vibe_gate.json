@@ -1,0 +1,45 @@
+{
+  "name": "data_heavy_vibe_gate_v1",
+  "study": "poc/SCULPT_vs_Vibe_Data_Heavy_Report.md",
+  "criteria": [
+    {
+      "id": "G1",
+      "description": "Reproducibility is clearly higher",
+      "sculpt": 0,
+      "vibe": 5,
+      "operator": "sculpt_gt_vibe",
+      "min_delta": 1
+    },
+    {
+      "id": "G2",
+      "description": "Regression count is lower",
+      "sculpt": 1,
+      "vibe": 0,
+      "operator": "sculpt_lt_vibe",
+      "min_delta": 1
+    },
+    {
+      "id": "G3",
+      "description": "Iterations to accepted result are lower",
+      "sculpt": 8,
+      "vibe": 1,
+      "operator": "sculpt_lt_vibe",
+      "min_delta": 1
+    },
+    {
+      "id": "G4",
+      "description": "Developer UX score is clearly better",
+      "sculpt": 14,
+      "vibe": 31,
+      "operator": "sculpt_gt_vibe",
+      "min_delta": 5
+    },
+    {
+      "id": "G5",
+      "description": "Final acceptance quality is at least equal",
+      "sculpt": 0,
+      "vibe": 1,
+      "operator": "sculpt_gte_vibe"
+    }
+  ]
+}

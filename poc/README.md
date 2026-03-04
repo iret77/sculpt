@@ -8,6 +8,10 @@ This folder is intentionally curated to keep case-study evidence readable.
 - [SCULPT_Case_Studies_Overview.md](SCULPT_Case_Studies_Overview.md)
 - [POC_Incident_Triage_Report.md](POC_Incident_Triage_Report.md)
 - [SCULPT_vs_Vibe_Incident_Triage.md](SCULPT_vs_Vibe_Incident_Triage.md)
+- [SCULPT_vs_Vibe_Data_Heavy_Setup.md](SCULPT_vs_Vibe_Data_Heavy_Setup.md)
+- [SCULPT_vs_Vibe_Data_Heavy_Report.md](SCULPT_vs_Vibe_Data_Heavy_Report.md)
+- [SCULPT_vs_Vibe_Data_Heavy_Dataset_Spec.md](SCULPT_vs_Vibe_Data_Heavy_Dataset_Spec.md)
+- [SCULPT_vs_Vibe_Data_Heavy_Execution_Checklist.md](SCULPT_vs_Vibe_Data_Heavy_Execution_Checklist.md)
 
 ## Canonical Artifacts (Kept Uncompressed)
 - `classic_incident_triage.ts` (classical baseline source)
@@ -16,7 +20,28 @@ This folder is intentionally curated to keep case-study evidence readable.
 - `vibe_metrics.json`
 - `vibe_repro_metrics.json`
 - `gates/incident_triage_vibe_gate.json`
+- `data_heavy_vibe_metrics.template.json`
+- `data_heavy_vibe_repro_metrics.template.json`
+- `gates/data_heavy_vibe_gate.template.json`
+- `data_heavy_vibe_metrics.json`
+- `data_heavy_vibe_repro_metrics.json`
+- `data_heavy_sculpt_metrics.json`
+- `data_heavy_sculpt_repro_metrics.json`
+- `data_heavy_vibe_prompts.md`
+- `gates/data_heavy_vibe_gate.json`
+- `data_heavy_openai_attempt.log`
+- `gates/data_heavy_vibe_gate_result.txt`
 
 ## Archived Raw Iteration Artifacts
 - `artifacts/incident_triage_raw_runs.zip`
   - contains `vibe_run/*` and `vibe_repro_runs/*` raw files
+
+## Data-Heavy Utilities
+- `generate_data_heavy_benchmark_data.py` (dataset generator)
+- generated datasets:
+  - `data/small/invoices.csv`
+  - `data/small/payments.csv`
+  - `data/medium/invoices.csv`
+  - `data/medium/payments.csv`
+  - `data/large/invoices.csv`
+  - `data/large/payments.csv`

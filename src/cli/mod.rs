@@ -112,6 +112,12 @@ pub enum Command {
         input: Option<PathBuf>,
         #[arg(long)]
         all: bool,
+        #[arg(long, help = "Remove entries older than N days")]
+        max_age_days: Option<u64>,
+        #[arg(long, help = "Keep only the newest N dist entries")]
+        keep_latest: Option<usize>,
+        #[arg(long, help = "Enforce max dist size in MB by deleting oldest entries")]
+        max_size_mb: Option<u64>,
     },
 }
 
@@ -146,7 +152,10 @@ pub enum GateCommand {
 #[derive(Subcommand)]
 pub enum BenchmarkCommand {
     DataHeavy {
-        #[arg(long, default_value = "examples/business/invoice_reconciliation_batch.sculpt")]
+        #[arg(
+            long,
+            default_value = "examples/business/invoice_reconciliation_batch.sculpt"
+        )]
         script: PathBuf,
         #[arg(long, default_value = "poc/data")]
         dataset_root: PathBuf,
@@ -196,6 +205,7 @@ struct Config {
     openai: Option<OpenAIConfig>,
     anthropic: Option<AnthropicConfig>,
     gemini: Option<GeminiConfig>,
+    clean: Option<CleanConfig>,
 }
 
 #[derive(Default, serde::Deserialize)]
@@ -214,6 +224,14 @@ struct AnthropicConfig {
 struct GeminiConfig {
     api_key: Option<String>,
     model: Option<String>,
+}
+
+#[derive(Default, serde::Deserialize)]
+struct CleanConfig {
+    auto: Option<bool>,
+    max_age_days: Option<u64>,
+    keep_latest: Option<usize>,
+    max_size_mb: Option<u64>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -312,7 +330,21 @@ pub fn run() -> Result<()> {
         ),
         Command::Replay { input, target } => replay(&input, target.as_deref()),
         Command::Run { input, target } => run_cmd(&input, target.as_deref()),
-        Command::Clean { input, all } => clean_cmd(input.as_deref(), all),
+        Command::Clean {
+            input,
+            all,
+            max_age_days,
+            keep_latest,
+            max_size_mb,
+        } => clean_cmd(
+            input.as_deref(),
+            all,
+            CleanRetention {
+                max_age_days,
+                keep_latest,
+                max_size_mb,
+            },
+        ),
     }
 }
 
@@ -351,6 +383,10 @@ struct DataHeavyGateObserved {
     repro_pass: usize,
     repro_unique_hashes: usize,
     reproducible: bool,
+    #[serde(default)]
+    infra_blocked: bool,
+    #[serde(default)]
+    infra_failures: usize,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -1429,6 +1465,7 @@ fn build(
             token_usage: token_usage.clone(),
         },
     )?;
+    maybe_auto_clean_dist(&dist_dir);
 
     print_unified_footer(
         &[
@@ -1587,6 +1624,7 @@ fn freeze(
             token_usage: token_usage.clone(),
         },
     )?;
+    maybe_auto_clean_dist(&dist_dir);
 
     print_unified_footer(
         &[
@@ -1653,6 +1691,7 @@ fn replay(input: &Path, target: Option<&str>) -> Result<()> {
             token_usage: None,
         },
     )?;
+    maybe_auto_clean_dist(&dist_dir);
     fs::write(dist_dir.join("ir.json"), to_pretty_json(&ir)?)?;
     fs::write(dist_dir.join("nondet.report"), generate_report(&ir))?;
 
@@ -1784,6 +1823,7 @@ fn run_cmd(input: &Path, target: Option<&str>) -> Result<()> {
         token_usage: None,
     };
     write_build_meta(&dist_dir, &meta)?;
+    maybe_auto_clean_dist(&dist_dir);
     Ok(())
 }
 
@@ -1827,7 +1867,11 @@ fn verify_build_artifacts(target: &str, dist_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-fn validate_required_output_contract(ir: &IrModule, target_ir: &TargetIr, target: &str) -> Result<()> {
+fn validate_required_output_contract(
+    ir: &IrModule,
+    target_ir: &TargetIr,
+    target: &str,
+) -> Result<()> {
     if target != "cli" {
         return Ok(());
     }
@@ -1910,7 +1954,10 @@ fn validate_required_output_contract(ir: &IrModule, target_ir: &TargetIr, target
     Ok(())
 }
 
-fn extract_runtime_path(path_value: Option<&Value>, state_strings: &HashMap<String, String>) -> Option<String> {
+fn extract_runtime_path(
+    path_value: Option<&Value>,
+    state_strings: &HashMap<String, String>,
+) -> Option<String> {
     let v = path_value?;
     if let Some(s) = v.as_str() {
         return Some(s.to_string());
@@ -1976,13 +2023,33 @@ fn parse_meta_csv_list(raw: &str) -> Vec<String> {
         .collect()
 }
 
-fn clean_cmd(input: Option<&Path>, all: bool) -> Result<()> {
-    let root = std::env::current_dir()?;
-    clean_impl(&root, input, all)
+#[derive(Clone, Copy)]
+struct CleanRetention {
+    max_age_days: Option<u64>,
+    keep_latest: Option<usize>,
+    max_size_mb: Option<u64>,
 }
 
-fn clean_impl(root: &Path, input: Option<&Path>, all: bool) -> Result<()> {
+fn clean_cmd(input: Option<&Path>, all: bool, retention: CleanRetention) -> Result<()> {
+    let root = std::env::current_dir()?;
+    validate_retention(retention)?;
+    clean_impl(&root, input, all, retention)
+}
+
+fn clean_impl(
+    root: &Path,
+    input: Option<&Path>,
+    all: bool,
+    retention: CleanRetention,
+) -> Result<()> {
+    let has_retention = retention.max_age_days.is_some()
+        || retention.keep_latest.is_some()
+        || retention.max_size_mb.is_some();
+
     if all {
+        if has_retention {
+            bail!("--all cannot be combined with retention options");
+        }
         let dist = root.join("dist");
         if dist.exists() {
             fs::remove_dir_all(&dist)?;
@@ -1993,8 +2060,15 @@ fn clean_impl(root: &Path, input: Option<&Path>, all: bool) -> Result<()> {
         return Ok(());
     }
 
+    if has_retention {
+        if input.is_some() {
+            bail!("Retention options apply to dist root only; omit input");
+        }
+        return clean_retention(root, retention);
+    }
+
     let Some(input) = input else {
-        bail!("Provide an input file or use --all");
+        bail!("Provide an input file, use --all, or set retention options");
     };
     let dist_dir = root.join(dist_dir(input));
     if dist_dir.exists() {
@@ -2004,6 +2078,239 @@ fn clean_impl(root: &Path, input: Option<&Path>, all: bool) -> Result<()> {
         println!("Nothing to clean for {}", input.display());
     }
     Ok(())
+}
+
+#[derive(Clone)]
+struct DistEntry {
+    path: PathBuf,
+    modified_ms: u128,
+    size_bytes: u128,
+}
+
+struct CleanStats {
+    removed_entries: usize,
+    removed_bytes: u128,
+    remaining_bytes: u128,
+}
+
+fn clean_retention(root: &Path, retention: CleanRetention) -> Result<()> {
+    let stats = clean_retention_quiet(root, retention, None)?;
+    println!("{}", format_clean_stats("Retention clean complete", &stats));
+    Ok(())
+}
+
+fn clean_retention_quiet(
+    root: &Path,
+    retention: CleanRetention,
+    protected_entry: Option<&Path>,
+) -> Result<CleanStats> {
+    let dist = root.join("dist");
+    let protected_abs = protected_entry.map(|p| {
+        if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            root.join(p)
+        }
+    });
+    if !dist.exists() {
+        return Ok(CleanStats {
+            removed_entries: 0,
+            removed_bytes: 0,
+            remaining_bytes: 0,
+        });
+    }
+
+    let mut entries = dist_entries(&dist)?;
+    if entries.is_empty() {
+        return Ok(CleanStats {
+            removed_entries: 0,
+            removed_bytes: 0,
+            remaining_bytes: 0,
+        });
+    }
+
+    let now = now_unix_ms();
+    let mut removed = 0usize;
+    let mut removed_bytes = 0u128;
+
+    if let Some(days) = retention.max_age_days {
+        let max_age_ms = (days as u128) * 24 * 60 * 60 * 1000;
+        let cutoff = now.saturating_sub(max_age_ms);
+        let mut keep = Vec::new();
+        for e in entries {
+            if e.modified_ms < cutoff && Some(&e.path) != protected_abs.as_ref() {
+                removed_bytes = removed_bytes.saturating_add(e.size_bytes);
+                remove_entry(&e.path)?;
+                removed += 1;
+            } else {
+                keep.push(e);
+            }
+        }
+        entries = keep;
+    }
+
+    entries.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
+    if let Some(keep_n) = retention.keep_latest {
+        let mut keep = Vec::new();
+        for (idx, e) in entries.into_iter().enumerate() {
+            if idx < keep_n || Some(&e.path) == protected_abs.as_ref() {
+                keep.push(e);
+            } else {
+                removed_bytes = removed_bytes.saturating_add(e.size_bytes);
+                remove_entry(&e.path)?;
+                removed += 1;
+            }
+        }
+        entries = keep;
+    }
+
+    if let Some(max_mb) = retention.max_size_mb {
+        let budget = (max_mb as u128) * 1024 * 1024;
+        entries.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
+        let mut total: u128 = entries.iter().map(|e| e.size_bytes).sum();
+        let mut idx = entries.len();
+        while total > budget && idx > 0 {
+            idx -= 1;
+            let e = &entries[idx];
+            if Some(&e.path) == protected_abs.as_ref() {
+                continue;
+            }
+            removed_bytes = removed_bytes.saturating_add(e.size_bytes);
+            total = total.saturating_sub(e.size_bytes);
+            remove_entry(&e.path)?;
+            removed += 1;
+        }
+    }
+
+    let remaining = dist_entries(&dist)?;
+    let remaining_bytes: u128 = remaining.iter().map(|e| e.size_bytes).sum();
+    Ok(CleanStats {
+        removed_entries: removed,
+        removed_bytes,
+        remaining_bytes,
+    })
+}
+
+fn format_clean_stats(prefix: &str, stats: &CleanStats) -> String {
+    format!(
+        "{}: removed {} entries ({:.2} MB), remaining {:.2} MB",
+        prefix,
+        stats.removed_entries,
+        stats.removed_bytes as f64 / (1024.0 * 1024.0),
+        stats.remaining_bytes as f64 / (1024.0 * 1024.0)
+    )
+}
+
+fn auto_clean_retention_from_config(cfg: &Config) -> Option<CleanRetention> {
+    let clean = cfg.clean.as_ref()?;
+    if clean.auto != Some(true) {
+        return None;
+    }
+    let retention = CleanRetention {
+        max_age_days: clean.max_age_days,
+        keep_latest: clean.keep_latest,
+        max_size_mb: clean.max_size_mb,
+    };
+    if retention.max_age_days.is_none()
+        && retention.keep_latest.is_none()
+        && retention.max_size_mb.is_none()
+    {
+        return None;
+    }
+    if validate_retention(retention).is_err() {
+        return None;
+    }
+    Some(retention)
+}
+
+fn maybe_auto_clean_dist(active_dist_dir: &Path) {
+    let cfg = load_config();
+    let Some(retention) = auto_clean_retention_from_config(&cfg) else {
+        return;
+    };
+    let root = match std::env::current_dir() {
+        Ok(root) => root,
+        Err(e) => {
+            eprintln!("{} {}", style_accent("Auto-clean warning:"), e);
+            return;
+        }
+    };
+    match clean_retention_quiet(&root, retention, Some(active_dist_dir)) {
+        Ok(stats) => {
+            if stats.removed_entries > 0 {
+                println!("{}", style_dim(&format_clean_stats("Auto-clean", &stats)));
+            }
+        }
+        Err(e) => {
+            eprintln!("{} {}", style_accent("Auto-clean warning:"), e);
+        }
+    }
+}
+
+fn validate_retention(retention: CleanRetention) -> Result<()> {
+    if let Some(v) = retention.max_age_days {
+        if v == 0 {
+            bail!("--max-age-days must be >= 1");
+        }
+    }
+    if let Some(v) = retention.keep_latest {
+        if v == 0 {
+            bail!("--keep-latest must be >= 1");
+        }
+    }
+    if let Some(v) = retention.max_size_mb {
+        if v == 0 {
+            bail!("--max-size-mb must be >= 1");
+        }
+    }
+    Ok(())
+}
+
+fn remove_entry(path: &Path) -> Result<()> {
+    if path.is_dir() {
+        fs::remove_dir_all(path)?;
+    } else if path.exists() {
+        fs::remove_file(path)?;
+    }
+    Ok(())
+}
+
+fn dist_entries(dist_root: &Path) -> Result<Vec<DistEntry>> {
+    let mut out = Vec::new();
+    for de in fs::read_dir(dist_root)? {
+        let de = de?;
+        let path = de.path();
+        let meta = fs::metadata(&path)?;
+        let modified_ms = modified_unix_ms(&meta);
+        let size_bytes = entry_size_bytes(&path)?;
+        out.push(DistEntry {
+            path,
+            modified_ms,
+            size_bytes,
+        });
+    }
+    Ok(out)
+}
+
+fn modified_unix_ms(meta: &fs::Metadata) -> u128 {
+    meta.modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
+}
+
+fn entry_size_bytes(path: &Path) -> Result<u128> {
+    let meta = fs::metadata(path)?;
+    if meta.is_file() {
+        return Ok(meta.len() as u128);
+    }
+    let mut total = 0u128;
+    for de in fs::read_dir(path)? {
+        let de = de?;
+        total = total.saturating_add(entry_size_bytes(&de.path())?);
+    }
+    Ok(total)
 }
 
 fn enforce_meta(ir: &IrModule, target: &str) -> Result<bool> {
@@ -2260,7 +2567,6 @@ fn gate_check(gate_file: &Path) -> Result<()> {
 }
 
 fn gate_check_classic(gate_file: &Path, spec: &GateSpec) -> Result<()> {
-
     println!();
     println!(
         "{} {}",
@@ -2339,6 +2645,18 @@ fn gate_check_data_heavy(gate_file: &Path, spec: &DataHeavyGateSpec) -> Result<(
     );
     println!("{}", style_divider());
 
+    if observed.infra_blocked {
+        println!(
+            "{} {}",
+            style_accent("Gate Result:"),
+            style_accent("INFRA BLOCKED (provider availability/quota)")
+        );
+        bail!(
+            "Gate Result: INFRA BLOCKED (infra_failures={})",
+            observed.infra_failures
+        );
+    }
+
     let mut failed = 0usize;
     let checks = vec![
         (
@@ -2385,7 +2703,12 @@ fn gate_check_data_heavy(gate_file: &Path, spec: &DataHeavyGateSpec) -> Result<(
         } else {
             style_accent("FAIL")
         };
-        println!("{} {} {}", style_dim(&format!("[{}]", id)), style_dim(desc), status);
+        println!(
+            "{} {} {}",
+            style_dim(&format!("[{}]", id)),
+            style_dim(desc),
+            status
+        );
         println!("  {} {}", style_dim("detail:"), style_dim(&detail));
         if !ok {
             failed += 1;
@@ -2418,6 +2741,8 @@ struct DataHeavyRunResult {
     report_path: String,
     exceptions_path: String,
     normalized_hash: Option<String>,
+    failure_kind: String,
+    failure_reason: Option<String>,
     errors: Vec<String>,
 }
 
@@ -2437,6 +2762,13 @@ struct BenchmarkBuildResult {
     model_used: Option<String>,
     fallback_used: bool,
     attempts: Vec<BenchmarkBuildAttempt>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BenchmarkFailureKind {
+    None,
+    Infra,
+    Product,
 }
 
 fn benchmark_data_heavy(
@@ -2481,7 +2813,11 @@ fn benchmark_data_heavy(
         style_title(&format!("Benchmark {}", env!("CARGO_PKG_VERSION")))
     );
     println!("{} {}", style_dim("Type:"), style_dim("data-heavy"));
-    println!("{} {}", style_dim("Script:"), style_dim(&script.display().to_string()));
+    println!(
+        "{} {}",
+        style_dim("Script:"),
+        style_dim(&script.display().to_string())
+    );
     println!("{}", style_divider());
 
     let provider_chain = benchmark_provider_chain(provider.clone(), strict_provider);
@@ -2530,8 +2866,9 @@ fn benchmark_data_heavy(
         let mut run_s = 0.0f64;
         if build_rc == 0 {
             let run_start = Instant::now();
-            run_rc = run_cli_noninteractive(&dist_dir(&variant_script), &report_path, &exceptions_path)
-                .unwrap_or(1);
+            run_rc =
+                run_cli_noninteractive(&dist_dir(&variant_script), &report_path, &exceptions_path)
+                    .unwrap_or(1);
             run_s = run_start.elapsed().as_secs_f64();
         }
         let mut errors: Vec<String> = Vec::new();
@@ -2548,6 +2885,8 @@ fn benchmark_data_heavy(
         let (ok, normalized_hash, mut validation_errors) =
             validate_data_heavy_outputs(&report_path, &exceptions_path);
         errors.append(&mut validation_errors);
+        let (failure_kind, failure_reason) =
+            classify_data_heavy_failure(build_rc, run_rc, &build_result.attempts, &errors);
         runs.push(DataHeavyRunResult {
             size: size.clone(),
             build_rc,
@@ -2575,6 +2914,12 @@ fn benchmark_data_heavy(
             report_path: report_path.display().to_string(),
             exceptions_path: exceptions_path.display().to_string(),
             normalized_hash,
+            failure_kind: match failure_kind {
+                BenchmarkFailureKind::None => "none".to_string(),
+                BenchmarkFailureKind::Infra => "infra".to_string(),
+                BenchmarkFailureKind::Product => "product".to_string(),
+            },
+            failure_reason,
             errors,
         });
     }
@@ -2643,6 +2988,8 @@ fn benchmark_data_heavy(
         let (ok, normalized_hash, mut validation_errors) =
             validate_data_heavy_outputs(&report_path, &exceptions_path);
         errors.append(&mut validation_errors);
+        let (failure_kind, failure_reason) =
+            classify_data_heavy_failure(build_rc, run_rc, &build_result.attempts, &errors);
         repro.push(serde_json::json!({
             "run": i + 1,
             "size": repro_size,
@@ -2652,6 +2999,12 @@ fn benchmark_data_heavy(
             "run_s": run_s,
             "ok": build_rc == 0 && run_rc == 0 && ok,
             "hash": normalized_hash,
+            "failure_kind": match failure_kind {
+                BenchmarkFailureKind::None => "none",
+                BenchmarkFailureKind::Infra => "infra",
+                BenchmarkFailureKind::Product => "product",
+            },
+            "failure_reason": failure_reason,
             "errors": errors,
             "provider_used": build_result.provider_used,
             "model_used": build_result.model_used,
@@ -2672,6 +3025,11 @@ fn benchmark_data_heavy(
     }
 
     let accepted_runs = runs.iter().filter(|r| r.ok).count();
+    let infra_failures = runs
+        .iter()
+        .filter(|r| r.failure_kind.as_str() == "infra")
+        .count();
+    let matrix_evaluable = runs.len().saturating_sub(infra_failures);
     let repro_ok: Vec<&serde_json::Value> = repro
         .iter()
         .filter(|r| r.get("ok").and_then(|v| v.as_bool()) == Some(true))
@@ -2689,6 +3047,17 @@ fn benchmark_data_heavy(
         .iter()
         .filter(|r| r.get("fallback_used").and_then(|v| v.as_bool()) == Some(true))
         .count();
+    let repro_infra_failures = repro
+        .iter()
+        .filter(|r| r.get("failure_kind").and_then(|v| v.as_str()) == Some("infra"))
+        .count();
+    let repro_evaluable = repro_runs.saturating_sub(repro_infra_failures);
+    let infra_blocked = matrix_evaluable == 0 || repro_evaluable == 0;
+    let acceptance_rate = if matrix_evaluable == 0 {
+        0.0
+    } else {
+        accepted_runs as f64 / matrix_evaluable as f64
+    };
 
     let metrics = serde_json::json!({
         "provider": provider.clone().unwrap_or_else(|| "stub".to_string()),
@@ -2704,21 +3073,29 @@ fn benchmark_data_heavy(
         "repro": repro,
         "summary": {
             "matrix_total": sizes.len(),
+            "matrix_evaluable": matrix_evaluable,
+            "infra_failures": infra_failures,
             "matrix_pass": accepted_runs,
-            "acceptance_rate": if sizes.is_empty() { 0.0 } else { accepted_runs as f64 / sizes.len() as f64 },
+            "acceptance_rate": acceptance_rate,
             "repro_runs": repro_runs,
+            "repro_evaluable": repro_evaluable,
+            "repro_infra_failures": repro_infra_failures,
             "repro_pass": repro_ok.len(),
             "repro_unique_hashes": unique_hashes.len(),
             "reproducible": reproducible,
             "fallback_runs": fallback_runs,
-            "fallback_repro_runs": fallback_repro_runs
+            "fallback_repro_runs": fallback_repro_runs,
+            "infra_blocked": infra_blocked
         }
     });
 
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(output, format!("{}\n", serde_json::to_string_pretty(&metrics)?))?;
+    fs::write(
+        output,
+        format!("{}\n", serde_json::to_string_pretty(&metrics)?),
+    )?;
 
     let gate = serde_json::json!({
         "name": "data_heavy_sculpt_gate_input_v1",
@@ -2733,13 +3110,18 @@ fn benchmark_data_heavy(
             "acceptance_rate": metrics["summary"]["acceptance_rate"],
             "repro_pass": metrics["summary"]["repro_pass"],
             "repro_unique_hashes": metrics["summary"]["repro_unique_hashes"],
-            "reproducible": metrics["summary"]["reproducible"]
+            "reproducible": metrics["summary"]["reproducible"],
+            "infra_blocked": metrics["summary"]["infra_blocked"],
+            "infra_failures": metrics["summary"]["infra_failures"]
         }
     });
     if let Some(parent) = gate_output.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(gate_output, format!("{}\n", serde_json::to_string_pretty(&gate)?))?;
+    fs::write(
+        gate_output,
+        format!("{}\n", serde_json::to_string_pretty(&gate)?),
+    )?;
 
     println!("{}", style_divider());
     println!(
@@ -2747,6 +3129,13 @@ fn benchmark_data_heavy(
         style_dim("Matrix pass:"),
         accepted_runs,
         sizes.len()
+    );
+    println!(
+        "{} {} (infra={} evaluable={})",
+        style_dim("Acceptance rate:"),
+        style_dim(&format!("{:.3}", acceptance_rate)),
+        infra_failures,
+        matrix_evaluable
     );
     println!(
         "{} {} / {}",
@@ -2765,7 +3154,18 @@ fn benchmark_data_heavy(
         fallback_runs,
         sizes.len()
     );
-    println!("{} {}", style_dim("Metrics:"), style_dim(&output.display().to_string()));
+    if infra_blocked {
+        println!(
+            "{} {}",
+            style_accent("Benchmark status:"),
+            style_accent("INFRA BLOCKED (provider availability/quota)")
+        );
+    }
+    println!(
+        "{} {}",
+        style_dim("Metrics:"),
+        style_dim(&output.display().to_string())
+    );
     println!(
         "{} {}",
         style_dim("Gate input:"),
@@ -2774,7 +3174,10 @@ fn benchmark_data_heavy(
     Ok(())
 }
 
-fn benchmark_provider_chain(requested_provider: Option<String>, strict_provider: bool) -> Vec<String> {
+fn benchmark_provider_chain(
+    requested_provider: Option<String>,
+    strict_provider: bool,
+) -> Vec<String> {
     if strict_provider {
         return vec![requested_provider.unwrap_or_else(|| "stub".to_string())];
     }
@@ -2862,7 +3265,10 @@ fn benchmark_build_with_fallback(
                     error: Some(msg.clone()),
                 });
                 last_error = Some(msg.clone());
-                if strict_provider || idx + 1 >= provider_chain.len() || !is_provider_unavailable_error(&msg) {
+                if strict_provider
+                    || idx + 1 >= provider_chain.len()
+                    || !is_provider_unavailable_error(&msg)
+                {
                     break;
                 }
                 if let Some(next) = provider_chain.get(idx + 1) {
@@ -2888,6 +3294,46 @@ fn benchmark_build_with_fallback(
         fallback_used,
         attempts,
     }
+}
+
+fn classify_data_heavy_failure(
+    build_rc: i32,
+    run_rc: i32,
+    attempts: &[BenchmarkBuildAttempt],
+    errors: &[String],
+) -> (BenchmarkFailureKind, Option<String>) {
+    if build_rc == 0 && run_rc == 0 {
+        return (BenchmarkFailureKind::None, None);
+    }
+
+    if build_rc != 0 {
+        let has_attempts = !attempts.is_empty();
+        let provider_only_failures = has_attempts
+            && attempts
+                .iter()
+                .filter_map(|a| a.error.as_deref())
+                .all(is_provider_unavailable_error);
+        if provider_only_failures {
+            let reason = attempts
+                .iter()
+                .filter_map(|a| a.error.as_ref())
+                .next()
+                .cloned();
+            return (BenchmarkFailureKind::Infra, reason);
+        }
+
+        let reason = errors.first().cloned().or_else(|| {
+            attempts
+                .iter()
+                .filter_map(|a| a.error.as_ref())
+                .next()
+                .cloned()
+        });
+        return (BenchmarkFailureKind::Product, reason);
+    }
+
+    let reason = errors.first().cloned();
+    (BenchmarkFailureKind::Product, reason)
 }
 
 fn is_provider_unavailable_error(msg: &str) -> bool {
@@ -2943,12 +3389,19 @@ fn replace_string_assignment(source: &str, variable: &str, value: &str) -> Resul
         }
     }
     if !changed {
-        bail!("Could not patch assignment '{} = \"...\"' in benchmark script", variable);
+        bail!(
+            "Could not patch assignment '{} = \"...\"' in benchmark script",
+            variable
+        );
     }
     Ok(lines.join("\n") + "\n")
 }
 
-fn run_cli_noninteractive(dist_dir: &Path, report_path: &Path, exceptions_path: &Path) -> Result<i32> {
+fn run_cli_noninteractive(
+    dist_dir: &Path,
+    report_path: &Path,
+    exceptions_path: &Path,
+) -> Result<i32> {
     let entry = dist_dir.join("main.js");
     if !entry.exists() {
         bail!("{} not found", entry.display());
@@ -2959,7 +3412,12 @@ fn run_cli_noninteractive(dist_dir: &Path, report_path: &Path, exceptions_path: 
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .with_context(|| format!("Failed to run benchmark cli target (node {})", entry.display()))?;
+        .with_context(|| {
+            format!(
+                "Failed to run benchmark cli target (node {})",
+                entry.display()
+            )
+        })?;
 
     thread::sleep(Duration::from_millis(200));
     if let Some(stdin) = child.stdin.as_mut() {
@@ -2970,8 +3428,12 @@ fn run_cli_noninteractive(dist_dir: &Path, report_path: &Path, exceptions_path: 
     let mut produced = false;
     while Instant::now() < deadline {
         if report_path.exists() && exceptions_path.exists() {
-            let report_ok = fs::metadata(report_path).map(|m| m.len() > 2).unwrap_or(false);
-            let exceptions_ok = fs::metadata(exceptions_path).map(|m| m.len() > 0).unwrap_or(false);
+            let report_ok = fs::metadata(report_path)
+                .map(|m| m.len() > 2)
+                .unwrap_or(false);
+            let exceptions_ok = fs::metadata(exceptions_path)
+                .map(|m| m.len() > 0)
+                .unwrap_or(false);
             if report_ok && exceptions_ok {
                 produced = true;
                 break;
@@ -3001,7 +3463,10 @@ fn run_cli_noninteractive(dist_dir: &Path, report_path: &Path, exceptions_path: 
     Ok(status.code().unwrap_or(if produced { 0 } else { 1 }))
 }
 
-fn validate_data_heavy_outputs(report_path: &Path, exceptions_path: &Path) -> (bool, Option<String>, Vec<String>) {
+fn validate_data_heavy_outputs(
+    report_path: &Path,
+    exceptions_path: &Path,
+) -> (bool, Option<String>, Vec<String>) {
     let mut errors = Vec::new();
     if !report_path.exists() {
         errors.push("missing report json".to_string());
@@ -3040,10 +3505,16 @@ fn validate_data_heavy_outputs(report_path: &Path, exceptions_path: &Path) -> (b
         "ambiguous",
         "suspicious",
     ];
-    if root.get("input_stats").and_then(|v| v.as_object()).is_none() {
+    if root
+        .get("input_stats")
+        .and_then(|v| v.as_object())
+        .is_none()
+    {
         errors.push("report.input_stats missing".to_string());
     }
-    let counts = root.get("classification_counts").and_then(|v| v.as_object());
+    let counts = root
+        .get("classification_counts")
+        .and_then(|v| v.as_object());
     if counts.is_none() {
         errors.push("report.classification_counts missing".to_string());
     } else if let Some(c) = counts {
@@ -3402,10 +3873,7 @@ fn load_ir(input: &Path, nd_policy_override: Option<&str>) -> Result<crate::ir::
         if !has_errors(&diagnostics) {
             eprintln!("Semantic validation warnings:\n{}", rendered);
         } else {
-        bail!(
-            "Semantic validation failed:\n{}",
-            rendered
-        );
+            bail!("Semantic validation failed:\n{}", rendered);
         }
     }
     Ok(from_ast(module))
@@ -3813,6 +4281,8 @@ mod tests {
     use super::*;
     use crate::ir::from_ast;
     use crate::parser::parse_source;
+    use std::fs::File;
+    use std::time::Duration;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_workspace() -> PathBuf {
@@ -3825,13 +4295,21 @@ mod tests {
         dir
     }
 
+    fn no_retention() -> CleanRetention {
+        CleanRetention {
+            max_age_days: None,
+            keep_latest: None,
+            max_size_mb: None,
+        }
+    }
+
     #[test]
     fn clean_all_removes_dist() {
         let ws = temp_workspace();
         fs::create_dir_all(ws.join("dist/hello_world")).expect("make dist");
         fs::write(ws.join("dist/hello_world/main.js"), "ok").expect("write file");
 
-        clean_impl(&ws, None, true).expect("clean all");
+        clean_impl(&ws, None, true, no_retention()).expect("clean all");
         assert!(!ws.join("dist").exists());
 
         let _ = fs::remove_dir_all(ws);
@@ -3845,11 +4323,122 @@ mod tests {
         fs::write(ws.join("dist/a/main.js"), "a").expect("write a");
         fs::write(ws.join("dist/b/main.js"), "b").expect("write b");
 
-        clean_impl(&ws, Some(Path::new("a.sculpt")), false).expect("clean input");
+        clean_impl(&ws, Some(Path::new("a.sculpt")), false, no_retention()).expect("clean input");
         assert!(!ws.join("dist/a").exists());
         assert!(ws.join("dist/b").exists());
 
         let _ = fs::remove_dir_all(ws);
+    }
+
+    #[test]
+    fn clean_retention_keep_latest_keeps_newest_only() {
+        let ws = temp_workspace();
+        fs::create_dir_all(ws.join("dist/a")).expect("make dist a");
+        fs::create_dir_all(ws.join("dist/b")).expect("make dist b");
+        fs::create_dir_all(ws.join("dist/c")).expect("make dist c");
+        fs::write(ws.join("dist/a/main.js"), "a").expect("write a");
+        std::thread::sleep(Duration::from_millis(5));
+        fs::write(ws.join("dist/b/main.js"), "b").expect("write b");
+        std::thread::sleep(Duration::from_millis(5));
+        fs::write(ws.join("dist/c/main.js"), "c").expect("write c");
+
+        clean_impl(
+            &ws,
+            None,
+            false,
+            CleanRetention {
+                max_age_days: None,
+                keep_latest: Some(1),
+                max_size_mb: None,
+            },
+        )
+        .expect("retention clean");
+
+        assert!(!ws.join("dist/a").exists());
+        assert!(!ws.join("dist/b").exists());
+        assert!(ws.join("dist/c").exists());
+        let _ = fs::remove_dir_all(ws);
+    }
+
+    #[test]
+    fn clean_retention_age_removes_old_entries() {
+        let ws = temp_workspace();
+        fs::create_dir_all(ws.join("dist/old")).expect("make old");
+        fs::create_dir_all(ws.join("dist/new")).expect("make new");
+        fs::write(ws.join("dist/old/main.js"), "old").expect("write old");
+        fs::write(ws.join("dist/new/main.js"), "new").expect("write new");
+
+        let old_file = ws.join("dist/old/main.js");
+        let old_dir = ws.join("dist/old");
+        let old_time = SystemTime::now() - Duration::from_secs(3 * 24 * 60 * 60);
+        File::options()
+            .write(true)
+            .open(&old_file)
+            .expect("open old file")
+            .set_modified(old_time)
+            .expect("set modified");
+        let _ = File::open(&old_dir)
+            .and_then(|f| f.set_modified(old_time))
+            .ok();
+
+        clean_impl(
+            &ws,
+            None,
+            false,
+            CleanRetention {
+                max_age_days: Some(1),
+                keep_latest: None,
+                max_size_mb: None,
+            },
+        )
+        .expect("retention clean");
+
+        assert!(!ws.join("dist/old").exists());
+        assert!(ws.join("dist/new").exists());
+        let _ = fs::remove_dir_all(ws);
+    }
+
+    #[test]
+    fn clean_rejects_all_with_retention_options() {
+        let ws = temp_workspace();
+        let err = clean_impl(
+            &ws,
+            None,
+            true,
+            CleanRetention {
+                max_age_days: Some(1),
+                keep_latest: None,
+                max_size_mb: None,
+            },
+        )
+        .expect_err("must fail");
+        assert!(format!("{err}").contains("--all"));
+        let _ = fs::remove_dir_all(ws);
+    }
+
+    #[test]
+    fn auto_clean_policy_from_config_requires_enabled_and_limits() {
+        let mut cfg = Config::default();
+        assert!(auto_clean_retention_from_config(&cfg).is_none());
+        cfg.clean = Some(CleanConfig {
+            auto: Some(true),
+            max_age_days: Some(7),
+            keep_latest: None,
+            max_size_mb: None,
+        });
+        let retention = auto_clean_retention_from_config(&cfg).expect("retention");
+        assert_eq!(retention.max_age_days, Some(7));
+    }
+
+    #[test]
+    fn validate_retention_rejects_zero_values() {
+        let err = validate_retention(CleanRetention {
+            max_age_days: None,
+            keep_latest: Some(0),
+            max_size_mb: None,
+        })
+        .expect_err("must fail");
+        assert!(format!("{err}").contains("keep-latest"));
     }
 
     #[test]

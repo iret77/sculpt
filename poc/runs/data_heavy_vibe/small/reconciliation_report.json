@@ -1,0 +1,18 @@
+{
+  "input_stats": {
+    "invoices": 1000,
+    "payments": 1200
+  },
+  "classification_counts": {
+    "matched_full": 746,
+    "matched_partial": 68,
+    "overpaid": 43,
+    "missing_payment": 96,
+    "duplicate_payment": 47,
+    "ambiguous": 0,
+    "suspicious": 235
+  },
+  "processing_ms": 6,
+  "rules_version": "1.0",
+  "generated_at": "2026-02-23T11:38:07.174Z"
+}

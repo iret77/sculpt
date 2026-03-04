@@ -112,3 +112,189 @@ end
     let msg = format!("{err}");
     assert!(msg.contains("C906"));
 }
+
+#[test]
+fn rejects_unknown_unqualified_deterministic_call_for_cli() {
+    let src = r#"@meta target=cli
+module(App.Core):
+  use(cli.ui)
+  use(cli.input) as input
+  flow(Main):
+    start > A
+    state(A):
+      value = totallyUnknownCall("x")
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+  state():
+    value = null
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "cli", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C907"));
+}
+
+#[test]
+fn rejects_wrong_arity_for_deterministic_call_for_cli() {
+    let src = r#"@meta target=cli
+module(App.Core):
+  use(cli.ui)
+  use(cli.input) as input
+  flow(Main):
+    start > A
+    state(A):
+      value = csvRead("a.csv", "b.csv")
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+  state():
+    value = null
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "cli", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C908"));
+}
+
+#[test]
+fn rejects_invalid_metric_key_signature_for_cli() {
+    let src = r#"@meta target=cli
+module(App.Core):
+  use(cli.ui)
+  use(cli.input) as input
+  flow(Main):
+    start > A
+    state(A):
+      value = metric(rec, "unknown_metric")
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+  state():
+    value = 0
+    rec = null
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "cli", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C909"));
+    assert!(msg.contains("allowed"));
+}
+
+#[test]
+fn rejects_empty_sort_key_list_signature_for_cli() {
+    let src = r#"@meta target=cli
+module(App.Core):
+  use(cli.ui)
+  use(cli.input) as input
+  flow(Main):
+    start > A
+    state(A):
+      value = sortBy(rows, "")
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+  state():
+    value = null
+    rows = null
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "cli", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C909"));
+    assert!(msg.contains("sort key list is empty"));
+}
+
+#[test]
+fn rejects_build_report_json_field_type_mismatch() {
+    let src = r#"@meta target=cli
+module(App.Core):
+  use(cli.ui)
+  use(cli.input) as input
+  flow(Main):
+    start > A
+    state(A):
+      report = buildReportJson("bad", 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+  state():
+    report = null
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "cli", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C912"));
+    assert!(msg.contains("input_stats.invoices"));
+}
+
+#[test]
+fn rejects_schema_error_message_with_non_identifier_args() {
+    let src = r#"@meta target=cli
+module(App.Core):
+  use(cli.ui)
+  use(cli.input) as input
+  flow(Main):
+    start > A
+    state(A):
+      error = schemaErrorMessage("a", "b")
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+  state():
+    error = ""
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "cli", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C909"));
+    assert!(msg.contains("schemaErrorMessage"));
+}

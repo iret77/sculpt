@@ -1,0 +1,90 @@
+{
+  "model": "gpt-4.1-mini",
+  "provider": "openai",
+  "provider_strategy": {
+    "fallback_chain": [
+      "openai"
+    ],
+    "requested_model": "gpt-4.1-mini",
+    "requested_provider": "openai",
+    "strict_provider": true
+  },
+  "repro": [
+    {
+      "build_rc": 1,
+      "build_s": 5.223640708,
+      "errors": [
+        "provider openai failed: LLM compile failed after 1 attempt(s) and fallback=fail: OpenAI error: status 429 Too Many Requests body {\n  \"error\": {\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\",\n    \"type\": \"insufficient_quota\",\n    \"param\": null,\n    \"code\": \"insufficient_quota\"\n  }\n}",
+        "missing report json"
+      ],
+      "failure_kind": "infra",
+      "failure_reason": "LLM compile failed after 1 attempt(s) and fallback=fail: OpenAI error: status 429 Too Many Requests body {\n  \"error\": {\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\",\n    \"type\": \"insufficient_quota\",\n    \"param\": null,\n    \"code\": \"insufficient_quota\"\n  }\n}",
+      "fallback_used": false,
+      "hash": null,
+      "model_used": "gpt-4.1-mini",
+      "ok": false,
+      "provider_attempts": [
+        {
+          "error": "LLM compile failed after 1 attempt(s) and fallback=fail: OpenAI error: status 429 Too Many Requests body {\n  \"error\": {\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\",\n    \"type\": \"insufficient_quota\",\n    \"param\": null,\n    \"code\": \"insufficient_quota\"\n  }\n}",
+          "model": "gpt-4.1-mini",
+          "ok": false,
+          "provider": "openai"
+        }
+      ],
+      "provider_used": "unknown",
+      "run": 1,
+      "run_rc": 1,
+      "run_s": 0.0,
+      "size": "small"
+    }
+  ],
+  "runs": [
+    {
+      "build_rc": 1,
+      "build_s": 6.074345708,
+      "errors": [
+        "provider openai failed: LLM compile failed after 1 attempt(s) and fallback=fail: OpenAI error: status 429 Too Many Requests body {\n  \"error\": {\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\",\n    \"type\": \"insufficient_quota\",\n    \"param\": null,\n    \"code\": \"insufficient_quota\"\n  }\n}",
+        "missing report json"
+      ],
+      "exceptions_exists": false,
+      "exceptions_path": "poc/runs/data_heavy_sculpt/small/exceptions.csv",
+      "failure_kind": "infra",
+      "failure_reason": "LLM compile failed after 1 attempt(s) and fallback=fail: OpenAI error: status 429 Too Many Requests body {\n  \"error\": {\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\",\n    \"type\": \"insufficient_quota\",\n    \"param\": null,\n    \"code\": \"insufficient_quota\"\n  }\n}",
+      "fallback_used": false,
+      "model_used": "gpt-4.1-mini",
+      "normalized_hash": null,
+      "ok": false,
+      "provider_attempts": [
+        {
+          "error": "LLM compile failed after 1 attempt(s) and fallback=fail: OpenAI error: status 429 Too Many Requests body {\n  \"error\": {\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.\",\n    \"type\": \"insufficient_quota\",\n    \"param\": null,\n    \"code\": \"insufficient_quota\"\n  }\n}",
+          "model": "gpt-4.1-mini",
+          "ok": false,
+          "provider": "openai"
+        }
+      ],
+      "provider_used": "unknown",
+      "report_exists": false,
+      "report_path": "poc/runs/data_heavy_sculpt/small/reconciliation_report.json",
+      "run_rc": 1,
+      "run_s": 0.0,
+      "size": "small"
+    }
+  ],
+  "summary": {
+    "acceptance_rate": 0.0,
+    "fallback_repro_runs": 0,
+    "fallback_runs": 0,
+    "infra_blocked": true,
+    "infra_failures": 1,
+    "matrix_evaluable": 0,
+    "matrix_pass": 0,
+    "matrix_total": 1,
+    "repro_evaluable": 0,
+    "repro_infra_failures": 1,
+    "repro_pass": 0,
+    "repro_runs": 1,
+    "repro_unique_hashes": 0,
+    "reproducible": false
+  },
+  "target": "cli"
+}

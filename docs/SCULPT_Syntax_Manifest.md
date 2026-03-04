@@ -154,6 +154,7 @@ Current language usage (1.0):
 
 1. Inside `satisfy(...)`:
    - `?name(...)` means “use this soft define reference”
+   - `?"free text"` means “use this inline ND prompt hint”
    - Example:
    ```
    define collision.stable():
@@ -162,16 +163,16 @@ Current language usage (1.0):
 
    nd(layout):
      propose layout(type: "rooms")
-     satisfy(?collision.stable())
+     satisfy(
+       ?collision.stable(),
+       ?"keep movement readable for players"
+     )
    end
    ```
 
 2. Outside `nd(...)`:
    - `?identifier` is parsed as an explicit ND-magic identifier expression.
    - This is an advanced form and should be used intentionally.
-
-Not part of language 1.0 syntax:
-- `?"free text prompt"` inline prompt literals are **not** currently specified/implemented.
 
 Practical guidance:
 - Use `?` primarily with `define(...)` references in `satisfy(...)`.

@@ -213,10 +213,7 @@ fn validate_symbols_against_packages(
             let state_name = state.name.as_deref().unwrap_or("<unnamed>");
             for stmt in &state.statements {
                 match stmt {
-                    StateStmt::On { event, .. } => check_call(
-                        event,
-                        &format!("flow '{}', state '{}', transition", flow.name, state_name),
-                    ),
+                    StateStmt::On { .. } => {}
                     StateStmt::Expr(call) => check_call(
                         call,
                         &format!("flow '{}', state '{}', expression", flow.name, state_name),
@@ -245,6 +242,295 @@ fn validate_symbols_against_packages(
             check_call(c, &format!("nd '{}' satisfy", nd.name));
         }
     }
+
+    validate_deterministic_runtime_calls(ir, target, errors);
+}
+
+fn validate_deterministic_runtime_calls(ir: &IrModule, target: &str, errors: &mut Vec<String>) {
+    if target != "cli" {
+        return;
+    }
+
+    let mut check_call = |call: &Call, ctx: &str| {
+        if split_qualified_call(&call.name).is_some() {
+            return;
+        }
+
+        let Some(expected_arity) = cli_runtime_call_arity(&call.name) else {
+            errors.push(format!(
+                "C907: Unknown unqualified deterministic call '{}' (target '{}', context: {})",
+                call.name, target, ctx
+            ));
+            return;
+        };
+
+        if call.args.len() != expected_arity {
+            errors.push(format!(
+                "C908: Invalid arg count for deterministic call '{}' (expected {}, got {}, target '{}', context: {})",
+                call.name,
+                expected_arity,
+                call.args.len(),
+                target,
+                ctx
+            ));
+            return;
+        }
+
+        validate_cli_runtime_signature(call, target, ctx, errors);
+    };
+
+    for flow in &ir.flows {
+        for state in &flow.states {
+            let state_name = state.name.as_deref().unwrap_or("<unnamed>");
+            for stmt in &state.statements {
+                match stmt {
+                    StateStmt::On { .. } => {}
+                    StateStmt::Expr(call) => check_call(
+                        call,
+                        &format!("flow '{}', state '{}', expression", flow.name, state_name),
+                    ),
+                    StateStmt::Assign { value, .. } => walk_expr_calls(
+                        value,
+                        &mut check_call,
+                        &format!("flow '{}', state '{}', assignment", flow.name, state_name),
+                    ),
+                    StateStmt::Rule(rule) => validate_rule_expr_calls(
+                        rule,
+                        &mut check_call,
+                        flow.name.as_str(),
+                        state_name,
+                    ),
+                    StateStmt::Run { .. } | StateStmt::Terminate => {}
+                }
+            }
+        }
+    }
+
+    for rule in &ir.rules {
+        validate_rule_expr_calls(rule, &mut check_call, "<module>", "<module>");
+    }
+}
+
+fn validate_cli_runtime_signature(call: &Call, target: &str, ctx: &str, errors: &mut Vec<String>) {
+    let arg_expr = |idx: usize| call.args.get(idx).map(|a| &a.value);
+    let literal_string = |idx: usize| match arg_expr(idx) {
+        Some(Expr::String(s)) => Some(s.as_str()),
+        _ => None,
+    };
+
+    match call.name.as_str() {
+        "csvRead" => {
+            if !is_path_like_expr(arg_expr(0)) {
+                errors.push(format!(
+          "C909: Invalid signature for '{}' (arg1 must be path-like string or identifier, target '{}', context: {})",
+          call.name, target, ctx
+        ));
+            }
+        }
+        "csvHasColumns" => {
+            if let Some(columns) = literal_string(1) {
+                let cols: Vec<_> = columns
+                    .split(',')
+                    .map(|c| c.trim())
+                    .filter(|c| !c.is_empty())
+                    .collect();
+                if cols.is_empty() {
+                    errors.push(format!(
+            "C909: Invalid signature for '{}' (arg2 column list is empty, target '{}', context: {})",
+            call.name, target, ctx
+          ));
+                }
+            } else if !is_identifier_expr(arg_expr(1)) {
+                errors.push(format!(
+          "C909: Invalid signature for '{}' (arg2 must be comma-separated string or identifier, target '{}', context: {})",
+          call.name, target, ctx
+        ));
+            }
+        }
+        "csvMissingColumns" => {
+            if let Some(columns) = literal_string(1) {
+                let cols: Vec<_> = columns
+                    .split(',')
+                    .map(|c| c.trim())
+                    .filter(|c| !c.is_empty())
+                    .collect();
+                if cols.is_empty() {
+                    errors.push(format!(
+            "C909: Invalid signature for '{}' (arg2 column list is empty, target '{}', context: {})",
+            call.name, target, ctx
+          ));
+                }
+            } else if !is_identifier_expr(arg_expr(1)) {
+                errors.push(format!(
+          "C909: Invalid signature for '{}' (arg2 must be comma-separated string or identifier, target '{}', context: {})",
+          call.name, target, ctx
+        ));
+            }
+        }
+        "schemaErrorMessage" => {
+            if !is_identifier_expr(arg_expr(0)) {
+                errors.push(format!(
+          "C909: Invalid signature for '{}' (arg1 must be identifier from csvMissingColumns(...), target '{}', context: {})",
+          call.name, target, ctx
+        ));
+            }
+            if !is_identifier_expr(arg_expr(1)) {
+                errors.push(format!(
+          "C909: Invalid signature for '{}' (arg2 must be identifier from csvMissingColumns(...), target '{}', context: {})",
+          call.name, target, ctx
+        ));
+            }
+        }
+        "metric" => {
+            if let Some(metric_name) = literal_string(1) {
+                let allowed = [
+                    "matched_full",
+                    "matched_partial",
+                    "overpaid",
+                    "missing_payment",
+                    "duplicate_payment",
+                    "ambiguous",
+                    "suspicious",
+                ];
+                if !allowed.contains(&metric_name) {
+                    errors.push(format!(
+            "C909: Invalid signature for '{}' (arg2 metric key '{}' not allowed; allowed: {}, target '{}', context: {})",
+            call.name,
+            metric_name,
+            allowed.join(", "),
+            target,
+            ctx
+          ));
+                }
+            } else if !is_identifier_expr(arg_expr(1)) {
+                errors.push(format!(
+          "C909: Invalid signature for '{}' (arg2 must be known metric key string or identifier, target '{}', context: {})",
+          call.name, target, ctx
+        ));
+            }
+        }
+        "sortBy" => {
+            if let Some(keys) = literal_string(1) {
+                let parsed: Vec<_> = keys
+                    .split(',')
+                    .map(|c| c.trim())
+                    .filter(|c| !c.is_empty())
+                    .collect();
+                if parsed.is_empty() {
+                    errors.push(format!(
+            "C909: Invalid signature for '{}' (arg2 sort key list is empty, target '{}', context: {})",
+            call.name, target, ctx
+          ));
+                }
+            } else if !is_identifier_expr(arg_expr(1)) {
+                errors.push(format!(
+          "C909: Invalid signature for '{}' (arg2 must be comma-separated sort-key string or identifier, target '{}', context: {})",
+          call.name, target, ctx
+        ));
+            }
+        }
+        "writeJson" | "writeCsv" => {
+            if !is_path_like_expr(arg_expr(0)) {
+                errors.push(format!(
+          "C909: Invalid signature for '{}' (arg1 must be output path string or identifier, target '{}', context: {})",
+          call.name, target, ctx
+        ));
+            }
+        }
+        "summaryLine" => {
+            if literal_string(0).is_none() && !is_identifier_expr(arg_expr(0)) {
+                errors.push(format!(
+          "C909: Invalid signature for '{}' (arg1 must be label string or identifier, target '{}', context: {})",
+          call.name, target, ctx
+        ));
+            }
+        }
+        "buildReportJson" => {
+            let fields = [
+                ("input_stats.invoices", ArgType::NumberLike),
+                ("input_stats.payments", ArgType::NumberLike),
+                ("classification_counts.matched_full", ArgType::NumberLike),
+                ("classification_counts.matched_partial", ArgType::NumberLike),
+                ("classification_counts.overpaid", ArgType::NumberLike),
+                ("classification_counts.missing_payment", ArgType::NumberLike),
+                (
+                    "classification_counts.duplicate_payment",
+                    ArgType::NumberLike,
+                ),
+                ("classification_counts.ambiguous", ArgType::NumberLike),
+                ("classification_counts.suspicious", ArgType::NumberLike),
+                ("rules_version", ArgType::StringLike),
+                ("processing_ms", ArgType::NumberLike),
+            ];
+            for (idx, (field_name, expected)) in fields.iter().enumerate() {
+                if let Some(expr) = arg_expr(idx) {
+                    match validate_arg_type(expr, *expected) {
+                        Some(msg) => errors.push(format!(
+                            "C912: buildReportJson field '{}' has invalid value ({}, target '{}', context: {})",
+                            field_name, msg, target, ctx
+                        )),
+                        None => {}
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+#[derive(Clone, Copy)]
+enum ArgType {
+    NumberLike,
+    StringLike,
+}
+
+fn validate_arg_type(expr: &Expr, expected: ArgType) -> Option<&'static str> {
+    if matches!(expr, Expr::Null) {
+        return Some("null is not allowed");
+    }
+    match expected {
+        ArgType::NumberLike => match expr {
+            Expr::Number(_) | Expr::Ident(_) | Expr::Call(_) | Expr::Binary { .. } => None,
+            Expr::String(_) => Some("expected numeric expression, got string"),
+            Expr::Null => Some("null is not allowed"),
+        },
+        ArgType::StringLike => match expr {
+            Expr::String(_) | Expr::Ident(_) => None,
+            Expr::Number(_) => Some("expected string expression, got number"),
+            Expr::Call(_) | Expr::Binary { .. } => {
+                Some("expected string/identifier, got computed expression")
+            }
+            Expr::Null => Some("null is not allowed"),
+        },
+    }
+}
+
+fn is_identifier_expr(expr: Option<&Expr>) -> bool {
+    matches!(expr, Some(Expr::Ident(_)))
+}
+
+fn is_path_like_expr(expr: Option<&Expr>) -> bool {
+    matches!(expr, Some(Expr::String(_)) | Some(Expr::Ident(_)))
+}
+
+fn cli_runtime_call_arity(name: &str) -> Option<usize> {
+    match name {
+        "csvRead" => Some(1),
+        "rowCount" => Some(1),
+        "csvHasColumns" => Some(2),
+        "csvMissingColumns" => Some(2),
+        "schemaErrorMessage" => Some(2),
+        "reconcileInvoices" => Some(4),
+        "metric" => Some(2),
+        "buildExceptions" => Some(1),
+        "buildReportJson" => Some(11),
+        "processingMs" => Some(1),
+        "writeJson" => Some(2),
+        "sortBy" => Some(2),
+        "writeCsv" => Some(2),
+        "summaryLine" => Some(2),
+        _ => None,
+    }
 }
 
 fn validate_rule_calls<F>(rule: &Rule, check_call: &mut F, flow_name: &str, state_name: &str)
@@ -267,6 +553,34 @@ where
                 flow_name, state_name, rule.name
             ),
         ),
+    }
+    for stmt in &rule.body {
+        if let crate::ast::RuleStmt::Assign { value, .. } = stmt {
+            walk_expr_calls(
+                value,
+                check_call,
+                &format!(
+                    "flow '{}', state '{}', rule '{}', body",
+                    flow_name, state_name, rule.name
+                ),
+            );
+        }
+    }
+}
+
+fn validate_rule_expr_calls<F>(rule: &Rule, check_call: &mut F, flow_name: &str, state_name: &str)
+where
+    F: FnMut(&Call, &str),
+{
+    if let RuleTrigger::When(expr) = &rule.trigger {
+        walk_expr_calls(
+            expr,
+            check_call,
+            &format!(
+                "flow '{}', state '{}', rule '{}', when",
+                flow_name, state_name, rule.name
+            ),
+        );
     }
     for stmt in &rule.body {
         if let crate::ast::RuleStmt::Assign { value, .. } = stmt {
@@ -344,6 +658,13 @@ fn default_meta_schema() -> BTreeMap<String, MetaFieldSpec> {
         },
     );
     map.insert(
+        "required_outputs".to_string(),
+        MetaFieldSpec {
+            key: "required_outputs".to_string(),
+            meta_type: MetaType::CapabilityList,
+        },
+    );
+    map.insert(
         "max_iterations".to_string(),
         MetaFieldSpec {
             key: "max_iterations".to_string(),
@@ -359,6 +680,18 @@ fn default_meta_schema() -> BTreeMap<String, MetaFieldSpec> {
             key: "fallback".to_string(),
             meta_type: MetaType::Enum {
                 values: ["fail", "stub", "replay"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+            },
+        },
+    );
+    map.insert(
+        "nd_critical_path".to_string(),
+        MetaFieldSpec {
+            key: "nd_critical_path".to_string(),
+            meta_type: MetaType::Enum {
+                values: ["off", "warn", "error"]
                     .iter()
                     .map(|s| s.to_string())
                     .collect(),

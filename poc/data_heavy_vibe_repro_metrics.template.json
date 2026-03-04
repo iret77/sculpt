@@ -1,0 +1,14 @@
+{
+  "model": "<provider-model>",
+  "reruns": [
+    {
+      "run": 1,
+      "seconds": 0.0,
+      "hash": "",
+      "compile_ok": false,
+      "chars": 0
+    }
+  ],
+  "unique_hashes": 0,
+  "repro_score": 0
+}

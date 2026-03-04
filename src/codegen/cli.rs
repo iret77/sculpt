@@ -9,6 +9,8 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("const VIEWS = TARGET.views || {};\n");
     out.push_str("const FLOW = TARGET.flow || { start: '', transitions: {} };\n");
     out.push_str("let state = FLOW.start || '';\n\n");
+    out.push_str("const fs = require('fs');\n");
+    out.push_str("const path = require('path');\n\n");
     out.push_str("const EXT = TARGET.extensions || {};\n");
     out.push_str(
         "const RUNTIME_RULES = Array.isArray(EXT.runtimeRules) ? EXT.runtimeRules : [];\n",
@@ -316,7 +318,7 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("  if (tickHandle) return;\n");
     out.push_str("  const ms = game ? game.tickMs : Math.max(20, Number(((EXT.runtime || {}).tickMs) || 80));\n");
     out.push_str("  tickHandle = setInterval(() => {\n");
-    out.push_str("    dispatch('tick');\n");
+    out.push_str("    dispatch('input.tick');\n");
     out.push_str("    if (game && game.kind === 'breakout') stepBreakout();\n");
     out.push_str("    if (game && game.kind === 'snake') stepSnake();\n");
     out.push_str("    if (game) render();\n");
@@ -333,19 +335,276 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("function stateNeedsTick(s) {\n");
     out.push_str("  const map = (FLOW.transitions && FLOW.transitions[s]) || {};\n");
     out.push_str("  if (Object.prototype.hasOwnProperty.call(map, 'tick')) return true;\n");
+    out.push_str("  if (Object.prototype.hasOwnProperty.call(map, 'input.tick')) return true;\n");
     out.push_str("  for (const rule of RUNTIME_RULES) {\n");
-    out.push_str("    if (!rule || rule.on !== 'tick') continue;\n");
+    out.push_str("    if (!rule || (rule.on !== 'tick' && rule.on !== 'input.tick')) continue;\n");
     out.push_str("    if (rule.scopeState && rule.scopeState !== s) continue;\n");
     out.push_str("    return true;\n");
     out.push_str("  }\n");
     out.push_str("  return false;\n");
     out.push_str("}\n\n");
 
-    out.push_str("function resolveRuntimeValue(v) {\n");
+    out.push_str("function parseCsv(text) {\n");
     out.push_str(
-        "  if (v && typeof v === 'object' && !Array.isArray(v) && typeof v.ident === 'string') {\n",
+        "  const lines = String(text || '').split(/\\r?\\n/).filter((l) => l.length > 0);\n",
     );
-    out.push_str("    return RUNTIME_STATE[v.ident];\n");
+    out.push_str("  if (lines.length === 0) return [];\n");
+    out.push_str("  const headers = lines[0].split(',').map((h) => h.trim());\n");
+    out.push_str("  const rows = [];\n");
+    out.push_str("  for (let i = 1; i < lines.length; i += 1) {\n");
+    out.push_str("    const cols = lines[i].split(',');\n");
+    out.push_str("    const row = {};\n");
+    out.push_str("    for (let j = 0; j < headers.length; j += 1) row[headers[j]] = String(cols[j] || '').trim();\n");
+    out.push_str("    rows.push(row);\n");
+    out.push_str("  }\n");
+    out.push_str("  return rows;\n");
+    out.push_str("}\n\n");
+
+    out.push_str("function daysDiff(a, b) {\n");
+    out.push_str("  const da = new Date(String(a || '') + 'T00:00:00Z');\n");
+    out.push_str("  const db = new Date(String(b || '') + 'T00:00:00Z');\n");
+    out.push_str("  return Math.round((da.getTime() - db.getTime()) / 86400000);\n");
+    out.push_str("}\n\n");
+
+    out.push_str("function approxEq(a, b, tol) {\n");
+    out.push_str("  return Math.abs(Number(a || 0) - Number(b || 0)) <= Number(tol || 0);\n");
+    out.push_str("}\n\n");
+
+    out.push_str("function runtimeOp(name, args) {\n");
+    out.push_str("  if (name === 'csvRead') {\n");
+    out.push_str("    const file = String(args[0] || '');\n");
+    out.push_str(
+        "    const full = path.isAbsolute(file) ? file : path.resolve(process.cwd(), file);\n",
+    );
+    out.push_str(
+        "    try { return parseCsv(fs.readFileSync(full, 'utf8')); } catch { return []; }\n",
+    );
+    out.push_str("  }\n");
+    out.push_str(
+        "  if (name === 'rowCount') return Array.isArray(args[0]) ? args[0].length : 0;\n",
+    );
+    out.push_str("  if (name === 'csvHasColumns') {\n");
+    out.push_str("    const rows = Array.isArray(args[0]) ? args[0] : [];\n");
+    out.push_str("    const required = String(args[1] || '').split(',').map((s) => s.trim()).filter(Boolean);\n");
+    out.push_str("    if (rows.length === 0) return required.length === 0 ? 1 : 0;\n");
+    out.push_str("    const head = rows[0] || {};\n");
+    out.push_str("    return required.every((k) => Object.prototype.hasOwnProperty.call(head, k)) ? 1 : 0;\n");
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'csvMissingColumns') {\n");
+    out.push_str("    const rows = Array.isArray(args[0]) ? args[0] : [];\n");
+    out.push_str("    const required = String(args[1] || '').split(',').map((s) => s.trim()).filter(Boolean);\n");
+    out.push_str("    if (required.length === 0) return [];\n");
+    out.push_str("    if (rows.length === 0) return required;\n");
+    out.push_str("    const head = rows[0] || {};\n");
+    out.push_str(
+        "    return required.filter((k) => !Object.prototype.hasOwnProperty.call(head, k));\n",
+    );
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'schemaErrorMessage') {\n");
+    out.push_str("    const invMissing = Array.isArray(args[0]) ? args[0].map((x) => String(x)).filter(Boolean) : [];\n");
+    out.push_str("    const payMissing = Array.isArray(args[1]) ? args[1].map((x) => String(x)).filter(Boolean) : [];\n");
+    out.push_str("    const parts = [];\n");
+    out.push_str("    if (invMissing.length > 0) parts.push(`invoices.csv missing: ${invMissing.join(', ')}`);\n");
+    out.push_str("    if (payMissing.length > 0) parts.push(`payments.csv missing: ${payMissing.join(', ')}`);\n");
+    out.push_str("    if (parts.length === 0) return 'Input schema invalid';\n");
+    out.push_str("    return `Input schema invalid: ${parts.join(' | ')}`;\n");
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'reconcileInvoices') {\n");
+    out.push_str("    const invoices = Array.isArray(args[0]) ? args[0] : [];\n");
+    out.push_str("    const payments = Array.isArray(args[1]) ? args[1] : [];\n");
+    out.push_str("    const toleranceDays = Number(args[2] || 30);\n");
+    out.push_str("    const amountTolerance = Number(args[3] || 0);\n");
+    out.push_str("    const startedAt = Date.now();\n");
+    out.push_str("    const byInv = new Map();\n");
+    out.push_str("    const byCust = new Map();\n");
+    out.push_str("    for (const p of payments) {\n");
+    out.push_str("      const inv = String(p.invoice_id || '');\n");
+    out.push_str("      const cust = String(p.customer_id || '');\n");
+    out.push_str("      if (!byInv.has(inv)) byInv.set(inv, []);\n");
+    out.push_str("      byInv.get(inv).push(p);\n");
+    out.push_str("      if (!byCust.has(cust)) byCust.set(cust, []);\n");
+    out.push_str("      byCust.get(cust).push(p);\n");
+    out.push_str("    }\n");
+    out.push_str("    const usedPayment = new Set();\n");
+    out.push_str("    const exceptions = [];\n");
+    out.push_str("    const counts = { matched_full: 0, matched_partial: 0, overpaid: 0, missing_payment: 0, duplicate_payment: 0, ambiguous: 0, suspicious: 0 };\n");
+    out.push_str("    for (const inv of invoices) {\n");
+    out.push_str("      const amountDue = Number(inv.amount_due || 0);\n");
+    out.push_str("      const dueDate = String(inv.due_date || '');\n");
+    out.push_str("      const invId = String(inv.invoice_id || '');\n");
+    out.push_str("      const custId = String(inv.customer_id || '');\n");
+    out.push_str("      const direct = (byInv.get(invId) || []).filter((p) => String(p.customer_id || '') === custId);\n");
+    out.push_str("      const inWindow = direct.filter((p) => Math.abs(daysDiff(p.payment_date, dueDate)) <= toleranceDays);\n");
+    out.push_str("      let candidates = inWindow;\n");
+    out.push_str("      if (candidates.length === 0) {\n");
+    out.push_str("        const custPool = byCust.get(custId) || [];\n");
+    out.push_str("        const fallback = custPool.filter((p) => {\n");
+    out.push_str("          const amount = Number(p.amount_paid || 0);\n");
+    out.push_str("          return (!p.invoice_id || String(p.invoice_id).length === 0) && approxEq(amount, amountDue, amountTolerance) && Math.abs(daysDiff(p.payment_date, dueDate)) <= toleranceDays;\n");
+    out.push_str("        });\n");
+    out.push_str("        if (fallback.length === 1) candidates = fallback;\n");
+    out.push_str("        if (fallback.length > 1) {\n");
+    out.push_str("          counts.ambiguous += 1;\n");
+    out.push_str("          exceptions.push({ invoice_id: invId, payment_id: '', classification: 'ambiguous', reason: 'multiple fallback candidates' });\n");
+    out.push_str("          continue;\n");
+    out.push_str("        }\n");
+    out.push_str("      }\n");
+    out.push_str("      if (candidates.length === 0) {\n");
+    out.push_str("        counts.missing_payment += 1;\n");
+    out.push_str("        exceptions.push({ invoice_id: invId, payment_id: '', classification: 'missing_payment', reason: 'no payment found' });\n");
+    out.push_str("        continue;\n");
+    out.push_str("      }\n");
+    out.push_str("      if (candidates.length > 1) {\n");
+    out.push_str("        counts.duplicate_payment += 1;\n");
+    out.push_str("        exceptions.push({ invoice_id: invId, payment_id: candidates.map((p) => String(p.payment_id || '')).join('|'), classification: 'duplicate_payment', reason: 'multiple payments for one invoice' });\n");
+    out.push_str(
+        "        for (const p of candidates) usedPayment.add(String(p.payment_id || ''));\n",
+    );
+    out.push_str("        continue;\n");
+    out.push_str("      }\n");
+    out.push_str("      const p = candidates[0];\n");
+    out.push_str("      usedPayment.add(String(p.payment_id || ''));\n");
+    out.push_str("      const amount = Number(p.amount_paid || 0);\n");
+    out.push_str("      if (String(p.customer_id || '') !== custId) {\n");
+    out.push_str("        counts.suspicious += 1;\n");
+    out.push_str("        exceptions.push({ invoice_id: invId, payment_id: String(p.payment_id || ''), classification: 'suspicious', reason: 'customer mismatch' });\n");
+    out.push_str("        continue;\n");
+    out.push_str("      }\n");
+    out.push_str("      if (approxEq(amount, amountDue, amountTolerance)) {\n");
+    out.push_str("        counts.matched_full += 1;\n");
+    out.push_str("      } else if (amount < amountDue) {\n");
+    out.push_str("        counts.matched_partial += 1;\n");
+    out.push_str("        exceptions.push({ invoice_id: invId, payment_id: String(p.payment_id || ''), classification: 'matched_partial', reason: `paid ${amount.toFixed(2)} / due ${amountDue.toFixed(2)}` });\n");
+    out.push_str("      } else {\n");
+    out.push_str("        counts.overpaid += 1;\n");
+    out.push_str("        exceptions.push({ invoice_id: invId, payment_id: String(p.payment_id || ''), classification: 'overpaid', reason: `paid ${amount.toFixed(2)} / due ${amountDue.toFixed(2)}` });\n");
+    out.push_str("      }\n");
+    out.push_str("    }\n");
+    out.push_str("    for (const p of payments) {\n");
+    out.push_str("      const pid = String(p.payment_id || '');\n");
+    out.push_str("      if (usedPayment.has(pid)) continue;\n");
+    out.push_str("      if (!p.invoice_id) {\n");
+    out.push_str("        counts.suspicious += 1;\n");
+    out.push_str("        exceptions.push({ invoice_id: '', payment_id: pid, classification: 'suspicious', reason: 'unmatched payment without invoice_id' });\n");
+    out.push_str("        continue;\n");
+    out.push_str("      }\n");
+    out.push_str("      const exists = invoices.some((i) => String(i.invoice_id || '') === String(p.invoice_id || ''));\n");
+    out.push_str("      if (!exists) {\n");
+    out.push_str("        counts.suspicious += 1;\n");
+    out.push_str("        exceptions.push({ invoice_id: String(p.invoice_id || ''), payment_id: pid, classification: 'suspicious', reason: 'references unknown invoice' });\n");
+    out.push_str("      }\n");
+    out.push_str("    }\n");
+    out.push_str("    return { counts, exceptions, processing_ms: Date.now() - startedAt };\n");
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'metric') {\n");
+    out.push_str("    const rec = args[0] && typeof args[0] === 'object' ? args[0] : {};\n");
+    out.push_str("    const key = String(args[1] || '');\n");
+    out.push_str("    return Number((((rec.counts || {})[key]) || 0));\n");
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'buildExceptions') {\n");
+    out.push_str("    const rec = args[0] && typeof args[0] === 'object' ? args[0] : {};\n");
+    out.push_str("    return Array.isArray(rec.exceptions) ? rec.exceptions.slice() : [];\n");
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'buildReportJson') {\n");
+    out.push_str("    return {\n");
+    out.push_str(
+        "      input_stats: { invoices: Number(args[0] || 0), payments: Number(args[1] || 0) },\n",
+    );
+    out.push_str("      classification_counts: {\n");
+    out.push_str("        matched_full: Number(args[2] || 0), matched_partial: Number(args[3] || 0), overpaid: Number(args[4] || 0), missing_payment: Number(args[5] || 0), duplicate_payment: Number(args[6] || 0), ambiguous: Number(args[7] || 0), suspicious: Number(args[8] || 0)\n");
+    out.push_str("      },\n");
+    out.push_str("      rules_version: String(args[9] || '1.0'),\n");
+    out.push_str("      processing_ms: Number(args[10] || 0),\n");
+    out.push_str("      generated_at: new Date().toISOString()\n");
+    out.push_str("    };\n");
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'processingMs') {\n");
+    out.push_str("    const rec = args[0] && typeof args[0] === 'object' ? args[0] : {};\n");
+    out.push_str("    return Number(rec.processing_ms || 0);\n");
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'writeJson') {\n");
+    out.push_str("    try {\n");
+    out.push_str("      const file = String(args[0] || '');\n");
+    out.push_str(
+        "      const full = path.isAbsolute(file) ? file : path.resolve(process.cwd(), file);\n",
+    );
+    out.push_str("      fs.mkdirSync(path.dirname(full), { recursive: true });\n");
+    out.push_str(
+        "      fs.writeFileSync(full, JSON.stringify(args[1] || {}, null, 2) + '\\n', 'utf8');\n",
+    );
+    out.push_str("      return 1;\n");
+    out.push_str("    } catch { return 0; }\n");
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'sortBy') {\n");
+    out.push_str("    const rows = Array.isArray(args[0]) ? args[0].slice() : [];\n");
+    out.push_str(
+        "    const keys = String(args[1] || '').split(',').map((k) => k.trim()).filter(Boolean);\n",
+    );
+    out.push_str("    rows.sort((a, b) => {\n");
+    out.push_str("      for (const k of keys) {\n");
+    out.push_str("        const av = String((a && a[k]) || '');\n");
+    out.push_str("        const bv = String((b && b[k]) || '');\n");
+    out.push_str("        if (av < bv) return -1;\n");
+    out.push_str("        if (av > bv) return 1;\n");
+    out.push_str("      }\n");
+    out.push_str("      return 0;\n");
+    out.push_str("    });\n");
+    out.push_str("    return rows;\n");
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'writeCsv') {\n");
+    out.push_str("    try {\n");
+    out.push_str("      const file = String(args[0] || '');\n");
+    out.push_str(
+        "      const full = path.isAbsolute(file) ? file : path.resolve(process.cwd(), file);\n",
+    );
+    out.push_str("      fs.mkdirSync(path.dirname(full), { recursive: true });\n");
+    out.push_str("      const rows = Array.isArray(args[1]) ? args[1] : [];\n");
+    out.push_str("      const header = ['invoice_id','payment_id','classification','reason'];\n");
+    out.push_str("      const lines = [header.join(',')];\n");
+    out.push_str("      for (const row of rows) {\n");
+    out.push_str("        const vals = header.map((k) => String((row && row[k]) || '').replace(/,/g, ';'));\n");
+    out.push_str("        lines.push(vals.join(','));\n");
+    out.push_str("      }\n");
+    out.push_str("      fs.writeFileSync(full, lines.join('\\n') + '\\n', 'utf8');\n");
+    out.push_str("      return 1;\n");
+    out.push_str("    } catch { return 0; }\n");
+    out.push_str("  }\n");
+    out.push_str("  if (name === 'summaryLine') return `${String(args[0] || '')}: ${Number(args[1] || 0)}`;\n");
+    out.push_str("  return null;\n");
+    out.push_str("}\n\n");
+
+    out.push_str("function evalBinaryExpr(node) {\n");
+    out.push_str("  if (!node || typeof node !== 'object') return null;\n");
+    out.push_str("  const op = String(node.op || '');\n");
+    out.push_str("  const left = resolveRuntimeValue(node.left);\n");
+    out.push_str("  const right = resolveRuntimeValue(node.right);\n");
+    out.push_str("  if (op === 'Add') return Number(left || 0) + Number(right || 0);\n");
+    out.push_str("  if (op === 'Sub') return Number(left || 0) - Number(right || 0);\n");
+    out.push_str("  if (op === 'Mul') return Number(left || 0) * Number(right || 0);\n");
+    out.push_str("  if (op === 'Div') return Number(right || 0) === 0 ? 0 : Number(left || 0) / Number(right || 1);\n");
+    out.push_str("  if (op === 'And') return (left ? 1 : 0) && (right ? 1 : 0) ? 1 : 0;\n");
+    out.push_str("  if (op === 'Or') return (left ? 1 : 0) || (right ? 1 : 0) ? 1 : 0;\n");
+    out.push_str("  if (op === 'Eq') return left === right ? 1 : 0;\n");
+    out.push_str("  if (op === 'Neq') return left !== right ? 1 : 0;\n");
+    out.push_str("  if (op === 'Gt') return Number(left || 0) > Number(right || 0) ? 1 : 0;\n");
+    out.push_str("  if (op === 'Gte') return Number(left || 0) >= Number(right || 0) ? 1 : 0;\n");
+    out.push_str("  if (op === 'Lt') return Number(left || 0) < Number(right || 0) ? 1 : 0;\n");
+    out.push_str("  if (op === 'Lte') return Number(left || 0) <= Number(right || 0) ? 1 : 0;\n");
+    out.push_str("  return null;\n");
+    out.push_str("}\n\n");
+
+    out.push_str("function resolveRuntimeValue(v) {\n");
+    out.push_str("  if (v && typeof v === 'object' && !Array.isArray(v)) {\n");
+    out.push_str("    if (typeof v.ident === 'string') return RUNTIME_STATE[v.ident];\n");
+    out.push_str(
+        "    if (v.binary && typeof v.binary === 'object') return evalBinaryExpr(v.binary);\n",
+    );
+    out.push_str("    if (v.call && typeof v.call === 'object') {\n");
+    out.push_str("      const callName = String(v.call.name || '');\n");
+    out.push_str("      const rawArgs = Array.isArray(v.call.args) ? v.call.args : [];\n");
+    out.push_str("      const args = rawArgs.map((a) => resolveRuntimeValue(a && typeof a === 'object' ? a.value : null));\n");
+    out.push_str("      return runtimeOp(callName, args);\n");
+    out.push_str("    }\n");
     out.push_str("  }\n");
     out.push_str("  return v;\n");
     out.push_str("}\n\n");
@@ -402,6 +661,7 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("    const isOnRule = typeof rule.on === 'string' && rule.on.length > 0;\n");
     out.push_str("    const isWhenRule = !!rule.when;\n");
     out.push_str("    if (isOnRule && rule.on !== event) continue;\n");
+    out.push_str("    if (!isOnRule && isWhenRule && event !== 'tick' && event !== 'input.tick') continue;\n");
     out.push_str("    if (isWhenRule) {\n");
     out.push_str("      if (firedWhen && firedWhen.has(rule.name)) continue;\n");
     out.push_str("      if (!evalWhen(rule.when)) continue;\n");
@@ -439,7 +699,9 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("  for (const item of items) {\n");
     out.push_str("    if (item.kind === 'text') {\n");
     out.push_str("      const color = item.color ? (COLORS[item.color] || '') : '';\n");
-    out.push_str("      console.log(color + (item.text || '') + RESET);\n");
+    out.push_str("      const raw = item.text || '';\n");
+    out.push_str("      const txt = (typeof raw === 'string' && Object.prototype.hasOwnProperty.call(RUNTIME_STATE, raw)) ? String(RUNTIME_STATE[raw]) : String(raw);\n");
+    out.push_str("      console.log(color + txt + RESET);\n");
     out.push_str("    }\n");
     out.push_str("  }\n");
     out.push_str("}\n\n");

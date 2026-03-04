@@ -617,7 +617,7 @@ fn build_runtime_state(sculpt_ir: &Value) -> Option<serde_json::Map<String, Valu
         let op = assign.get("op").and_then(Value::as_str).unwrap_or("Set");
         let value = assign.get("value");
         if op == "Set" {
-            if let Some(v) = extract_simple_expr(value) {
+            if let Some(v) = extract_runtime_expr(value) {
                 state_obj.insert(target.to_string(), v);
             }
         }
@@ -669,7 +669,7 @@ fn inject_runtime_rules(root: &mut serde_json::Map<String, Value>, sculpt_ir: &V
                 } else if let Some(assign) = stmt.get("Assign").and_then(Value::as_object) {
                     if let Some(target) = assign.get("target").and_then(Value::as_str) {
                         let op = assign.get("op").and_then(Value::as_str).unwrap_or("Set");
-                        if let Some(value) = extract_simple_expr(assign.get("value")) {
+                        if let Some(value) = extract_runtime_expr(assign.get("value")) {
                             assigns.push(json!({
                               "target": target,
                               "op": if op == "Add" { "add" } else { "set" },
@@ -748,7 +748,7 @@ fn extract_when_condition(value: &Value) -> Option<Value> {
                 .and_then(Value::as_object)
                 .and_then(|v| v.get("Ident"))
                 .and_then(Value::as_str)?;
-            let right = extract_simple_expr(binary.get("right"))?;
+            let right = extract_runtime_expr(binary.get("right"))?;
             let cmp = match op {
                 "Gte" => "gte",
                 "Gt" => "gt",
@@ -768,7 +768,7 @@ fn extract_when_condition(value: &Value) -> Option<Value> {
     }
 }
 
-fn extract_simple_expr(value: Option<&Value>) -> Option<Value> {
+fn extract_runtime_expr(value: Option<&Value>) -> Option<Value> {
     let v = value?;
     if let Some(n) = v.get("Number").and_then(Value::as_f64) {
         return Some(json!(n));
@@ -781,6 +781,55 @@ fn extract_simple_expr(value: Option<&Value>) -> Option<Value> {
     }
     if let Some(id) = v.get("Ident").and_then(Value::as_str) {
         return Some(json!({ "ident": id }));
+    }
+    if let Some(call) = v.get("Call").and_then(Value::as_object) {
+        let mut args_out = Vec::new();
+        if let Some(args) = call.get("args").and_then(Value::as_array) {
+            for arg in args {
+                let Some(arg_obj) = arg.as_object() else {
+                    continue;
+                };
+                let mut out_arg = serde_json::Map::new();
+                if let Some(name) = arg_obj.get("name").and_then(Value::as_str) {
+                    out_arg.insert("name".to_string(), Value::String(name.to_string()));
+                } else {
+                    out_arg.insert("name".to_string(), Value::Null);
+                }
+                if let Some(expr) = extract_runtime_expr(arg_obj.get("value")) {
+                    out_arg.insert("value".to_string(), expr);
+                } else {
+                    out_arg.insert("value".to_string(), Value::Null);
+                }
+                args_out.push(Value::Object(out_arg));
+            }
+        }
+        let name = call
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        return Some(json!({
+          "call": {
+            "name": name,
+            "args": args_out
+          }
+        }));
+    }
+    if let Some(binary) = v.get("Binary").and_then(Value::as_object) {
+        let op = binary
+            .get("op")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let left = extract_runtime_expr(binary.get("left"))?;
+        let right = extract_runtime_expr(binary.get("right"))?;
+        return Some(json!({
+          "binary": {
+            "op": op,
+            "left": left,
+            "right": right
+          }
+        }));
     }
     None
 }

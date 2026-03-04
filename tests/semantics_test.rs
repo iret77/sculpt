@@ -1,5 +1,5 @@
 use sculpt::parser::parse_source;
-use sculpt::semantics::validate_module;
+use sculpt::semantics::{has_errors, validate_module};
 
 #[test]
 fn validates_clean_program() {
@@ -409,4 +409,46 @@ end
     let diagnostics = validate_module(&module);
     assert!(diagnostics.iter().any(|d| d.code == "U610"));
     assert!(diagnostics.iter().any(|d| d.code == "U611"));
+}
+
+#[test]
+fn nd_critical_path_warn_emits_warning_not_error() {
+    let src = r#"@meta nd_critical_path=warn
+module(App.Core):
+  flow(Main):
+    start > A
+    state(A):
+      value = ?candidate
+    end
+  end
+  state():
+    value = 0
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let diagnostics = validate_module(&module);
+    assert!(diagnostics.iter().any(|d| d.code == "N320"));
+    assert!(!has_errors(&diagnostics));
+}
+
+#[test]
+fn nd_critical_path_error_emits_error() {
+    let src = r#"@meta nd_critical_path=error
+module(App.Core):
+  flow(Main):
+    start > A
+    state(A):
+      value = ?candidate
+    end
+  end
+  state():
+    value = 0
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse ok");
+    let diagnostics = validate_module(&module);
+    assert!(diagnostics.iter().any(|d| d.code == "N320"));
+    assert!(has_errors(&diagnostics));
 }

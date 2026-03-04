@@ -201,11 +201,11 @@ Here, `layout` just names this ND section.
 
 ## 6.2 Where ND constraints come from
 
-This is the part that often confuses people. There are two sources:
+Good question. In SCULPT, a constraint call in `satisfy(...)` should come from a clear source.
 
 ### A) Soft reusable constraints you define in SCULPT
 
-You define them with `define(...)`, then reference them with `?` inside `satisfy(...)`.
+You define them with `define(...)`, then reference them with `?name(...)` inside `satisfy(...)`.
 
 ```sculpt
 define ui.readable():
@@ -220,16 +220,40 @@ nd(layout):
 end
 ```
 
-### B) Constraint calls written directly in `satisfy(...)`
+### B) Constraints provided by a target contract/provider
 
 Example: `noOverlap()`, `highContrast()`, `keyboardNavigable()`.
 
-These are ND-level intent constraints (for convergence), not deterministic provider API calls.
+These names are part of the provider/contract ND vocabulary (convergence layer), not `ui.*` runtime APIs.
+
+### C) Explicit ND magic identifiers
+
+You can also write explicit ND magic markers with `?identifier` (or `?identifier(...)`) in `satisfy(...)`.
+This is intentionally non-deterministic guidance and should be used sparingly.
 
 Important:
-- deterministic commands like `ui.text(...)` / `input.key(...)` come from `use(...)` namespaces.
-- ND constraint calls are part of the ND/convergence vocabulary used to steer generation.
-- if you need strict reuse and clarity, prefer `define(...)` + `?name(...)`.
+- deterministic calls like `ui.text(...)` / `input.key(...)` come from `use(...)` namespaces.
+- ND constraints in `satisfy(...)` are convergence guidance and should be either:
+  - your own `define(...)` references (`?name(...)`), or
+  - provider/contract constraints.
+- if a name is unclear, prefer defining it explicitly via `define(...)`.
+
+### Inline prompting with `?"..."`
+
+`?"free text"` is supported inside `satisfy(...)`.
+It is a direct ND hint (non-deterministic guidance), for example:
+
+```sculpt
+nd(layout):
+  propose dashboard(kind: "ops")
+  satisfy(
+    ?"keep the UI calm and easy to scan",
+    noOverlap()
+  )
+end
+```
+
+Use this sparingly. For team work and maintainability, prefer named `define(...)` rules when possible.
 
 ## 7) Where `ui.text` and `input.key` Come From
 
@@ -281,6 +305,8 @@ end
 | `@meta confidence=...` | Expected convergence confidence. |
 | `@meta fallback=fail|stub|replay` | What to do if LLM compile fails repeatedly. |
 | `@meta max_iterations=...` | Retry limit for convergence loop. |
+| `@meta required_outputs=\"a,b,...\"` | Declares required output files; build validates writer contract and run verifies files exist. |
+| `@meta nd_critical_path=off|warn|error` | How strict SCULPT is about ND markers in deterministic business/data logic. |
 
 ## 10) Common Errors (Fast Fixes)
 
