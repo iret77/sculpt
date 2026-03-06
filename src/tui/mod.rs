@@ -2724,7 +2724,10 @@ mod tests {
 
         handle_key(&mut state, key(KeyCode::Enter)).unwrap();
         assert!(!state.modal_open);
-        assert_eq!(state.info_modal.as_deref(), Some("Run not available. Build first."));
+        assert_eq!(
+            state.info_modal.as_deref(),
+            Some("Run not available. Build first.")
+        );
     }
 
     #[test]

@@ -1857,7 +1857,11 @@ fn verify_build_artifacts(target: &str, dist_dir: &Path) -> Result<()> {
             }
         }
         TargetKind::Gui => {
-            let native_macos = dist_dir.join("gui").join(".build").join("release").join("SculptGui");
+            let native_macos = dist_dir
+                .join("gui")
+                .join(".build")
+                .join("release")
+                .join("SculptGui");
             let python_entry = dist_dir.join("gui").join("main.py");
             if !native_macos.exists() && !python_entry.exists() {
                 bail!(

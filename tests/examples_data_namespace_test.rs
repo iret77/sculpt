@@ -82,7 +82,8 @@ fn examples_keep_data_use_and_calls_in_sync() {
             || content.contains("use(web.data) as data");
         let has_data_call = content.contains("data.");
         assert_eq!(
-            has_data_use, has_data_call,
+            has_data_use,
+            has_data_call,
             "data namespace mismatch in example: {}",
             file.display()
         );
