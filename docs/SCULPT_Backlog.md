@@ -109,6 +109,10 @@
 - Execute `/Users/cwendler/Dev/App/sculpt/docs/SCULPT_Baseline_Provider_Plan.md`.
 - Expand contract-exported symbol coverage (`ui/input/data/nd`) for `cli/gui/web`.
 - Add provider conformance checks and cross-platform parity gates.
+- Progress:
+  - Added `data` namespace packages to built-in `cli` and `gui` targets.
+  - Extended `web.data` with deterministic batch/data symbols.
+  - Added namespaced data-call contract/signature validation and conformance tests.
 
 ## Milestone-Priority Queue (Roadmap-Aligned)
 

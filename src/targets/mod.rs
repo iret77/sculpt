@@ -564,6 +564,20 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "namespace": "data",
                 "description": "Data and query primitives",
                 "exports": [
+                  "csvRead",
+                  "rowCount",
+                  "csvHasColumns",
+                  "csvMissingColumns",
+                  "schemaErrorMessage",
+                  "reconcileInvoices",
+                  "metric",
+                  "buildExceptions",
+                  "buildReportJson",
+                  "processingMs",
+                  "writeJson",
+                  "sortBy",
+                  "writeCsv",
+                  "summaryLine",
                   "query",
                   "mutate",
                   "filter",
@@ -668,6 +682,27 @@ pub fn describe_target(name: &str) -> Result<Value> {
                   "select",
                   "cancel",
                   "resize"
+                ]
+              },
+              {
+                "id": "builtin.cli.data@1",
+                "namespace": "data",
+                "description": "Deterministic data and batch processing primitives",
+                "exports": [
+                  "csvRead",
+                  "rowCount",
+                  "csvHasColumns",
+                  "csvMissingColumns",
+                  "schemaErrorMessage",
+                  "reconcileInvoices",
+                  "metric",
+                  "buildExceptions",
+                  "buildReportJson",
+                  "processingMs",
+                  "writeJson",
+                  "sortBy",
+                  "writeCsv",
+                  "summaryLine"
                 ]
               },
               {
@@ -784,6 +819,27 @@ pub fn describe_target(name: &str) -> Result<Value> {
                 "namespace": "window",
                 "description": "Window and modal controls",
                 "exports": ["open", "close", "resize", "modalOk", "modalConfirm", "notify"]
+              },
+              {
+                "id": "builtin.gui.data@1",
+                "namespace": "data",
+                "description": "Deterministic data and batch processing primitives",
+                "exports": [
+                  "csvRead",
+                  "rowCount",
+                  "csvHasColumns",
+                  "csvMissingColumns",
+                  "schemaErrorMessage",
+                  "reconcileInvoices",
+                  "metric",
+                  "buildExceptions",
+                  "buildReportJson",
+                  "processingMs",
+                  "writeJson",
+                  "sortBy",
+                  "writeCsv",
+                  "summaryLine"
+                ]
               },
               {
                 "id": "builtin.gui.guide@1",

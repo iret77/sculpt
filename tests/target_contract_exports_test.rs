@@ -40,6 +40,7 @@ fn cli_contract_has_practical_core_exports() {
     let spec = describe_target("cli").expect("describe cli");
     assert_exports_contain(&spec, "ui", &["text", "table", "progress", "status"]);
     assert_exports_contain(&spec, "input", &["key", "tick", "submit", "resize"]);
+    assert_exports_contain(&spec, "data", &["csvRead", "rowCount", "writeJson", "writeCsv"]);
     assert_exports_contain(
         &spec,
         "guide",
@@ -52,6 +53,7 @@ fn gui_contract_has_practical_core_exports() {
     let spec = describe_target("gui").expect("describe gui");
     assert_exports_contain(&spec, "ui", &["text", "button", "input", "table", "tabs"]);
     assert_exports_contain(&spec, "input", &["key", "click", "submit", "closeWindow"]);
+    assert_exports_contain(&spec, "data", &["csvRead", "rowCount", "writeJson", "writeCsv"]);
     assert_exports_contain(
         &spec,
         "window",

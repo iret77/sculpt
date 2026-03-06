@@ -17,16 +17,19 @@ Inspect live package metadata with:
 - `sculpt target packages --target cli`
 - `sculpt target exports --target cli --package builtin.cli.ui@1`
 - `sculpt target exports --target cli --package builtin.cli.input@1`
+- `sculpt target exports --target cli --package builtin.cli.data@1`
 - `sculpt target exports --target cli --package builtin.cli.guide@1`
 
 Current built-in namespaces:
 - `ui.*` from `builtin.cli.ui@1`
 - `input.*` from `builtin.cli.input@1`
+- `data.*` from `builtin.cli.data@1`
 - `guide.*` from `builtin.cli.guide@1` (ND constraints for `satisfy(...)`)
 
 Key exports:
 - `ui`: `text`, `line`, `clear`, `panel`, `list`, `table`, `progress`, `status`, `banner`, `separator`, `metric`, `chart`
 - `input`: `key`, `tick`, `submit`, `confirm`, `select`, `cancel`, `resize`
+- `data`: deterministic batch/data functions (`csvRead`, `rowCount`, `sortBy`, `writeJson`, `writeCsv`, ...)
 - `guide`: gameplay/UI-style constraints such as `playable`, `compactTerminalLayout`, `highContrast`, `professionalTone`, `clearOperationalSummary`
 
 ## Supported UI Calls

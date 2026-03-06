@@ -242,8 +242,10 @@ fn validate_symbols_against_packages(
         target,
         ctx,
         exports.join(", ")
-      ));
+        ));
+            return;
         }
+        validate_namespaced_contract_signature(namespace, symbol, call, target, ctx, errors);
     };
 
     for flow in &ir.flows {
@@ -350,13 +352,50 @@ fn validate_deterministic_runtime_calls(ir: &IrModule, target: &str, errors: &mu
 }
 
 fn validate_cli_runtime_signature(call: &Call, target: &str, ctx: &str, errors: &mut Vec<String>) {
+    validate_data_signature(call.name.as_str(), call, target, ctx, errors);
+}
+
+fn validate_namespaced_contract_signature(
+    namespace: &str,
+    symbol: &str,
+    call: &Call,
+    target: &str,
+    ctx: &str,
+    errors: &mut Vec<String>,
+) {
+    if namespace == "data" {
+        validate_data_signature(symbol, call, target, ctx, errors);
+    }
+}
+
+fn validate_data_signature(
+    symbol: &str,
+    call: &Call,
+    target: &str,
+    ctx: &str,
+    errors: &mut Vec<String>,
+) {
     let arg_expr = |idx: usize| call.args.get(idx).map(|a| &a.value);
     let literal_string = |idx: usize| match arg_expr(idx) {
         Some(Expr::String(s)) => Some(s.as_str()),
         _ => None,
     };
 
-    match call.name.as_str() {
+    if let Some(expected) = cli_runtime_call_arity(symbol) {
+        if call.args.len() != expected {
+            errors.push(format!(
+                "C908: Invalid arg count for call '{}' (expected {}, got {}, target '{}', context: {})",
+                call.name,
+                expected,
+                call.args.len(),
+                target,
+                ctx
+            ));
+            return;
+        }
+    }
+
+    match symbol {
         "csvRead" => {
             if !is_path_like_expr(arg_expr(0)) {
                 errors.push(format!(

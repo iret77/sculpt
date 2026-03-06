@@ -9,6 +9,7 @@
 module(InvoiceReconciliation.Batch):
   use(cli.ui)
   use(cli.input) as input
+  use(cli.data) as data
   use(cli.guide) as guide
 
   flow(Batch):
@@ -32,21 +33,21 @@ module(InvoiceReconciliation.Batch):
       ui.text("Step 1/4 - Loading CSV files...", color: "yellow")
       rule(loadInvoices):
         on input.tick:
-          invoices = csvRead(invoicesPath)
-          invoiceCount = rowCount(invoices)
+          invoices = data.csvRead(invoicesPath)
+          invoiceCount = data.rowCount(invoices)
         end
       end
       rule(loadPayments):
         on input.tick:
-          payments = csvRead(paymentsPath)
-          paymentCount = rowCount(payments)
+          payments = data.csvRead(paymentsPath)
+          paymentCount = data.rowCount(payments)
         end
       end
       rule(validateInputShape):
         on input.tick:
-          missingInvoiceCols = csvMissingColumns(invoices, "invoice_id,customer_id,amount_due,currency,invoice_date,due_date")
-          missingPaymentCols = csvMissingColumns(payments, "payment_id,invoice_id,customer_id,amount_paid,currency,payment_date")
-          inputValid = rowCount(missingInvoiceCols) < 1 and rowCount(missingPaymentCols) < 1
+          missingInvoiceCols = data.csvMissingColumns(invoices, "invoice_id,customer_id,amount_due,currency,invoice_date,due_date")
+          missingPaymentCols = data.csvMissingColumns(payments, "payment_id,invoice_id,customer_id,amount_paid,currency,payment_date")
+          inputValid = data.rowCount(missingInvoiceCols) < 1 and data.rowCount(missingPaymentCols) < 1
         end
       end
       rule(inputLoadDone):
@@ -56,7 +57,7 @@ module(InvoiceReconciliation.Batch):
       end
       rule(inputLoadFailed):
         when inputValid < 1:
-          errorText = schemaErrorMessage(missingInvoiceCols, missingPaymentCols)
+          errorText = data.schemaErrorMessage(missingInvoiceCols, missingPaymentCols)
           emit failed
         end
       end
@@ -69,15 +70,15 @@ module(InvoiceReconciliation.Batch):
       ui.text("Step 2/4 - Matching invoices and payments...", color: "yellow")
       rule(runMatching):
         on input.tick:
-          reconciliation = reconcileInvoices(invoices, payments, dateToleranceDays, amountTolerance)
-          matchedFull = metric(reconciliation, "matched_full")
-          matchedPartial = metric(reconciliation, "matched_partial")
-          overpaid = metric(reconciliation, "overpaid")
-          missing = metric(reconciliation, "missing_payment")
-          duplicates = metric(reconciliation, "duplicate_payment")
-          ambiguous = metric(reconciliation, "ambiguous")
-          suspicious = metric(reconciliation, "suspicious")
-          exceptionRows = buildExceptions(reconciliation)
+          reconciliation = data.reconcileInvoices(invoices, payments, dateToleranceDays, amountTolerance)
+          matchedFull = data.metric(reconciliation, "matched_full")
+          matchedPartial = data.metric(reconciliation, "matched_partial")
+          overpaid = data.metric(reconciliation, "overpaid")
+          missing = data.metric(reconciliation, "missing_payment")
+          duplicates = data.metric(reconciliation, "duplicate_payment")
+          ambiguous = data.metric(reconciliation, "ambiguous")
+          suspicious = data.metric(reconciliation, "suspicious")
+          exceptionRows = data.buildExceptions(reconciliation)
           emit reconciled
         end
       end
@@ -89,14 +90,14 @@ module(InvoiceReconciliation.Batch):
       ui.text("Step 3/4 - Writing output artifacts...", color: "yellow")
       rule(writeReport):
         on input.tick:
-          reportJson = buildReportJson(invoiceCount, paymentCount, matchedFull, matchedPartial, overpaid, missing, duplicates, ambiguous, suspicious, rulesVersion, processingMs(reconciliation))
-          writeOk1 = writeJson(reportPath, reportJson)
+          reportJson = data.buildReportJson(invoiceCount, paymentCount, matchedFull, matchedPartial, overpaid, missing, duplicates, ambiguous, suspicious, rulesVersion, data.processingMs(reconciliation))
+          writeOk1 = data.writeJson(reportPath, reportJson)
         end
       end
       rule(writeExceptions):
         on input.tick:
-          sortedExceptions = sortBy(exceptionRows, "invoice_id,payment_id")
-          writeOk2 = writeCsv(exceptionsPath, sortedExceptions)
+          sortedExceptions = data.sortBy(exceptionRows, "invoice_id,payment_id")
+          writeOk2 = data.writeCsv(exceptionsPath, sortedExceptions)
         end
       end
       rule(outputsDone):
@@ -117,13 +118,13 @@ module(InvoiceReconciliation.Batch):
     state(Summary):
       ui.clear()
       ui.text("Step 4/4 - Completed", color: "green")
-      ui.text(summaryLine("matched_full", matchedFull), color: "white")
-      ui.text(summaryLine("matched_partial", matchedPartial), color: "white")
-      ui.text(summaryLine("overpaid", overpaid), color: "white")
-      ui.text(summaryLine("missing_payment", missing), color: "white")
-      ui.text(summaryLine("duplicate_payment", duplicates), color: "white")
-      ui.text(summaryLine("ambiguous", ambiguous), color: "white")
-      ui.text(summaryLine("suspicious", suspicious), color: "white")
+      ui.text(data.summaryLine("matched_full", matchedFull), color: "white")
+      ui.text(data.summaryLine("matched_partial", matchedPartial), color: "white")
+      ui.text(data.summaryLine("overpaid", overpaid), color: "white")
+      ui.text(data.summaryLine("missing_payment", missing), color: "white")
+      ui.text(data.summaryLine("duplicate_payment", duplicates), color: "white")
+      ui.text(data.summaryLine("ambiguous", ambiguous), color: "white")
+      ui.text(data.summaryLine("suspicious", suspicious), color: "white")
       ui.text("report: reconciliation_report.json", color: "cyan")
       ui.text("exceptions: exceptions.csv", color: "cyan")
       ui.text("Enter: rerun   Esc: quit", color: "blue")

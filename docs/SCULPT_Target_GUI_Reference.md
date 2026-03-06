@@ -31,18 +31,21 @@ Inspect live package metadata with:
 - `sculpt target packages --target gui`
 - `sculpt target exports --target gui --package builtin.gui.ui@1`
 - `sculpt target exports --target gui --package builtin.gui.input@1`
+- `sculpt target exports --target gui --package builtin.gui.data@1`
 - `sculpt target exports --target gui --package builtin.gui.window@1`
 - `sculpt target exports --target gui --package builtin.gui.guide@1`
 
 Current built-in namespaces:
 - `ui.*` from `builtin.gui.ui@1`
 - `input.*` from `builtin.gui.input@1`
+- `data.*` from `builtin.gui.data@1`
 - `window.*` from `builtin.gui.window@1`
 - `guide.*` from `builtin.gui.guide@1` (ND constraints for `satisfy(...)`)
 
 Key exports:
 - `ui`: text/form/layout primitives (`text`, `button`, `input`, `select`, `checkbox`, `table`, `tabs`, `progress`, ...)
 - `input`: interaction events (`key`, `click`, `submit`, `change`, `focus`, `blur`, `closeWindow`)
+- `data`: deterministic batch/data functions (`csvRead`, `rowCount`, `sortBy`, `writeJson`, `writeCsv`, ...)
 - `window`: shell controls (`open`, `close`, `resize`, `modalOk`, `modalConfirm`, `notify`)
 - `guide`: ND constraints (`desktopNativeLook`, `focusOrderStable`, `dialogCopyClarity`, ...)
 

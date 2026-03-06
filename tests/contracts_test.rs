@@ -303,6 +303,69 @@ end
 }
 
 #[test]
+fn accepts_namespaced_data_calls_with_valid_signatures() {
+    let src = r#"@meta target=cli
+module(App.Core):
+  use(cli.ui)
+  use(cli.input) as input
+  use(cli.data) as data
+  flow(Main):
+    start > A
+    state(A):
+      rows = data.csvRead(path)
+      count = data.rowCount(rows)
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+  state():
+    rows = null
+    count = 0
+    path = "invoices.csv"
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    validate_module_against_contract(&ir, "cli", &contract).expect("must pass");
+}
+
+#[test]
+fn rejects_namespaced_data_call_wrong_arity() {
+    let src = r#"@meta target=cli
+module(App.Core):
+  use(cli.ui)
+  use(cli.input) as input
+  use(cli.data) as data
+  flow(Main):
+    start > A
+    state(A):
+      rows = data.csvRead("a.csv", "b.csv")
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+  state():
+    rows = null
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "cli", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C908"));
+}
+
+#[test]
 fn rejects_build_report_json_field_type_mismatch() {
     let src = r#"@meta target=cli
 module(App.Core):
