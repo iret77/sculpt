@@ -57,8 +57,10 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("  if (isSnake) {\n");
     out.push_str("    return {\n");
     out.push_str("      kind: 'snake',\n");
-    out.push_str("      width: Number(RUNTIME_STATE.width || 16),\n");
-    out.push_str("      height: Number(RUNTIME_STATE.height || 12),\n");
+    out.push_str("      width: Number(RUNTIME_STATE.width || RUNTIME_STATE.boardWidth || 28),\n");
+    out.push_str(
+        "      height: Number(RUNTIME_STATE.height || RUNTIME_STATE.boardHeight || 16),\n",
+    );
     out.push_str("      tickMs: Number(RUNTIME_STATE.speedMs || 120)\n");
     out.push_str("    };\n");
     out.push_str("  }\n");
@@ -302,15 +304,22 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("}\n\n");
 
     out.push_str("function renderSnake() {\n");
-    out.push_str("  const grid = Array.from({ length: game.height }, () => Array.from({ length: game.width }, () => ' '));\n");
-    out.push_str("  for (let x = 0; x < game.width; x += 1) { grid[0][x] = '#'; grid[game.height - 1][x] = '#'; }\n");
-    out.push_str("  for (let y = 0; y < game.height; y += 1) { grid[y][0] = '#'; grid[y][game.width - 1] = '#'; }\n");
-    out.push_str("  if (game.food) grid[game.food.y][game.food.x] = '*';\n");
+    out.push_str("  const wall = '██';\n");
+    out.push_str("  const empty = '  ';\n");
+    out.push_str("  const body = COLORS.green + '▓▓' + RESET;\n");
+    out.push_str("  const head = COLORS.yellow + '██' + RESET;\n");
+    out.push_str("  const food = COLORS.magenta + '◉ ' + RESET;\n");
+    out.push_str("  const border = COLORS.cyan + wall + RESET;\n");
+    out.push_str("  const grid = Array.from({ length: game.height }, () => Array.from({ length: game.width }, () => empty));\n");
+    out.push_str("  for (let x = 0; x < game.width; x += 1) { grid[0][x] = border; grid[game.height - 1][x] = border; }\n");
+    out.push_str("  for (let y = 0; y < game.height; y += 1) { grid[y][0] = border; grid[y][game.width - 1] = border; }\n");
+    out.push_str("  if (game.food) grid[game.food.y][game.food.x] = food;\n");
     out.push_str("  for (let i = 0; i < game.snake.length; i += 1) {\n");
     out.push_str("    const p = game.snake[i];\n");
-    out.push_str("    grid[p.y][p.x] = i === 0 ? '@' : 'o';\n");
+    out.push_str("    grid[p.y][p.x] = i === 0 ? head : body;\n");
     out.push_str("  }\n");
-    out.push_str("  console.log(COLORS.cyan + `Score: ${game.score}   Length: ${game.snake.length}` + RESET);\n");
+    out.push_str("  const hud = COLORS.cyan + `Score: ${game.score}   Length: ${game.snake.length}   Size: ${game.width - 2}x${game.height - 2}` + RESET;\n");
+    out.push_str("  console.log(hud);\n");
     out.push_str("  for (const row of grid) console.log(row.join(''));\n");
     out.push_str("}\n\n");
 
