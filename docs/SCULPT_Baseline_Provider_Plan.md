@@ -43,9 +43,9 @@ Bring built-in providers (`cli`, `gui`, `web`) from demo-grade to practical app-
 - Sprint 4: B5 completion + B6 hard release gating.
 
 ## Current B3 Reference Examples
-- CLI: `/Users/cwendler/Dev/App/sculpt/examples/practical_cli_control_center.sculpt`
-- GUI: `/Users/cwendler/Dev/App/sculpt/examples/practical_gui_service_desk.sculpt`
-- Web: `/Users/cwendler/Dev/App/sculpt/examples/practical_web_ops_portal.sculpt`
+- CLI: `/Users/cwendler/Dev/App/sculpt/examples/practical/cli_control_center.sculpt`
+- GUI: `/Users/cwendler/Dev/App/sculpt/examples/practical/gui_service_desk.sculpt`
+- Web: `/Users/cwendler/Dev/App/sculpt/examples/practical/web_ops_portal.sculpt`
 
 ## Definition of Practical
 - A developer can build a useful app without hidden provider knowledge.
