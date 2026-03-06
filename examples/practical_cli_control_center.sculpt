@@ -1,0 +1,105 @@
+# Practical UI Kit (CLI)
+# A realistic operations control center with dashboards, queues, and run controls.
+
+@meta target=cli
+@meta nd_budget=6
+
+module(Ops.Cli.ControlCenter):
+  use(cli.ui)
+  use(cli.input) as input
+  use(cli.guide) as guide
+
+  flow(App):
+    start > Dashboard
+
+    state(Dashboard):
+      ui.clear()
+      ui.banner("Release Control Center", tone: "info")
+      ui.panel("Environment", style: "compact")
+      ui.status("Deploy freeze", value: freezeStatus, tone: freezeTone)
+      ui.metric("Open incidents", value: openIncidents)
+      ui.metric("Queued jobs", value: queueDepth)
+      ui.separator("Actions")
+      ui.list("1 Runbook  2 Queue  3 Deploy  Esc Exit")
+      on input.key(1) > Runbook
+      on input.key(2) > Queue
+      on input.key(3) > Deploy
+      on input.key(esc) > Exit
+    end
+
+    state(Runbook):
+      ui.clear()
+      ui.text("Incident Runbook", color: "yellow")
+      ui.table("Step | Owner | State")
+      ui.line("01 Verify alerts | SRE | done")
+      ui.line("02 Mitigate traffic | SRE | done")
+      ui.line("03 Validate data lag | Data | running")
+      ui.progress("Stabilization", value: 66)
+      ui.text("Enter Dashboard   Esc Exit", color: "cyan")
+      on input.key(enter) > Dashboard
+      on input.key(esc) > Exit
+    end
+
+    state(Queue):
+      ui.clear()
+      ui.text("Execution Queue", color: "yellow")
+      ui.table("Job | Priority | ETA")
+      ui.line("invoice_reconcile | high | 2m")
+      ui.line("nightly_export | medium | 8m")
+      ui.line("cache_warmup | low | 13m")
+      ui.text("Enter Dashboard   Esc Exit", color: "cyan")
+      on input.key(enter) > Dashboard
+      on input.key(esc) > Exit
+    end
+
+    state(Deploy):
+      ui.clear()
+      ui.text("Deployment Gate", color: "yellow")
+      ui.status("Risk", value: riskLevel, tone: riskTone)
+      ui.status("Tests", value: testStatus, tone: testTone)
+      ui.text("Y Approve   N Reject   Esc Exit", color: "yellow")
+      on input.key(y) > Approved
+      on input.key(n) > Rejected
+      on input.key(esc) > Exit
+    end
+
+    state(Approved):
+      ui.clear()
+      ui.status("Deployment", value: "approved", tone: "success")
+      ui.text("Enter Dashboard", color: "green")
+      on input.key(enter) > Dashboard
+    end
+
+    state(Rejected):
+      ui.clear()
+      ui.status("Deployment", value: "rejected", tone: "danger")
+      ui.text("Enter Dashboard", color: "red")
+      on input.key(enter) > Dashboard
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    freezeStatus = "off"
+    freezeTone = "success"
+    openIncidents = 2
+    queueDepth = 3
+    riskLevel = "medium"
+    riskTone = "warning"
+    testStatus = "green"
+    testTone = "success"
+  end
+
+  nd(ux):
+    propose shellLayout(profile: "operations")
+    satisfy(
+      guide.readableTableLayout(),
+      guide.menuClarity(),
+      guide.highContrast(),
+      ?"keep actions obvious under pressure"
+    )
+  end
+end

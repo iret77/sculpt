@@ -1,0 +1,94 @@
+# Practical UI Kit (GUI)
+# A native-style service desk workbench with list/detail/edit and confirmation flows.
+
+@meta target=gui
+
+module(ServiceDesk.Gui.Workbench):
+  use(gui.ui)
+  use(gui.input) as input
+  use(gui.window) as window
+  use(gui.guide) as guide
+
+  flow(App):
+    start > Inbox
+
+    state(Inbox):
+      ui.heading("Service Desk", level: 1)
+      ui.panel("Ticket Inbox", style: "grouped")
+      ui.table("ID | Priority | Assignee | State")
+      ui.text("INC-4821 | P1 | Mia | open")
+      ui.text("INC-4822 | P2 | Leo | in_progress")
+      ui.button("Open INC-4821", action: "open4821")
+      ui.button("Open INC-4822", action: "open4822")
+      ui.button("Close", action: "close")
+      on input.click("open4821") > Ticket4821
+      on input.click("open4822") > Ticket4822
+      on input.click("close") > Exit
+      on input.closeWindow() > Exit
+    end
+
+    state(Ticket4821):
+      ui.heading("INC-4821", level: 1)
+      ui.input("Owner", value: owner4821)
+      ui.select("State", options: "open,in_progress,done", value: state4821)
+      ui.textarea("Notes", value: notes4821)
+      ui.button("Save", action: "save")
+      ui.button("Resolve", action: "resolve")
+      ui.button("Back", action: "back")
+      on input.click("save") > Saved
+      on input.click("resolve") > ConfirmResolve
+      on input.click("back") > Inbox
+    end
+
+    state(Ticket4822):
+      ui.heading("INC-4822", level: 1)
+      ui.input("Owner", value: owner4822)
+      ui.select("State", options: "open,in_progress,done", value: state4822)
+      ui.textarea("Notes", value: notes4822)
+      ui.button("Save", action: "save")
+      ui.button("Back", action: "back")
+      on input.click("save") > Saved
+      on input.click("back") > Inbox
+    end
+
+    state(ConfirmResolve):
+      window.modalConfirm("Mark incident as resolved?", action: "ok")
+      ui.button("Cancel", action: "cancel")
+      on input.click("ok") > Resolved
+      on input.click("cancel") > Ticket4821
+    end
+
+    state(Saved):
+      window.notify("Changes saved", tone: "success")
+      on input.tick() > Inbox
+    end
+
+    state(Resolved):
+      window.notify("Incident resolved", tone: "success")
+      on input.tick() > Inbox
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    owner4821 = "Mia"
+    owner4822 = "Leo"
+    state4821 = "open"
+    state4822 = "in_progress"
+    notes4821 = "API latency spike around 09:30 UTC"
+    notes4822 = "Retry queue backlog under control"
+  end
+
+  nd(ux):
+    propose desktopStyle(kind: "native-workbench")
+    satisfy(
+      guide.desktopNativeLook(),
+      guide.focusOrderStable(),
+      guide.dialogCopyClarity(),
+      guide.highContrast()
+    )
+  end
+end

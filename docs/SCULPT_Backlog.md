@@ -113,6 +113,7 @@
   - Added `data` namespace packages to built-in `cli` and `gui` targets.
   - Extended `web.data` with deterministic batch/data symbols.
   - Added namespaced data-call contract/signature validation and conformance tests.
+  - Started B3 with practical UI-kit example set for `cli`, `gui`, `web`.
 
 ## Milestone-Priority Queue (Roadmap-Aligned)
 

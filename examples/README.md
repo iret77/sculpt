@@ -41,6 +41,14 @@ Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
 - `web/support_ticket_board.sculpt`
   - Small service-desk use case with ticket detail flow and SLA screen (`web_profile=laravel-mvc`).
 
+## 5) Practical UI Kit (Real-App Direction)
+- `practical_cli_control_center.sculpt`
+  - CLI operations console with panels, queues, progress, and deployment gate flow.
+- `practical_gui_service_desk.sculpt`
+  - GUI service-desk workbench (list/detail/edit + confirmation flow).
+- `practical_web_ops_portal.sculpt`
+  - Web operations portal with dashboard, incidents, timeline, and change request action flow.
+
 ## Quick Run
 ```bash
 sculpt build examples/getting-started/hello_world.sculpt --target cli

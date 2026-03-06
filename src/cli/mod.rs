@@ -1857,9 +1857,14 @@ fn verify_build_artifacts(target: &str, dist_dir: &Path) -> Result<()> {
             }
         }
         TargetKind::Gui => {
-            let entry = dist_dir.join("app.py");
-            if !entry.exists() {
-                bail!("Build artifact missing: {}", entry.display());
+            let native_macos = dist_dir.join("gui").join(".build").join("release").join("SculptGui");
+            let python_entry = dist_dir.join("gui").join("main.py");
+            if !native_macos.exists() && !python_entry.exists() {
+                bail!(
+                    "Build artifact missing: expected {} or {}",
+                    native_macos.display(),
+                    python_entry.display()
+                );
             }
         }
         TargetKind::External(_) => {}
@@ -4286,11 +4291,19 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_workspace() -> PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
         let stamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
-        let dir = std::env::temp_dir().join(format!("sculpt_cli_test_{}", stamp));
+        let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!(
+            "sculpt_cli_test_{}_{}_{}",
+            std::process::id(),
+            stamp,
+            seq
+        ));
         fs::create_dir_all(&dir).expect("create temp workspace");
         dir
     }
@@ -4552,5 +4565,33 @@ end
         assert!(!is_provider_unavailable_error(
             "C901: Unknown state reference in deterministic path"
         ));
+    }
+
+    #[test]
+    fn verify_gui_artifacts_accepts_swift_binary_layout() {
+        let ws = temp_workspace();
+        let dist = ws.join("dist/gui_case");
+        fs::create_dir_all(dist.join("gui/.build/release")).expect("create gui build dir");
+        fs::write(dist.join("target.ir.json"), "{}").expect("write target");
+        fs::write(dist.join("ir.json"), "{}").expect("write ir");
+        fs::write(dist.join("nondet.report"), "ok").expect("write report");
+        fs::write(dist.join("gui/.build/release/SculptGui"), "").expect("write binary marker");
+
+        verify_build_artifacts("gui", &dist).expect("gui artifacts valid");
+        let _ = fs::remove_dir_all(ws);
+    }
+
+    #[test]
+    fn verify_gui_artifacts_accepts_python_entry_layout() {
+        let ws = temp_workspace();
+        let dist = ws.join("dist/gui_case_py");
+        fs::create_dir_all(dist.join("gui")).expect("create gui dir");
+        fs::write(dist.join("target.ir.json"), "{}").expect("write target");
+        fs::write(dist.join("ir.json"), "{}").expect("write ir");
+        fs::write(dist.join("nondet.report"), "ok").expect("write report");
+        fs::write(dist.join("gui/main.py"), "print('ok')").expect("write python entry");
+
+        verify_build_artifacts("gui", &dist).expect("gui artifacts valid");
+        let _ = fs::remove_dir_all(ws);
     }
 }
