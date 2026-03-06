@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Result};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    disable_raw_mode, enable_raw_mode, ClearType, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use crossterm::{execute, terminal};
 use ratatui::backend::CrosstermBackend;
@@ -427,7 +427,12 @@ impl AppState {
         let _ = disable_raw_mode();
         let _ = execute!(out, LeaveAlternateScreen);
         let status_res = Command::new(&self.sculpt_cmd).args(args).status();
-        let _ = execute!(out, EnterAlternateScreen);
+        let _ = execute!(
+            out,
+            EnterAlternateScreen,
+            crossterm::terminal::Clear(ClearType::All),
+            crossterm::cursor::MoveTo(0, 0)
+        );
         let _ = enable_raw_mode();
         let duration = started.elapsed();
 

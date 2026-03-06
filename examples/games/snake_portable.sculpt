@@ -44,6 +44,7 @@ module(SnakePortable):
       on input.key(backspace):: lives = 0
       on input.key(p) > Pause
       on input.key(esc) > Exit
+      on input.tick > Play
       on win > Victory
       on done > GameOver
     end
