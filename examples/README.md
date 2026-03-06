@@ -16,6 +16,14 @@ Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
   - Basic GUI output with explicit target metadata.
 
 ## 2) Games
+- `games/snake_portable.sculpt`
+  - One portable snake script intended to run on `cli`, `gui`, and `web` with a shared gameplay core (`@meta profile=portable`).
+- `games/snake_cli_showcase.sculpt`
+  - CLI-optimized snake with terminal-focused UX constraints.
+- `games/snake_gui_showcase.sculpt`
+  - GUI-optimized snake for native desktop window behavior.
+- `games/snake_web_showcase.sculpt`
+  - Web-optimized snake for responsive browser delivery (`web_profile=next-app`).
 - `games/breakout_high_nd.sculpt`
   - Compact high-ND Breakout that delegates mechanics/UI detail via constraints.
 - `games/snake_high_nd.sculpt`

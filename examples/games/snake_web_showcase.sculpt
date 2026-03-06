@@ -1,0 +1,127 @@
+# Snake (Web Showcase)
+# Same gameplay contract as snake_portable with responsive web presentation.
+
+@meta target=web
+@meta web_profile="next-app"
+
+module(SnakeWebShowcase):
+  use(web.ui) as ui
+  use(web.input) as input
+  use(web.guide) as guide
+
+  flow(Game):
+    start > Title
+
+    state(Title):
+      ui.heading("Snake // Web Showcase")
+      ui.text("Portable gameplay + web-native layout")
+      ui.button("Start")
+      ui.button("Controls")
+      ui.button("Exit")
+      on input.click("Start") > Play
+      on input.click("Controls") > Controls
+      on input.click("Exit") > Exit
+      on input.key(enter) > Play
+    end
+
+    state(Controls):
+      ui.card("Controls")
+      ui.text("W/A/S/D or Arrow Keys move")
+      ui.text("P pauses, Esc exits")
+      ui.button("Back")
+      on input.click("Back") > Title
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Play):
+      ui.panel("Snake Arena")
+      ui.progress("Score")
+      ui.metric("Speed")
+      ui.text("Same rules as portable snake")
+      on input.key(w):: direction = "up"
+      on input.key(up):: direction = "up"
+      on input.key(s):: direction = "down"
+      on input.key(down):: direction = "down"
+      on input.key(a):: direction = "left"
+      on input.key(left):: direction = "left"
+      on input.key(d):: direction = "right"
+      on input.key(right):: direction = "right"
+      on input.key(space):: score += 1
+      on input.key(backspace):: lives = 0
+      on input.key(p) > Pause
+      on input.key(esc) > Exit
+      on win > Victory
+      on done > GameOver
+    end
+
+    state(Pause):
+      ui.modal("Paused")
+      ui.button("Resume")
+      ui.button("Exit")
+      on input.click("Resume") > Play
+      on input.click("Exit") > Exit
+      on input.key(enter) > Play
+      on input.key(esc) > Exit
+    end
+
+    state(Victory):
+      ui.heading("You Win")
+      ui.button("Play Again")
+      ui.button("Exit")
+      on input.click("Play Again") > Title
+      on input.click("Exit") > Exit
+      on input.key(esc) > Exit
+    end
+
+    state(GameOver):
+      ui.heading("Game Over")
+      ui.button("Retry")
+      ui.button("Exit")
+      on input.click("Retry") > Title
+      on input.click("Exit") > Exit
+      on input.key(esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    score = 0
+    lives = 3
+    targetScore = 12
+    speedMs = 100
+    direction = "right"
+  end
+
+
+  rule(win):
+    when score >= targetScore:
+      emit win
+    end
+  end
+
+  rule(lose):
+    when lives < 1:
+      emit done
+    end
+  end
+
+  nd(gameplay):
+    define snake.sharedContract():
+      "Same controls, score target, win/lose transitions, and pause/exit behavior across all Snake variants."
+    end
+
+    propose snake(mode: "web", style: "responsive")
+    satisfy(
+      ?snake.sharedContract(),
+      guide.mobileFirstLayout(),
+      guide.desktopDensityBalanced(),
+      guide.keyboardNavigable(),
+      guide.accessibleColorContrast(),
+      ?"Match the same core gameplay and controls as snake_portable."
+    )
+  end
+end

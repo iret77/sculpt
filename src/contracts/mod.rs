@@ -146,11 +146,142 @@ pub fn validate_module_against_contract(
     }
 
     validate_symbols_against_packages(ir, contract, target, &mut errors);
+    validate_portable_profile(ir, target, &mut errors);
 
     if !errors.is_empty() {
         bail!("{}", errors.join("\n"));
     }
     Ok(())
+}
+
+fn validate_portable_profile(ir: &IrModule, target: &str, errors: &mut Vec<String>) {
+    let profile = ir
+        .meta
+        .get("profile")
+        .map(|s| s.trim().to_ascii_lowercase())
+        .unwrap_or_else(|| "default".to_string());
+    if profile != "portable" {
+        return;
+    }
+
+    let portable_namespace_exports = portable_namespace_exports();
+    let mut alias_to_namespace: BTreeMap<String, String> = BTreeMap::new();
+
+    for use_decl in &ir.uses {
+        let namespace = use_decl
+            .path
+            .rsplit('.')
+            .next()
+            .unwrap_or_default()
+            .to_string();
+        let alias = use_decl.alias.clone().unwrap_or_else(|| namespace.clone());
+        if !portable_namespace_exports.contains_key(namespace.as_str()) {
+            errors.push(format!(
+                "C913: @meta profile=portable only allows use(ui|input|data). Found use({}) for target '{}'",
+                use_decl.path, target
+            ));
+            continue;
+        }
+        alias_to_namespace.insert(alias, namespace);
+    }
+
+    let mut check_call = |call: &Call, ctx: &str| {
+        let Some((root, symbol)) = split_qualified_call(&call.name) else {
+            return;
+        };
+        let Some(namespace) = alias_to_namespace.get(root) else {
+            return;
+        };
+        let Some(exports) = portable_namespace_exports.get(namespace.as_str()) else {
+            return;
+        };
+        if !exports.contains(symbol) {
+            let mut list: Vec<_> = exports.iter().copied().collect();
+            list.sort_unstable();
+            errors.push(format!(
+                "C914: '{}.{}' is not portable (target '{}', context: {}). Allowed portable {} exports: {}",
+                root,
+                symbol,
+                target,
+                ctx,
+                namespace,
+                list.join(", ")
+            ));
+        }
+    };
+
+    for flow in &ir.flows {
+        for state in &flow.states {
+            let state_name = state.name.as_deref().unwrap_or("<unnamed>");
+            for stmt in &state.statements {
+                match stmt {
+                    StateStmt::On { .. } => {}
+                    StateStmt::Expr(call) => check_call(
+                        call,
+                        &format!("flow '{}', state '{}', expression", flow.name, state_name),
+                    ),
+                    StateStmt::Assign { value, .. } => walk_expr_calls(
+                        value,
+                        &mut check_call,
+                        &format!("flow '{}', state '{}', assignment", flow.name, state_name),
+                    ),
+                    StateStmt::Rule(rule) => validate_rule_expr_calls(
+                        rule,
+                        &mut check_call,
+                        flow.name.as_str(),
+                        state_name,
+                    ),
+                    StateStmt::Run { .. } | StateStmt::Terminate => {}
+                }
+            }
+        }
+    }
+
+    for rule in &ir.rules {
+        validate_rule_expr_calls(rule, &mut check_call, "<module>", "<module>");
+    }
+
+    for nd in &ir.nd_blocks {
+        check_call(&nd.propose, &format!("nd '{}' propose", nd.name));
+        for c in &nd.constraints {
+            check_call(c, &format!("nd '{}' satisfy", nd.name));
+        }
+    }
+}
+
+fn portable_namespace_exports() -> BTreeMap<&'static str, HashSet<&'static str>> {
+    let mut map: BTreeMap<&'static str, HashSet<&'static str>> = BTreeMap::new();
+    map.insert(
+        "ui",
+        [
+            "text", "list", "table", "panel", "card", "progress", "status",
+        ]
+        .into_iter()
+        .collect(),
+    );
+    map.insert("input", ["key", "submit"].into_iter().collect());
+    map.insert(
+        "data",
+        [
+            "csvRead",
+            "rowCount",
+            "csvHasColumns",
+            "csvMissingColumns",
+            "schemaErrorMessage",
+            "reconcileInvoices",
+            "metric",
+            "buildExceptions",
+            "buildReportJson",
+            "processingMs",
+            "writeJson",
+            "sortBy",
+            "writeCsv",
+            "summaryLine",
+        ]
+        .into_iter()
+        .collect(),
+    );
+    map
 }
 
 fn validate_symbols_against_packages(
@@ -704,6 +835,18 @@ fn default_meta_schema() -> BTreeMap<String, MetaFieldSpec> {
         MetaFieldSpec {
             key: "target".to_string(),
             meta_type: MetaType::String,
+        },
+    );
+    map.insert(
+        "profile".to_string(),
+        MetaFieldSpec {
+            key: "profile".to_string(),
+            meta_type: MetaType::Enum {
+                values: ["default", "portable"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+            },
         },
     );
     map.insert(

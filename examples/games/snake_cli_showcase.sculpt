@@ -1,0 +1,112 @@
+# Snake (CLI Showcase)
+# Same gameplay contract as snake_portable with terminal-specific presentation.
+
+@meta target=cli
+
+module(SnakeCliShowcase):
+  use(cli.ui) as ui
+  use(cli.input) as input
+  use(cli.guide) as guide
+
+  flow(Game):
+    start > Title
+
+    state(Title):
+      ui.clear()
+      ui.line("================================================", color: "cyan")
+      ui.text("SNAKE // CLI SHOWCASE", color: "yellow")
+      ui.line("================================================", color: "cyan")
+      ui.text("Enter: Start  C: Controls  Esc: Quit", color: "blue")
+      on input.key(enter) > Play
+      on input.key(c) > Controls
+      on input.key(esc) > Exit
+    end
+
+    state(Controls):
+      ui.text("W/A/S/D or Arrows: move", color: "white")
+      ui.text("P: pause   Esc: quit", color: "white")
+      ui.text("Enter: back", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Play):
+      ui.text("CLI runtime active", color: "green")
+      on input.key(w):: direction = "up"
+      on input.key(up):: direction = "up"
+      on input.key(s):: direction = "down"
+      on input.key(down):: direction = "down"
+      on input.key(a):: direction = "left"
+      on input.key(left):: direction = "left"
+      on input.key(d):: direction = "right"
+      on input.key(right):: direction = "right"
+      on input.key(space):: score += 1
+      on input.key(backspace):: lives = 0
+      on input.key(p) > Pause
+      on input.key(esc) > Exit
+      on win > Victory
+      on done > GameOver
+    end
+
+    state(Pause):
+      ui.text("PAUSED", color: "yellow")
+      on input.key(enter) > Play
+      on input.key(p) > Play
+      on input.key(esc) > Exit
+    end
+
+    state(Victory):
+      ui.text("YOU WIN", color: "green")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(GameOver):
+      ui.text("GAME OVER", color: "red")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    score = 0
+    lives = 3
+    targetScore = 12
+    speedMs = 100
+    direction = "right"
+  end
+
+
+  rule(win):
+    when score >= targetScore:
+      emit win
+    end
+  end
+
+  rule(lose):
+    when lives < 1:
+      emit done
+    end
+  end
+
+  nd(gameplay):
+    define snake.sharedContract():
+      "Same controls, score target, win/lose transitions, and pause/exit behavior across all Snake variants."
+    end
+
+    propose snake(mode: "cli", style: "arcade")
+    satisfy(
+      ?snake.sharedContract(),
+      guide.playable(),
+      guide.readableHud(),
+      guide.responsiveControls(keys: "wasd+arrows"),
+      guide.highContrast(),
+      guide.lowFlickerOutput(),
+      ?"Match the same game rules as snake_portable while improving terminal visuals."
+    )
+  end
+end

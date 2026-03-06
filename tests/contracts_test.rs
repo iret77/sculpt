@@ -426,3 +426,58 @@ end
     assert!(msg.contains("C909"));
     assert!(msg.contains("schemaErrorMessage"));
 }
+
+#[test]
+fn rejects_non_portable_namespace_when_profile_is_portable() {
+    let src = r#"@meta target=cli
+@meta profile=portable
+module(App.Core):
+  use(cli.ui)
+  use(cli.guide) as guide
+  flow(Main):
+    start > A
+    state(A):
+      ui.text("x")
+      on input.key(esc) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("cli").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "cli", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C913"));
+}
+
+#[test]
+fn rejects_non_portable_symbol_when_profile_is_portable() {
+    let src = r#"@meta target=gui
+@meta profile=portable
+module(App.Core):
+  use(gui.input) as input
+  flow(Main):
+    start > A
+    state(A):
+      input.click("go")
+      on input.key(enter) > Exit
+    end
+    state(Exit):
+      terminate
+    end
+  end
+end
+"#;
+    let module = parse_source(src).expect("parse");
+    let ir = from_ast(module);
+    let spec = describe_target("gui").expect("describe");
+    let contract = parse_target_contract(&spec).expect("contract");
+    let err = validate_module_against_contract(&ir, "gui", &contract).expect_err("must fail");
+    let msg = format!("{err}");
+    assert!(msg.contains("C914"));
+}

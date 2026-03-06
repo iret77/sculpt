@@ -1,0 +1,122 @@
+# Snake (GUI Showcase)
+# Same gameplay contract as snake_portable with desktop-native GUI focus.
+
+@meta target=gui
+
+module(SnakeGuiShowcase):
+  use(gui.ui) as ui
+  use(gui.input) as input
+  use(gui.window) as window
+  use(gui.guide) as guide
+
+  flow(Game):
+    start > Title
+
+    state(Title):
+      ui.heading("Snake // GUI Showcase")
+      ui.text("Same game rules as portable snake, desktop-native presentation")
+      ui.button("Start")
+      ui.button("Controls")
+      ui.button("Exit")
+      on input.click("Start") > Play
+      on input.click("Controls") > Controls
+      on input.click("Exit") > Exit
+      on input.key(esc) > Exit
+    end
+
+    state(Controls):
+      ui.panel("Controls")
+      ui.text("W/A/S/D or Arrow Keys to move")
+      ui.text("P pauses, Esc exits")
+      ui.button("Back")
+      on input.click("Back") > Title
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Play):
+      ui.panel("Snake Board")
+      ui.status("Running")
+      on input.key(w):: direction = "up"
+      on input.key(up):: direction = "up"
+      on input.key(s):: direction = "down"
+      on input.key(down):: direction = "down"
+      on input.key(a):: direction = "left"
+      on input.key(left):: direction = "left"
+      on input.key(d):: direction = "right"
+      on input.key(right):: direction = "right"
+      on input.key(space):: score += 1
+      on input.key(backspace):: lives = 0
+      on input.key(p) > Pause
+      on input.key(esc) > Exit
+      on win > Victory
+      on done > GameOver
+    end
+
+    state(Pause):
+      window.modalOk("Paused", "Press Enter or P to continue")
+      on input.key(enter) > Play
+      on input.key(p) > Play
+      on input.key(esc) > Exit
+    end
+
+    state(Victory):
+      ui.heading("You Win")
+      ui.button("Play Again")
+      ui.button("Exit")
+      on input.click("Play Again") > Title
+      on input.click("Exit") > Exit
+      on input.key(esc) > Exit
+    end
+
+    state(GameOver):
+      ui.heading("Game Over")
+      ui.button("Retry")
+      ui.button("Exit")
+      on input.click("Retry") > Title
+      on input.click("Exit") > Exit
+      on input.key(esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    score = 0
+    lives = 3
+    targetScore = 12
+    speedMs = 100
+    direction = "right"
+  end
+
+
+  rule(win):
+    when score >= targetScore:
+      emit win
+    end
+  end
+
+  rule(lose):
+    when lives < 1:
+      emit done
+    end
+  end
+
+  nd(gameplay):
+    define snake.sharedContract():
+      "Same controls, score target, win/lose transitions, and pause/exit behavior across all Snake variants."
+    end
+
+    propose snake(mode: "gui", style: "native")
+    satisfy(
+      ?snake.sharedContract(),
+      guide.desktopNativeLook(),
+      guide.focusOrderStable(),
+      guide.highContrast(),
+      guide.dialogCopyClarity(),
+      ?"Match the same core gameplay and scoring rules as snake_portable."
+    )
+  end
+end

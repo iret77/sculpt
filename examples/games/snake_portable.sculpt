@@ -1,0 +1,117 @@
+# Snake (Portable Multi-Target)
+# One script intended to run on cli/gui/web with the same gameplay contract.
+
+@meta profile=portable
+@meta requires="render.text,input.key,flow.state_machine"
+
+module(SnakePortable):
+  use(common.ui) as ui
+  use(common.input) as input
+  use(common.data) as data
+
+  flow(Game):
+    start > Title
+
+    state(Title):
+      ui.text("SNAKE // PORTABLE", color: "yellow")
+      ui.text("Enter: Start  C: Controls  Esc: Quit", color: "cyan")
+      ui.text("Classic rules. Goal: reach target score before losing all lives.", color: "white")
+      on input.key(enter) > Play
+      on input.key(c) > Controls
+      on input.key(esc) > Exit
+    end
+
+    state(Controls):
+      ui.text("Controls", color: "yellow")
+      ui.text("W/A/S/D or Arrow Keys: move", color: "white")
+      ui.text("P: pause   Esc: quit", color: "white")
+      ui.text("Enter: back", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Play):
+      ui.text("Score updates continuously", color: "blue")
+      on input.key(w):: direction = "up"
+      on input.key(up):: direction = "up"
+      on input.key(s):: direction = "down"
+      on input.key(down):: direction = "down"
+      on input.key(a):: direction = "left"
+      on input.key(left):: direction = "left"
+      on input.key(d):: direction = "right"
+      on input.key(right):: direction = "right"
+      on input.key(space):: score += 1
+      on input.key(backspace):: lives = 0
+      on input.key(p) > Pause
+      on input.key(esc) > Exit
+      on win > Victory
+      on done > GameOver
+    end
+
+    state(Pause):
+      ui.text("PAUSED", color: "yellow")
+      ui.text("Enter/P: resume  Esc: quit", color: "cyan")
+      on input.key(enter) > Play
+      on input.key(p) > Play
+      on input.key(esc) > Exit
+    end
+
+    state(Victory):
+      ui.text("YOU WIN", color: "green")
+      ui.text("Enter: play again  Esc: quit", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(GameOver):
+      ui.text("GAME OVER", color: "red")
+      ui.text("Enter: retry  Esc: quit", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    score = 0
+    lives = 3
+    targetScore = 12
+    speedMs = 105
+    direction = "right"
+  end
+
+
+  rule(win):
+    when score >= targetScore:
+      emit win
+    end
+  end
+
+  rule(lose):
+    when lives < 1:
+      emit done
+    end
+  end
+
+  nd(gameplay):
+    define snake.classicCore():
+      "Playable snake loop with board, snake body, food spawn, collision handling, and score/life HUD."
+    end
+    define snake.sharedContract():
+      "Same controls, score target, win/lose transitions, and pause/exit behavior across all Snake variants."
+    end
+
+    propose snake(mode: "portable", style: "classic")
+    satisfy(
+      ?snake.classicCore(),
+      ?snake.sharedContract(),
+      ?"Keep all controls and game rules equivalent on cli, gui, and web targets.",
+      ?"Render a visible board and animate movement every tick.",
+      ?"Esc always exits, P pauses, Enter confirms menu actions.",
+      ?"Provide immediate clear feedback for win and game over states."
+    )
+  end
+end
