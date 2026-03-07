@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.8
+- Added CI provider gate pipeline:
+  `.github/workflows/provider-gates.yml` + `scripts/ci_provider_gates.sh`
+- CI now checks:
+  provider conformance matrix + deterministic data-heavy smoke benchmark + gate validation
+- Added smoke-threshold normalization in CI gate script to align gate checks with `--repro-runs 1`
+
 ## 0.2.7
 - Added provider conformance matrix command: `sculpt auth conformance` (`--providers`, `--verify`, `--json`)
 - Added normalized provider telemetry fields in `build.meta.json`:

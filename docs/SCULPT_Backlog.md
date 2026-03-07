@@ -148,6 +148,8 @@
   - Added `sculpt auth conformance` with provider-matrix checks (`--providers`, `--verify`, `--json`).
   - Normalized build telemetry fields in `build.meta.json`:
     `requested_provider`, `requested_model`, `strict_provider`, `fallback_mode`.
+  - Added CI provider gate workflow (`provider-gates.yml`) with:
+    provider conformance check + deterministic data-heavy smoke benchmark + gate check.
 - Exit: external providers plug in cleanly and pass contract + behavior checks.
 
 4. D. Production-Grade Target Outputs (P1)
