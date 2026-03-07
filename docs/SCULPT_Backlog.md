@@ -144,6 +144,10 @@
 - Stabilize LLM/target provider interfaces and fallback policies.
 - Normalize provider telemetry in build metadata and TUI.
 - Add provider conformance checks.
+- Progress:
+  - Added `sculpt auth conformance` with provider-matrix checks (`--providers`, `--verify`, `--json`).
+  - Normalized build telemetry fields in `build.meta.json`:
+    `requested_provider`, `requested_model`, `strict_provider`, `fallback_mode`.
 - Exit: external providers plug in cleanly and pass contract + behavior checks.
 
 4. D. Production-Grade Target Outputs (P1)

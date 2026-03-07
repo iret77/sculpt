@@ -54,6 +54,7 @@ Each input gets an isolated output directory:
 For project files (`*.sculpt.json`), `<script_name>` is the project name.
 
 This isolation avoids collisions and enables clean run/replay behavior.
+`build.meta.json` includes normalized provider telemetry (`requested_provider`, `provider`, `model`, `strict_provider`, `fallback_mode`, timing, token usage).
 
 ## 3) Command Guide
 
@@ -88,6 +89,9 @@ You can combine retention options, for example:
 
 ### `sculpt auth check --provider <name> [--verify]`
 Checks provider auth configuration, optionally verifies with API call.
+
+### `sculpt auth conformance [--providers <csv>] [--verify] [--json]`
+Runs a provider matrix conformance check (defaults to `openai,anthropic,gemini,stub`) and reports model/key-source/verification status.
 
 ### `sculpt gate check <gate.json>`
 Evaluates pre-registered release quality gates and returns non-zero on failure.

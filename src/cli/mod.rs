@@ -199,6 +199,14 @@ pub enum AuthCommand {
         #[arg(long)]
         verify: bool,
     },
+    Conformance {
+        #[arg(long, default_value = "openai,anthropic,gemini,stub")]
+        providers: String,
+        #[arg(long)]
+        verify: bool,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Default, serde::Deserialize)]
@@ -288,6 +296,11 @@ pub fn run() -> Result<()> {
         },
         Command::Auth { cmd } => match cmd {
             AuthCommand::Check { provider, verify } => auth_check(&provider, verify),
+            AuthCommand::Conformance {
+                providers,
+                verify,
+                json,
+            } => auth_conformance(&providers, verify, json),
         },
         Command::Target { cmd } => match cmd {
             TargetCommand::List => target_list(),
@@ -1456,6 +1469,10 @@ fn build(
             script: input.display().to_string(),
             action: "build".to_string(),
             target: target.clone(),
+            requested_provider: provider.clone(),
+            requested_model: model.clone(),
+            strict_provider: Some(strict),
+            fallback_mode: Some(controls.fallback.as_str().to_string()),
             provider: Some(provider_info.name.clone()),
             model: Some(provider_info.model.clone()),
             llm_ms,
@@ -1615,6 +1632,10 @@ fn freeze(
             script: input.display().to_string(),
             action: "freeze".to_string(),
             target: target.clone(),
+            requested_provider: provider.clone(),
+            requested_model: model.clone(),
+            strict_provider: Some(strict),
+            fallback_mode: Some(controls.fallback.as_str().to_string()),
             provider: Some(provider_info.name.clone()),
             model: Some(provider_info.model.clone()),
             llm_ms,
@@ -1682,6 +1703,10 @@ fn replay(input: &Path, target: Option<&str>) -> Result<()> {
             script: input.display().to_string(),
             action: "replay".to_string(),
             target: target.clone(),
+            requested_provider: None,
+            requested_model: None,
+            strict_provider: None,
+            fallback_mode: None,
             provider: Some("replay".to_string()),
             model: Some("locked".to_string()),
             llm_ms: None,
@@ -1814,6 +1839,10 @@ fn run_cmd(input: &Path, target: Option<&str>) -> Result<()> {
         script: input.display().to_string(),
         action: "run".to_string(),
         target: target.clone(),
+        requested_provider: None,
+        requested_model: None,
+        strict_provider: None,
+        fallback_mode: None,
         provider: None,
         model: None,
         llm_ms: None,
@@ -3868,52 +3897,155 @@ fn target_stacks(target: &str) -> Result<()> {
     Ok(())
 }
 
-fn auth_check(provider: &str, verify: bool) -> Result<()> {
+#[derive(Debug, Clone, serde::Serialize)]
+struct ProviderConformanceRow {
+    provider: String,
+    model: String,
+    key_present: bool,
+    key_source: String,
+    verify_status: String,
+    verify_detail: String,
+}
+
+fn auth_conformance(providers_csv: &str, verify: bool, as_json: bool) -> Result<()> {
+    let config = load_config();
+    let providers = parse_meta_csv_list(providers_csv);
+    if providers.is_empty() {
+        bail!("No providers specified for conformance check");
+    }
+
+    let mut rows = Vec::new();
+    for provider in providers {
+        rows.push(run_provider_conformance(&provider, verify, &config)?);
+    }
+
+    if as_json {
+        println!("{}", serde_json::to_string_pretty(&rows)?);
+        return Ok(());
+    }
+
+    println!("Provider conformance:");
+    for row in &rows {
+        let key = if row.key_present { "yes" } else { "no" };
+        println!(
+            "  {:10} model={} key={}({}) verify={} {}",
+            row.provider, row.model, key, row.key_source, row.verify_status, row.verify_detail
+        );
+    }
+
+    let failing = rows.iter().filter(|r| r.verify_status == "fail").count();
+    if failing > 0 {
+        bail!("Provider conformance failed for {} provider(s)", failing);
+    }
+    Ok(())
+}
+
+fn run_provider_conformance(
+    provider: &str,
+    verify: bool,
+    config: &Config,
+) -> Result<ProviderConformanceRow> {
+    let (model, key, key_source) = provider_model_and_key(provider, config)?;
+    let key_present = key.is_some();
+
+    let (verify_status, verify_detail) = if !verify {
+        ("skipped".to_string(), "verify disabled".to_string())
+    } else if provider == "stub" {
+        ("pass".to_string(), "stub provider".to_string())
+    } else if let Some(api_key) = key {
+        match verify_provider_auth(provider, &model, &api_key) {
+            Ok(_) => ("pass".to_string(), "ok".to_string()),
+            Err(e) => ("fail".to_string(), e.to_string()),
+        }
+    } else {
+        ("fail".to_string(), "missing API key".to_string())
+    };
+
+    Ok(ProviderConformanceRow {
+        provider: provider.to_string(),
+        model,
+        key_present,
+        key_source,
+        verify_status,
+        verify_detail,
+    })
+}
+
+fn provider_model_and_key(
+    provider: &str,
+    config: &Config,
+) -> Result<(String, Option<String>, String)> {
     match provider {
         "openai" => {
-            let config = load_config();
-            let key = env::var("OPENAI_API_KEY")
-                .ok()
-                .or_else(|| config.openai.and_then(|c| c.api_key));
-            let Some(api_key) = key else {
-                bail!("OPENAI_API_KEY not set and no key in sculpt.config.json");
+            let model = config
+                .openai
+                .as_ref()
+                .and_then(|c| c.model.clone())
+                .unwrap_or_else(|| "gpt-4.1".to_string());
+            let env_key = env::var("OPENAI_API_KEY").ok();
+            let cfg_key = config.openai.as_ref().and_then(|c| c.api_key.clone());
+            let (key, source) = if env_key.is_some() {
+                (env_key, "env".to_string())
+            } else if cfg_key.is_some() {
+                (cfg_key, "config".to_string())
+            } else {
+                (None, "none".to_string())
             };
+            Ok((model, key, source))
+        }
+        "anthropic" => {
+            let model = config
+                .anthropic
+                .as_ref()
+                .and_then(|c| c.model.clone())
+                .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
+            let env_key = env::var("ANTHROPIC_API_KEY").ok();
+            let cfg_key = config.anthropic.as_ref().and_then(|c| c.api_key.clone());
+            let (key, source) = if env_key.is_some() {
+                (env_key, "env".to_string())
+            } else if cfg_key.is_some() {
+                (cfg_key, "config".to_string())
+            } else {
+                (None, "none".to_string())
+            };
+            Ok((model, key, source))
+        }
+        "gemini" => {
+            let model = config
+                .gemini
+                .as_ref()
+                .and_then(|c| c.model.clone())
+                .unwrap_or_else(|| "gemini-2.5-pro".to_string());
+            let env_key = env::var("GEMINI_API_KEY").ok();
+            let cfg_key = config.gemini.as_ref().and_then(|c| c.api_key.clone());
+            let (key, source) = if env_key.is_some() {
+                (env_key, "env".to_string())
+            } else if cfg_key.is_some() {
+                (cfg_key, "config".to_string())
+            } else {
+                (None, "none".to_string())
+            };
+            Ok((model, key, source))
+        }
+        "stub" => Ok(("stub".to_string(), None, "none".to_string())),
+        other => bail!("Unknown provider: {}", other),
+    }
+}
 
-            if !verify {
-                println!("OpenAI provider: API key found");
-                return Ok(());
-            }
-
+fn verify_provider_auth(provider: &str, model: &str, api_key: &str) -> Result<()> {
+    match provider {
+        "openai" => {
             let client = reqwest::blocking::Client::new();
             let resp = client
                 .get("https://api.openai.com/v1/models")
                 .bearer_auth(api_key)
                 .send()?;
             if !resp.status().is_success() {
-                bail!("OpenAI auth check failed: status {}", resp.status());
+                bail!("status {}", resp.status());
             }
-            println!("OpenAI provider: API key verified");
             Ok(())
         }
         "anthropic" => {
-            let config = load_config();
-            let key = env::var("ANTHROPIC_API_KEY")
-                .ok()
-                .or_else(|| config.anthropic.as_ref().and_then(|c| c.api_key.clone()));
-            let Some(api_key) = key else {
-                bail!("ANTHROPIC_API_KEY not set and no key in sculpt.config.json");
-            };
-
-            if !verify {
-                println!("Anthropic provider: API key found");
-                return Ok(());
-            }
-
-            let model = config
-                .anthropic
-                .as_ref()
-                .and_then(|c| c.model.clone())
-                .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
             let client = reqwest::blocking::Client::new();
             let body = serde_json::json!({
               "model": model,
@@ -3929,30 +4061,11 @@ fn auth_check(provider: &str, verify: bool) -> Result<()> {
                 .json(&body)
                 .send()?;
             if !resp.status().is_success() {
-                bail!("Anthropic auth check failed: status {}", resp.status());
+                bail!("status {}", resp.status());
             }
-            println!("Anthropic provider: API key verified");
             Ok(())
         }
         "gemini" => {
-            let config = load_config();
-            let key = env::var("GEMINI_API_KEY")
-                .ok()
-                .or_else(|| config.gemini.as_ref().and_then(|c| c.api_key.clone()));
-            let Some(api_key) = key else {
-                bail!("GEMINI_API_KEY not set and no key in sculpt.config.json");
-            };
-
-            if !verify {
-                println!("Gemini provider: API key found");
-                return Ok(());
-            }
-
-            let model = config
-                .gemini
-                .as_ref()
-                .and_then(|c| c.model.clone())
-                .unwrap_or_else(|| "gemini-2.5-pro".to_string());
             let body = serde_json::json!({
               "contents": [{ "role": "user", "parts": [{ "text": "ping" }] }],
               "generationConfig": { "maxOutputTokens": 1 }
@@ -3969,13 +4082,38 @@ fn auth_check(provider: &str, verify: bool) -> Result<()> {
                 .json(&body)
                 .send()?;
             if !resp.status().is_success() {
-                bail!("Gemini auth check failed: status {}", resp.status());
+                bail!("status {}", resp.status());
             }
-            println!("Gemini provider: API key verified");
             Ok(())
         }
+        "stub" => Ok(()),
         other => bail!("Unknown provider: {}", other),
     }
+}
+
+fn auth_check(provider: &str, verify: bool) -> Result<()> {
+    let config = load_config();
+    let row = run_provider_conformance(provider, verify, &config)?;
+    if !row.key_present && provider != "stub" {
+        let env_var = match provider {
+            "openai" => "OPENAI_API_KEY",
+            "anthropic" => "ANTHROPIC_API_KEY",
+            "gemini" => "GEMINI_API_KEY",
+            _ => "",
+        };
+        bail!("{} not set and no key in sculpt.config.json", env_var);
+    }
+    if row.verify_status == "fail" {
+        bail!("{} auth check failed: {}", provider, row.verify_detail);
+    }
+    if verify {
+        println!("{} provider: API key verified", provider);
+    } else if row.key_present {
+        println!("{} provider: API key found", provider);
+    } else {
+        println!("{} provider: no key required", provider);
+    }
+    Ok(())
 }
 
 fn load_ir(input: &Path, nd_policy_override: Option<&str>) -> Result<crate::ir::IrModule> {
@@ -4837,5 +4975,18 @@ end
         assert!(format!("{err}").contains("exceptions header mismatch"));
 
         let _ = fs::remove_dir_all(ws);
+    }
+
+    #[test]
+    fn provider_conformance_stub_passes_with_verify() {
+        let row = run_provider_conformance("stub", true, &Config::default()).expect("row");
+        assert_eq!(row.provider, "stub");
+        assert_eq!(row.verify_status, "pass");
+    }
+
+    #[test]
+    fn provider_model_and_key_rejects_unknown_provider() {
+        let err = provider_model_and_key("nope", &Config::default()).expect_err("must fail");
+        assert!(format!("{err}").contains("Unknown provider"));
     }
 }

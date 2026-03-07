@@ -18,6 +18,14 @@ pub struct BuildMeta {
     pub script: String,
     pub action: String,
     pub target: String,
+    #[serde(default)]
+    pub requested_provider: Option<String>,
+    #[serde(default)]
+    pub requested_model: Option<String>,
+    #[serde(default)]
+    pub strict_provider: Option<bool>,
+    #[serde(default)]
+    pub fallback_mode: Option<String>,
     pub provider: Option<String>,
     pub model: Option<String>,
     pub llm_ms: Option<u128>,
@@ -131,6 +139,10 @@ mod tests {
             script: "a.sculpt".to_string(),
             action: "build".to_string(),
             target: "cli".to_string(),
+            requested_provider: Some("openai".to_string()),
+            requested_model: Some("gpt-4.1".to_string()),
+            strict_provider: Some(false),
+            fallback_mode: Some("stub".to_string()),
             provider: Some("stub".to_string()),
             model: Some("stub".to_string()),
             llm_ms: Some(10),

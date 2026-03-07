@@ -60,7 +60,7 @@ fn print_help_tui() {
             " replay     build from sculpt.lock (no LLM)",
             " run        run last build output",
             " target     list/describe targets",
-            " auth       provider auth check",
+            " auth       provider auth + conformance checks",
         ],
         accent2,
         c,
@@ -310,6 +310,28 @@ fn print_subcommand_help(cmd: &str) -> bool {
                     " packages : provider packages and exposed namespaces",
                     " exports  : symbols exported by one package",
                     " stacks   : stack adapter profiles for the target",
+                ],
+                accent2,
+                c,
+            );
+            true
+        }
+        "auth" => {
+            print_header();
+            print_box(
+                "Usage",
+                &[
+                    " sculpt auth check --provider <openai|anthropic|gemini|stub> [--verify]",
+                    " sculpt auth conformance [--providers <csv>] [--verify] [--json]",
+                ],
+                accent2,
+                c,
+            );
+            print_box(
+                "Behavior",
+                &[
+                    " check        : validates key presence, optionally verifies endpoint access",
+                    " conformance  : runs provider matrix (key source/model/verify result)",
                 ],
                 accent2,
                 c,

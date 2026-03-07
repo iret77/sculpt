@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.7
+- Added provider conformance matrix command: `sculpt auth conformance` (`--providers`, `--verify`, `--json`)
+- Added normalized provider telemetry fields in `build.meta.json`:
+  `requested_provider`, `requested_model`, `strict_provider`, `fallback_mode`
+- Added optional `@meta contract_version` compatibility checks against active target contract version
+- Expanded target symbol signature catalog output in `sculpt target exports` across `ui/input/window/net/data/guide`
+- Hardened data-heavy benchmark path: namespaced data writer/runtime ops now pass deterministic required-output checks
+
 ## 0.2.2
 - Added `sculpt project create` with `-p/--path` and `-f/--files` (glob support)
 - Added CLI and TUI progress bars in the byte5 palette for build pipeline visibility

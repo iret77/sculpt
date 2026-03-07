@@ -22,6 +22,10 @@ fn writes_and_reads_build_meta_json() {
         script: "examples/getting-started/hello_world.sculpt".to_string(),
         action: "build".to_string(),
         target: "cli".to_string(),
+        requested_provider: Some("openai".to_string()),
+        requested_model: Some("gpt-4.1".to_string()),
+        strict_provider: Some(false),
+        fallback_mode: Some("stub".to_string()),
         provider: Some("gemini".to_string()),
         model: Some("gemini-2.5-pro".to_string()),
         llm_ms: Some(1200),
@@ -44,6 +48,10 @@ fn writes_and_reads_build_meta_json() {
     assert_eq!(loaded.script, "examples/getting-started/hello_world.sculpt");
     assert_eq!(loaded.action, "build");
     assert_eq!(loaded.target, "cli");
+    assert_eq!(loaded.requested_provider.as_deref(), Some("openai"));
+    assert_eq!(loaded.requested_model.as_deref(), Some("gpt-4.1"));
+    assert_eq!(loaded.strict_provider, Some(false));
+    assert_eq!(loaded.fallback_mode.as_deref(), Some("stub"));
     assert_eq!(loaded.provider.as_deref(), Some("gemini"));
     assert_eq!(loaded.model.as_deref(), Some("gemini-2.5-pro"));
     assert_eq!(loaded.llm_ms, Some(1200));
