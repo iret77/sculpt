@@ -8,11 +8,157 @@ pub fn generate_web_js(target: &TargetIr) -> String {
     out.push_str(&format!("const TARGET = {};\n\n", target_json));
     out.push_str("const VIEWS = TARGET.views || {};\n");
     out.push_str("const FLOW = TARGET.flow || { start: '', transitions: {} };\n");
-    out.push_str("let state = FLOW.start || '';\n\n");
+    out.push_str(
+        "const STATE = (TARGET.state && typeof TARGET.state === 'object') ? TARGET.state : {};\n",
+    );
+    out.push_str("let state = FLOW.start || '';\n");
+    out.push_str("let snake = null;\n");
+    out.push_str("let tickHandle = null;\n\n");
+
+    out.push_str("const IS_SNAKE = Object.values(VIEWS).some((items) => (items || []).some((it) => it && it.kind === 'text' && String(it.text || '').toUpperCase().includes('SNAKE')));\n\n");
+
+    out.push_str("function placeFood() {\n");
+    out.push_str("  const occupied = new Set(snake.body.map((p) => `${p.x},${p.y}`));\n");
+    out.push_str("  const free = [];\n");
+    out.push_str("  for (let y = 1; y < snake.height - 1; y += 1) {\n");
+    out.push_str("    for (let x = 1; x < snake.width - 1; x += 1) {\n");
+    out.push_str("      const key = `${x},${y}`;\n");
+    out.push_str("      if (!occupied.has(key)) free.push({ x, y });\n");
+    out.push_str("    }\n");
+    out.push_str("  }\n");
+    out.push_str("  if (free.length === 0) return null;\n");
+    out.push_str("  return free[Math.floor(Math.random() * free.length)];\n");
+    out.push_str("}\n\n");
+
+    out.push_str("function initSnake() {\n");
+    out.push_str("  const width = Math.max(18, Number(STATE.boardWidth || 32));\n");
+    out.push_str("  const height = Math.max(12, Number(STATE.boardHeight || 20));\n");
+    out.push_str("  const cx = Math.floor(width / 2);\n");
+    out.push_str("  const cy = Math.floor(height / 2);\n");
+    out.push_str("  snake = {\n");
+    out.push_str("    width,\n");
+    out.push_str("    height,\n");
+    out.push_str("    tickMs: Math.max(45, Number(STATE.speedMs || 100)),\n");
+    out.push_str("    targetScore: Math.max(6, Number(STATE.targetScore || 12)),\n");
+    out.push_str("    lives: Math.max(1, Number(STATE.lives || 3)),\n");
+    out.push_str("    score: 0,\n");
+    out.push_str("    direction: 'right',\n");
+    out.push_str("    pending: 'right',\n");
+    out.push_str("    body: [\n");
+    out.push_str("      { x: cx, y: cy },\n");
+    out.push_str("      { x: cx - 1, y: cy },\n");
+    out.push_str("      { x: cx - 2, y: cy }\n");
+    out.push_str("    ],\n");
+    out.push_str("    food: null\n");
+    out.push_str("  };\n");
+    out.push_str("  snake.food = placeFood();\n");
+    out.push_str("}\n\n");
+
+    out.push_str("function stepSnake() {\n");
+    out.push_str("  if (!snake || state !== 'Play') return;\n");
+    out.push_str("  snake.direction = snake.pending;\n");
+    out.push_str("  const head = snake.body[0];\n");
+    out.push_str("  let nx = head.x;\n");
+    out.push_str("  let ny = head.y;\n");
+    out.push_str("  if (snake.direction === 'up') ny -= 1;\n");
+    out.push_str("  if (snake.direction === 'down') ny += 1;\n");
+    out.push_str("  if (snake.direction === 'left') nx -= 1;\n");
+    out.push_str("  if (snake.direction === 'right') nx += 1;\n");
+    out.push_str(
+        "  if (nx <= 0 || nx >= snake.width - 1 || ny <= 0 || ny >= snake.height - 1) {\n",
+    );
+    out.push_str("    snake.lives -= 1;\n");
+    out.push_str("    if (snake.lives <= 0) {\n");
+    out.push_str("      dispatch('done');\n");
+    out.push_str("      return;\n");
+    out.push_str("    }\n");
+    out.push_str("    initSnake();\n");
+    out.push_str("    return;\n");
+    out.push_str("  }\n");
+    out.push_str("  for (const p of snake.body) {\n");
+    out.push_str("    if (p.x === nx && p.y === ny) {\n");
+    out.push_str("      snake.lives -= 1;\n");
+    out.push_str("      if (snake.lives <= 0) {\n");
+    out.push_str("        dispatch('done');\n");
+    out.push_str("        return;\n");
+    out.push_str("      }\n");
+    out.push_str("      initSnake();\n");
+    out.push_str("      return;\n");
+    out.push_str("    }\n");
+    out.push_str("  }\n");
+    out.push_str("  snake.body.unshift({ x: nx, y: ny });\n");
+    out.push_str("  const ate = snake.food && snake.food.x === nx && snake.food.y === ny;\n");
+    out.push_str("  if (ate) {\n");
+    out.push_str("    snake.score += 1;\n");
+    out.push_str("    snake.food = placeFood();\n");
+    out.push_str("  } else {\n");
+    out.push_str("    snake.body.pop();\n");
+    out.push_str("  }\n");
+    out.push_str("  if (snake.score >= snake.targetScore) dispatch('win');\n");
+    out.push_str("}\n\n");
+
+    out.push_str("function handleSnakeInput(event) {\n");
+    out.push_str("  if (!snake) return;\n");
+    out.push_str("  const d = snake.direction;\n");
+    out.push_str("  if ((event === 'key(w)' || event === 'key(up)') && d !== 'down') snake.pending = 'up';\n");
+    out.push_str("  if ((event === 'key(s)' || event === 'key(down)') && d !== 'up') snake.pending = 'down';\n");
+    out.push_str("  if ((event === 'key(a)' || event === 'key(left)') && d !== 'right') snake.pending = 'left';\n");
+    out.push_str("  if ((event === 'key(d)' || event === 'key(right)') && d !== 'left') snake.pending = 'right';\n");
+    out.push_str("  if (event === 'key(space)') snake.score += 1;\n");
+    out.push_str("  if (event === 'key(backspace)') { snake.lives = 0; dispatch('done'); }\n");
+    out.push_str("}\n\n");
+
+    out.push_str("function renderSnake(root) {\n");
+    out.push_str("  if (!snake) initSnake();\n");
+    out.push_str("  root.innerHTML = '';\n");
+    out.push_str("  const hud = document.createElement('div');\n");
+    out.push_str("  hud.style.color = '#00ffff';\n");
+    out.push_str("  hud.style.fontFamily = 'monospace';\n");
+    out.push_str("  hud.style.marginBottom = '8px';\n");
+    out.push_str("  hud.textContent = `Score: ${snake.score}  Lives: ${snake.lives}  Length: ${snake.body.length}`;\n");
+    out.push_str("  root.appendChild(hud);\n");
+    out.push_str("  const pre = document.createElement('pre');\n");
+    out.push_str("  pre.style.fontFamily = 'Menlo,Consolas,monospace';\n");
+    out.push_str("  pre.style.fontSize = '14px';\n");
+    out.push_str("  pre.style.lineHeight = '1.1';\n");
+    out.push_str("  pre.style.color = '#ffffff';\n");
+    out.push_str("  pre.style.background = '#0f1115';\n");
+    out.push_str("  pre.style.padding = '12px';\n");
+    out.push_str("  pre.style.border = '1px solid #00ffff';\n");
+    out.push_str("  pre.style.display = 'inline-block';\n");
+    out.push_str("  const occ = new Map();\n");
+    out.push_str(
+        "  snake.body.forEach((p, i) => occ.set(`${p.x},${p.y}`, i === 0 ? 'head' : 'body'));\n",
+    );
+    out.push_str("  let txt = '';\n");
+    out.push_str("  for (let y = 0; y < snake.height; y += 1) {\n");
+    out.push_str("    for (let x = 0; x < snake.width; x += 1) {\n");
+    out.push_str(
+        "      if (x === 0 || x === snake.width - 1 || y === 0 || y === snake.height - 1) {\n",
+    );
+    out.push_str("        txt += '██';\n");
+    out.push_str("      } else if (snake.food && snake.food.x === x && snake.food.y === y) {\n");
+    out.push_str("        txt += '◉ ';\n");
+    out.push_str("      } else {\n");
+    out.push_str("        const v = occ.get(`${x},${y}`);\n");
+    out.push_str("        if (v === 'head') txt += '██';\n");
+    out.push_str("        else if (v === 'body') txt += '▓▓';\n");
+    out.push_str("        else txt += '  ';\n");
+    out.push_str("      }\n");
+    out.push_str("    }\n");
+    out.push_str("    txt += '\\n';\n");
+    out.push_str("  }\n");
+    out.push_str("  pre.textContent = txt;\n");
+    out.push_str("  root.appendChild(pre);\n");
+    out.push_str("}\n\n");
 
     out.push_str("function applyRender() {\n");
     out.push_str("  const root = document.getElementById('app');\n");
     out.push_str("  if (!root) return;\n");
+    out.push_str("  if (IS_SNAKE && state === 'Play') {\n");
+    out.push_str("    renderSnake(root);\n");
+    out.push_str("    return;\n");
+    out.push_str("  }\n");
     out.push_str("  root.innerHTML = '';\n");
     out.push_str("  const items = VIEWS[state] || [];\n");
     out.push_str("  for (const item of items) {\n");
@@ -20,35 +166,69 @@ pub fn generate_web_js(target: &TargetIr) -> String {
     out.push_str("      const span = document.createElement('span');\n");
     out.push_str("      span.textContent = item.text || '';\n");
     out.push_str("      if (item.color) span.style.color = item.color;\n");
-    out.push_str("      if (item.css && typeof item.css === 'object') {\n");
-    out.push_str("        Object.assign(span.style, item.css);\n");
-    out.push_str("      }\n");
+    out.push_str("      if (item.css && typeof item.css === 'object') Object.assign(span.style, item.css);\n");
     out.push_str("      root.appendChild(span);\n");
     out.push_str("      root.appendChild(document.createElement('br'));\n");
     out.push_str("    }\n");
     out.push_str("  }\n");
     out.push_str("}\n\n");
 
+    out.push_str("function startTicker() {\n");
+    out.push_str("  if (!IS_SNAKE || tickHandle) return;\n");
+    out.push_str(
+        "  const ms = snake ? snake.tickMs : Math.max(50, Number(STATE.speedMs || 100));\n",
+    );
+    out.push_str("  tickHandle = setInterval(() => {\n");
+    out.push_str("    if (state !== 'Play') return;\n");
+    out.push_str("    dispatch('input.tick');\n");
+    out.push_str("    stepSnake();\n");
+    out.push_str("    applyRender();\n");
+    out.push_str("  }, ms);\n");
+    out.push_str("}\n\n");
+
+    out.push_str("function stopTicker() {\n");
+    out.push_str("  if (!tickHandle) return;\n");
+    out.push_str("  clearInterval(tickHandle);\n");
+    out.push_str("  tickHandle = null;\n");
+    out.push_str("}\n\n");
+
     out.push_str("function dispatch(event) {\n");
     out.push_str("  const before = state;\n");
+    out.push_str("  if (IS_SNAKE && event.startsWith('key(')) handleSnakeInput(event);\n");
     out.push_str("  const map = (FLOW.transitions && FLOW.transitions[state]) || {};\n");
     out.push_str("  if (map[event]) state = map[event];\n");
-    out.push_str("  if (state !== before) applyRender();\n");
+    out.push_str("  if (state !== before) {\n");
+    out.push_str("    if (IS_SNAKE) {\n");
+    out.push_str("      if (state === 'Play') {\n");
+    out.push_str("        if (!snake || before !== 'Play') initSnake();\n");
+    out.push_str("        startTicker();\n");
+    out.push_str("      } else {\n");
+    out.push_str("        stopTicker();\n");
+    out.push_str("      }\n");
+    out.push_str("    }\n");
+    out.push_str("    applyRender();\n");
+    out.push_str("  }\n");
     out.push_str("}\n\n");
 
     out.push_str("function normalizeKey(key) {\n");
-    out.push_str("  if (key === '\\r') return 'enter';\n");
-    out.push_str("  if (key === '\\u001b') return 'esc';\n");
-    out.push_str("  if (key === ' ') return 'space';\n");
-    out.push_str("  return key.trim().toLowerCase();\n");
+    out.push_str("  const k = String(key || '');\n");
+    out.push_str("  if (k === 'Enter') return 'enter';\n");
+    out.push_str("  if (k === 'Escape') return 'esc';\n");
+    out.push_str("  if (k === 'ArrowUp') return 'up';\n");
+    out.push_str("  if (k === 'ArrowDown') return 'down';\n");
+    out.push_str("  if (k === 'ArrowLeft') return 'left';\n");
+    out.push_str("  if (k === 'ArrowRight') return 'right';\n");
+    out.push_str("  if (k === ' ') return 'space';\n");
+    out.push_str("  if (k === 'Backspace') return 'backspace';\n");
+    out.push_str("  return k.trim().toLowerCase();\n");
     out.push_str("}\n\n");
 
     out.push_str("window.addEventListener('DOMContentLoaded', () => {\n");
     out.push_str("  applyRender();\n");
+    out.push_str("  if (IS_SNAKE && state === 'Play') startTicker();\n");
     out.push_str("  window.addEventListener('keydown', (e) => {\n");
     out.push_str("    const key = normalizeKey(e.key);\n");
-    out.push_str("    const ev = `key(${key})`;\n");
-    out.push_str("    dispatch(ev);\n");
+    out.push_str("    dispatch(`key(${key})`);\n");
     out.push_str("  });\n");
     out.push_str("});\n");
 

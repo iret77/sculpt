@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::io::stdout;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Result};
@@ -17,7 +17,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
-    Block, Borders, Clear, List, ListItem, ListState, Padding, Paragraph, Wrap,
+    Block, BorderType, Borders, Clear, List, ListItem, ListState, Padding, Paragraph, Wrap,
 };
 use ratatui::Terminal;
 use serde::{Deserialize, Serialize};
@@ -488,6 +488,96 @@ impl AppState {
             }
         }
     }
+
+    fn selected_entry_path(&self) -> Option<PathBuf> {
+        let idx = self.file_state.selected()?;
+        self.entries.get(idx).map(|e| e.path.clone())
+    }
+
+    fn run_editor_for_selection(&mut self) -> Result<()> {
+        let Some(path) = self.selected_entry_path() else {
+            self.info_modal = Some("Select a file first.".to_string());
+            return Ok(());
+        };
+        if path.is_dir() {
+            self.info_modal = Some("Select a file (not a directory).".to_string());
+            return Ok(());
+        }
+
+        let mut editor_cmd: Option<(String, Vec<String>)> = None;
+        if let Ok(ed) = std::env::var("EDITOR") {
+            let trimmed = ed.trim();
+            if !trimmed.is_empty() {
+                let mut parts = trimmed.split_whitespace();
+                if let Some(bin) = parts.next() {
+                    let mut args: Vec<String> = parts.map(|s| s.to_string()).collect();
+                    args.push(path.to_string_lossy().to_string());
+                    editor_cmd = Some((bin.to_string(), args));
+                }
+            }
+        }
+        if editor_cmd.is_none() {
+            if command_exists("code") {
+                editor_cmd = Some((
+                    "code".to_string(),
+                    vec!["-w".to_string(), path.to_string_lossy().to_string()],
+                ));
+            } else if command_exists("nano") {
+                editor_cmd = Some(("nano".to_string(), vec![path.to_string_lossy().to_string()]));
+            } else {
+                editor_cmd = Some(("vi".to_string(), vec![path.to_string_lossy().to_string()]));
+            }
+        }
+
+        let (bin, args) = editor_cmd.expect("editor command exists");
+        self.log.push(format!("$ {} {}", bin, args.join(" ")));
+        self.status = format!("Editor: {}", path.display());
+
+        let mut out = stdout();
+        let _ = disable_raw_mode();
+        let _ = execute!(out, LeaveAlternateScreen);
+        let result = Command::new(&bin)
+            .args(&args)
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status();
+        let _ = execute!(
+            out,
+            EnterAlternateScreen,
+            crossterm::terminal::Clear(ClearType::All),
+            crossterm::cursor::MoveTo(0, 0)
+        );
+        let _ = enable_raw_mode();
+        self.needs_full_redraw = true;
+
+        match result {
+            Ok(status) if status.success() => {
+                self.status = "Ready".to_string();
+                self.log.push("Editor closed.".to_string());
+                self.refresh_entries()?;
+            }
+            Ok(status) => {
+                self.status = format!("Editor exit {:?}", status.code());
+                self.log
+                    .push(format!("Editor exited with status {:?}.", status.code()));
+            }
+            Err(err) => {
+                self.status = "Editor launch failed".to_string();
+                self.log.push(format!("Editor launch failed: {}", err));
+            }
+        }
+        Ok(())
+    }
+}
+
+fn command_exists(bin: &str) -> bool {
+    std::env::var_os("PATH").is_some_and(|paths| {
+        std::env::split_paths(&paths).any(|dir| {
+            let p = dir.join(bin);
+            p.exists() && p.is_file()
+        })
+    })
 }
 
 fn cycle_focus(current: Focus, reverse: bool) -> Focus {
@@ -642,6 +732,10 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Result<bool> {
             state.config_field = ConfigField::Provider;
             state.modal_open = true;
             state.active_modal = ActiveModal::Config;
+        }
+        KeyCode::Char('e') => {
+            let _ = state.run_editor_for_selection();
+            state.update_preview_from_selection();
         }
         KeyCode::Char('.') => {
             if let Some(last) = state.history.last().cloned() {
@@ -855,6 +949,11 @@ fn ui(f: &mut ratatui::Frame, state: &mut AppState) {
             Block::default()
                 .borders(Borders::ALL)
                 .title(Span::styled("[Details]", active_title(details_active)))
+                .border_type(if details_active {
+                    BorderType::Thick
+                } else {
+                    BorderType::Plain
+                })
                 .padding(Padding::horizontal(1))
                 .border_style(active_border(details_active))
                 .style(Style::default().bg(state.theme.panel_bg)),
@@ -872,6 +971,11 @@ fn ui(f: &mut ratatui::Frame, state: &mut AppState) {
             Block::default()
                 .borders(Borders::ALL)
                 .title(Span::styled("[Log]", active_title(log_active)))
+                .border_type(if log_active {
+                    BorderType::Thick
+                } else {
+                    BorderType::Plain
+                })
                 .padding(Padding::horizontal(1))
                 .border_style(active_border(log_active))
                 .style(Style::default().bg(state.theme.panel_bg)),
@@ -975,6 +1079,13 @@ fn ui(f: &mut ratatui::Frame, state: &mut AppState) {
         ),
         Span::raw(" config  "),
         Span::styled(
+            "E",
+            Style::default()
+                .fg(state.theme.accent2)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" edit  "),
+        Span::styled(
             ".",
             Style::default()
                 .fg(state.theme.accent2)
@@ -1064,6 +1175,11 @@ fn list_files(state: &AppState) -> List<'_> {
                         state.theme.fg
                     }),
                 ))
+                .border_type(if state.focus == Focus::Files {
+                    BorderType::Thick
+                } else {
+                    BorderType::Plain
+                })
                 .padding(Padding::horizontal(1))
                 .border_style(if state.focus == Focus::Files {
                     Style::default()

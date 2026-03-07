@@ -1,0 +1,99 @@
+# Snake (CLI High ND Showcase)
+# Intentionally compact: core controls and outcomes are fixed, gameplay details are delegated.
+
+@meta target=cli
+@meta nd_budget=64
+@meta confidence=0.9
+
+module(SnakeCliHighNdShowcase):
+  use(cli.ui) as ui
+  use(cli.input) as input
+  use(cli.guide) as guide
+
+  flow(Game):
+    start > Title
+
+    state(Title):
+      ui.text("SNAKE // CLI HIGH ND", color: "yellow")
+      ui.text("Enter: Start  Esc: Quit", color: "cyan")
+      on input.key(enter) > Play
+      on input.key(esc) > Exit
+    end
+
+    state(Play):
+      ui.text("High-ND Snake runtime", color: "green")
+      on input.key(w):: direction = "up"
+      on input.key(up):: direction = "up"
+      on input.key(s):: direction = "down"
+      on input.key(down):: direction = "down"
+      on input.key(a):: direction = "left"
+      on input.key(left):: direction = "left"
+      on input.key(d):: direction = "right"
+      on input.key(right):: direction = "right"
+      on input.key(space):: score += 1
+      on input.key(backspace):: lives = 0
+      on input.key(p) > Pause
+      on input.key(esc) > Exit
+      on input.tick > Play
+      on win > Victory
+      on done > GameOver
+    end
+
+    state(Pause):
+      ui.text("PAUSED", color: "yellow")
+      on input.key(enter) > Play
+      on input.key(p) > Play
+      on input.key(esc) > Exit
+    end
+
+    state(Victory):
+      ui.text("YOU WIN", color: "green")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(GameOver):
+      ui.text("GAME OVER", color: "red")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    boardWidth = 32
+    boardHeight = 20
+    speedMs = 92
+    score = 0
+    lives = 3
+    targetScore = 12
+    direction = "right"
+  end
+
+  rule(win):
+    when score >= targetScore:
+      emit win
+    end
+  end
+
+  rule(lose):
+    when lives < 1:
+      emit done
+    end
+  end
+
+  nd(gameplay):
+    propose snake(mode: "cli", profile: "high-nd")
+    satisfy(
+      guide.playable(),
+      guide.readableHud(),
+      guide.responsiveControls(keys: "wasd+arrows"),
+      guide.smoothDifficultyCurve(),
+      ?"Keep core controls and win/lose states equal to snake_cli_low_nd_showcase.",
+      ?"Freely optimize visual style, pacing feel, and board dynamics."
+    )
+  end
+end

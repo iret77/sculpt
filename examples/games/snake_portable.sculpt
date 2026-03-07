@@ -77,6 +77,8 @@ module(SnakePortable):
   end
 
   state():
+    boardWidth = 32
+    boardHeight = 20
     score = 0
     lives = 3
     targetScore = 12

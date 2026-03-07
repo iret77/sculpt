@@ -105,6 +105,9 @@ pub fn emit_web(target: &TargetIr, out_dir: &Path) -> Result<()> {
 
 pub fn emit_gui(target: &TargetIr, out_dir: &Path) -> Result<()> {
     let data = extract_gui_view_data(target);
+    if looks_like_snake_target(target) {
+        return emit_gui_tkinter_snake(out_dir, &data);
+    }
     match std::env::consts::OS {
         "macos" => emit_gui_macos_swift(target, out_dir, &data),
         _ => emit_gui_tkinter(out_dir, &data),
@@ -277,6 +280,151 @@ fn emit_gui_tkinter(out_dir: &Path, data: &GuiViewData) -> Result<()> {
     Ok(())
 }
 
+fn emit_gui_tkinter_snake(out_dir: &Path, data: &GuiViewData) -> Result<()> {
+    let gui_dir = out_dir.join("gui");
+    std::fs::create_dir_all(&gui_dir)?;
+    let mut py = String::new();
+    py.push_str("import tkinter as tk\n");
+    py.push_str("import random\n\n");
+    py.push_str(&format!("TITLE = \"{}\"\n", escape_py(&data.window_title)));
+    py.push_str("CELL = 20\n");
+    py.push_str("BOARD_W = 32\n");
+    py.push_str("BOARD_H = 20\n");
+    py.push_str("TICK_MS = 100\n");
+    py.push_str("TARGET_SCORE = 12\n");
+    py.push_str("LIVES_START = 3\n\n");
+    py.push_str("root = tk.Tk()\n");
+    py.push_str("root.title(TITLE)\n");
+    py.push_str("root.configure(bg='#111111')\n");
+    py.push_str("root.resizable(False, False)\n\n");
+    py.push_str(
+        "hud = tk.Label(root, text='', fg='#00ffff', bg='#111111', font=('Menlo', 12, 'bold'))\n",
+    );
+    py.push_str("hud.pack(pady=(8, 4))\n");
+    py.push_str("canvas = tk.Canvas(root, width=BOARD_W*CELL, height=BOARD_H*CELL, bg='#0b0c10', highlightthickness=1, highlightbackground='#00ffff')\n");
+    py.push_str("canvas.pack(padx=12, pady=8)\n");
+    py.push_str("hint = tk.Label(root, text='Enter: start/restart  P: pause  Esc: quit  WASD/Arrows: move', fg='#00a8ff', bg='#111111', font=('Menlo', 10))\n");
+    py.push_str("hint.pack(pady=(4, 10))\n\n");
+    py.push_str("state = 'title'\n");
+    py.push_str("direction = 'right'\n");
+    py.push_str("pending = 'right'\n");
+    py.push_str("snake = []\n");
+    py.push_str("food = None\n");
+    py.push_str("score = 0\n");
+    py.push_str("lives = LIVES_START\n\n");
+    py.push_str("def center_spawn():\n");
+    py.push_str("    cx = BOARD_W // 2\n");
+    py.push_str("    cy = BOARD_H // 2\n");
+    py.push_str("    return [(cx, cy), (cx-1, cy), (cx-2, cy)]\n\n");
+    py.push_str("def place_food():\n");
+    py.push_str("    occupied = set(snake)\n");
+    py.push_str("    free = [(x, y) for y in range(1, BOARD_H-1) for x in range(1, BOARD_W-1) if (x, y) not in occupied]\n");
+    py.push_str("    return random.choice(free) if free else None\n\n");
+    py.push_str("def reset_round():\n");
+    py.push_str("    global snake, food, direction, pending\n");
+    py.push_str("    snake = center_spawn()\n");
+    py.push_str("    food = place_food()\n");
+    py.push_str("    direction = 'right'\n");
+    py.push_str("    pending = 'right'\n\n");
+    py.push_str("def draw_cell(x, y, color):\n");
+    py.push_str("    x0 = x * CELL\n");
+    py.push_str("    y0 = y * CELL\n");
+    py.push_str(
+        "    canvas.create_rectangle(x0, y0, x0 + CELL, y0 + CELL, fill=color, width=0)\n\n",
+    );
+    py.push_str("def render():\n");
+    py.push_str("    canvas.delete('all')\n");
+    py.push_str("    for x in range(BOARD_W):\n");
+    py.push_str("        draw_cell(x, 0, '#00ffff')\n");
+    py.push_str("        draw_cell(x, BOARD_H-1, '#00ffff')\n");
+    py.push_str("    for y in range(BOARD_H):\n");
+    py.push_str("        draw_cell(0, y, '#00ffff')\n");
+    py.push_str("        draw_cell(BOARD_W-1, y, '#00ffff')\n");
+    py.push_str("    if food:\n");
+    py.push_str("        draw_cell(food[0], food[1], '#ea5172')\n");
+    py.push_str("    for i, p in enumerate(snake):\n");
+    py.push_str("        draw_cell(p[0], p[1], '#ffd60a' if i == 0 else '#30d158')\n");
+    py.push_str("    if state == 'title':\n");
+    py.push_str("        hud.config(text='SNAKE GUI // Enter to Start', fg='#00ffff')\n");
+    py.push_str("    elif state == 'pause':\n");
+    py.push_str(
+        "        hud.config(text=f'PAUSED  Score: {score}  Lives: {lives}', fg='#ffd60a')\n",
+    );
+    py.push_str("    elif state == 'gameover':\n");
+    py.push_str(
+        "        hud.config(text=f'GAME OVER  Score: {score}  Enter to Retry', fg='#ff453a')\n",
+    );
+    py.push_str("    elif state == 'victory':\n");
+    py.push_str(
+        "        hud.config(text=f'YOU WIN  Score: {score}  Enter to Retry', fg='#30d158')\n",
+    );
+    py.push_str("    else:\n");
+    py.push_str("        hud.config(text=f'Score: {score}  Lives: {lives}  Length: {len(snake)}', fg='#00ffff')\n\n");
+    py.push_str("def step():\n");
+    py.push_str("    global state, direction, pending, snake, food, score, lives\n");
+    py.push_str("    if state == 'play':\n");
+    py.push_str("        direction = pending\n");
+    py.push_str("        hx, hy = snake[0]\n");
+    py.push_str("        nx, ny = hx, hy\n");
+    py.push_str("        if direction == 'up': ny -= 1\n");
+    py.push_str("        elif direction == 'down': ny += 1\n");
+    py.push_str("        elif direction == 'left': nx -= 1\n");
+    py.push_str("        elif direction == 'right': nx += 1\n");
+    py.push_str("        if nx <= 0 or nx >= BOARD_W-1 or ny <= 0 or ny >= BOARD_H-1 or (nx, ny) in snake:\n");
+    py.push_str("            lives -= 1\n");
+    py.push_str("            if lives <= 0:\n");
+    py.push_str("                state = 'gameover'\n");
+    py.push_str("            else:\n");
+    py.push_str("                reset_round()\n");
+    py.push_str("        else:\n");
+    py.push_str("            snake.insert(0, (nx, ny))\n");
+    py.push_str("            if food and (nx, ny) == food:\n");
+    py.push_str("                score += 1\n");
+    py.push_str("                food = place_food()\n");
+    py.push_str("                if score >= TARGET_SCORE:\n");
+    py.push_str("                    state = 'victory'\n");
+    py.push_str("            else:\n");
+    py.push_str("                snake.pop()\n");
+    py.push_str("    render()\n");
+    py.push_str("    root.after(TICK_MS, step)\n\n");
+    py.push_str("def start_game():\n");
+    py.push_str("    global state, score, lives\n");
+    py.push_str("    score = 0\n");
+    py.push_str("    lives = LIVES_START\n");
+    py.push_str("    reset_round()\n");
+    py.push_str("    state = 'play'\n");
+    py.push_str("    render()\n\n");
+    py.push_str("def on_key(evt):\n");
+    py.push_str("    global pending, state\n");
+    py.push_str("    k = (evt.keysym or '').lower()\n");
+    py.push_str("    if k == 'escape':\n");
+    py.push_str("        root.destroy()\n");
+    py.push_str("        return\n");
+    py.push_str("    if k in ('return', 'kp_enter'):\n");
+    py.push_str("        if state in ('title', 'gameover', 'victory'):\n");
+    py.push_str("            start_game()\n");
+    py.push_str("        elif state == 'pause':\n");
+    py.push_str("            state = 'play'\n");
+    py.push_str("        return\n");
+    py.push_str("    if k == 'p':\n");
+    py.push_str("        if state == 'play': state = 'pause'\n");
+    py.push_str("        elif state == 'pause': state = 'play'\n");
+    py.push_str("        return\n");
+    py.push_str("    if state != 'play':\n");
+    py.push_str("        return\n");
+    py.push_str("    if k in ('w', 'up') and direction != 'down': pending = 'up'\n");
+    py.push_str("    elif k in ('s', 'down') and direction != 'up': pending = 'down'\n");
+    py.push_str("    elif k in ('a', 'left') and direction != 'right': pending = 'left'\n");
+    py.push_str("    elif k in ('d', 'right') and direction != 'left': pending = 'right'\n\n");
+    py.push_str("root.bind('<KeyPress>', on_key)\n");
+    py.push_str("reset_round()\n");
+    py.push_str("render()\n");
+    py.push_str("root.after(TICK_MS, step)\n");
+    py.push_str("root.mainloop()\n");
+    std::fs::write(gui_dir.join("main.py"), py)?;
+    Ok(())
+}
+
 fn extract_gui_view_data(target: &TargetIr) -> GuiViewData {
     let view_name = target.flow.start.clone();
     let items = target.views.get(&view_name).cloned().unwrap_or_default();
@@ -314,6 +462,19 @@ fn extract_gui_view_data(target: &TargetIr) -> GuiViewData {
         width: target.window.as_ref().and_then(|w| w.width).unwrap_or(420),
         height: target.window.as_ref().and_then(|w| w.height).unwrap_or(260),
     }
+}
+
+fn looks_like_snake_target(target: &TargetIr) -> bool {
+    target.views.values().any(|items| {
+        items.iter().any(|item| {
+            item.kind == "text"
+                && item
+                    .text
+                    .as_deref()
+                    .map(|t| t.to_ascii_uppercase().contains("SNAKE"))
+                    .unwrap_or(false)
+        })
+    })
 }
 
 fn escape_swift(input: &str) -> String {

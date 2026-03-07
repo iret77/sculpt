@@ -18,20 +18,21 @@ Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
 ## 2) Games
 - `games/snake_portable.sculpt`
   - One portable snake script intended to run on `cli`, `gui`, and `web` with a shared gameplay core (`@meta profile=portable`).
-- `games/snake_cli_showcase.sculpt`
-  - CLI-optimized snake with terminal-focused UX constraints.
+- `games/snake_cli_low_nd_showcase.sculpt`
+  - CLI snake with low ND: explicit behavior, predictable output.
+- `games/snake_cli_high_nd_showcase.sculpt`
+  - CLI snake with high ND: compact code, larger delegated solution space.
 - `games/snake_gui_showcase.sculpt`
   - GUI-optimized snake for native desktop window behavior.
 - `games/snake_web_showcase.sculpt`
   - Web-optimized snake for responsive browser delivery (`web_profile=next-app`).
 - `games/breakout_high_nd.sculpt`
   - Compact high-ND Breakout that delegates mechanics/UI detail via constraints.
-- `games/snake_high_nd.sculpt`
-  - Playable and visually richer Snake with high ND (creative runtime freedom).
-- `games/snake_low_nd.sculpt`
-  - Playable and visually richer Snake with low ND (explicit mechanics and scoring).
 - `games/breakout_low_nd.sculpt`
   - Detailed low-ND Breakout with explicit flow and rule structure.
+- `games/legacy/snake_high_nd_legacy.sculpt`
+- `games/legacy/snake_low_nd_legacy.sculpt`
+  - Archived pre-showcase versions kept for reference only.
 
 ## 3) Business
 - `business/invoice_review.sculpt`
