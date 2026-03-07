@@ -163,6 +163,8 @@
   - Added web profile smoke workflow (`web-profiles-smoke.yml`) for `standard`, `next-app`, and `laravel-mvc`.
   - Added baseline `standard` web profile example:
     `examples/web/web_profile_standard.sculpt`.
+  - Added deterministic target quality gate workflow (`target-quality-gates.yml`):
+    verifies behavior-level output signals for `cli`, `gui`, and `web` (runtime source markers + target IR shape checks).
 - Exit: non-demo app scenarios pass platform-specific quality gates in CI.
 
 5. E. Competitive Benchmark Release Gates (P1)
@@ -170,3 +172,23 @@
 - Add release gating based on benchmark thresholds.
 - Track SCULPT-vs-vibe deltas by release version.
 - Exit: release candidates are blocked automatically when benchmark gates fail.
+
+### Benchmark Re-Run Go/No-Go Gate (Business Use Case)
+
+Run the next official SCULPT-vs-vibe business benchmark only if all checks below are green:
+
+1. Target quality gates are active in CI for `cli`, `gui`, `web` and validate behavior-level signals (not only artifact presence).
+2. Benchmark harness is symmetric:
+   - same model class/provider policy,
+   - same timebox per approach,
+   - same acceptance checklist,
+   - same reproduction run count (`N=5`).
+3. Business-critical contract coverage is complete for the scenario (`data`, `net`, `ui`) with strict pre-LLM symbol/signature checks.
+4. Infra failures are separated from product failures in scoring and cannot produce a false "win".
+5. Benchmark gate files and metrics are generated automatically and checked in CI (`gate check` must pass).
+
+Target for an **unambiguous win** (no manual patching between measured runs):
+- SCULPT acceptance rate `>= 0.90`.
+- SCULPT reproducibility pass `>= 5/5`.
+- SCULPT unique normalized hashes `<= 1`.
+- SCULPT post-first-valid-output fix effort lower than vibe baseline (tracked in report table).

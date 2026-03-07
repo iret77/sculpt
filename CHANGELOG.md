@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.11
+- Added benchmark rerun Go/No-Go gate criteria to backlog documentation.
+- Added deterministic target quality gate CI workflow:
+  `.github/workflows/target-quality-gates.yml` + `scripts/ci_target_quality_gates.sh`
+- Added behavior-level output checks for `cli/gui/web` smoke targets:
+  runtime source markers plus target IR shape validation.
+
 ## 0.2.10
 - Added cross-platform GUI parity CI workflow:
   `.github/workflows/gui-parity.yml` + `scripts/ci_gui_parity.sh`
