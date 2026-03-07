@@ -145,6 +145,20 @@ pub fn validate_module_against_contract(
         }
     }
 
+    if let Some(raw) = ir.meta.get("contract_version") {
+        match raw.trim().parse::<u32>() {
+            Ok(v) if v == contract.version => {}
+            Ok(v) => errors.push(format!(
+                "C915: @meta contract_version='{}' mismatches target '{}' contract version '{}' (update script or target contract)",
+                v, target, contract.version
+            )),
+            Err(_) => errors.push(format!(
+                "C901: @meta contract_version='{}' is invalid for target '{}' (expected integer)",
+                raw, target
+            )),
+        }
+    }
+
     validate_symbols_against_packages(ir, contract, target, &mut errors);
     validate_portable_profile(ir, target, &mut errors);
 
@@ -835,6 +849,16 @@ fn default_meta_schema() -> BTreeMap<String, MetaFieldSpec> {
         MetaFieldSpec {
             key: "target".to_string(),
             meta_type: MetaType::String,
+        },
+    );
+    map.insert(
+        "contract_version".to_string(),
+        MetaFieldSpec {
+            key: "contract_version".to_string(),
+            meta_type: MetaType::IntRange {
+                min: 1,
+                max: i64::MAX,
+            },
         },
     );
     map.insert(

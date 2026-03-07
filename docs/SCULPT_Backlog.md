@@ -133,6 +133,8 @@
 - Contract versioning and compatibility checks.
 - Scalable namespace/import workflows for large projects.
 - Explicit symbol cataloging per target package.
+- Progress:
+  - Added optional `@meta contract_version=<int>` validation; compile now fails fast when script and active target contract versions diverge.
 - Exit: large multi-module projects compile with deterministic symbol resolution and actionable diagnostics.
 
 3. C. Provider Platform Hardening (P1)

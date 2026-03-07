@@ -260,6 +260,7 @@ You can set one key per line, or multiple key-value pairs in one line:
 - `requires`: comma-separated capability requirements checked against the selected target contract.
 - `required_outputs`: comma-separated runtime artifact paths; build validates matching writer calls and run verifies files exist.
 - `nd_critical_path`: ND marker policy in deterministic business/data paths (`off`, `warn`, `error`).
+- `contract_version`: optional integer pin for target contract compatibility (must match the active target contract version).
 
 ### 6.2 How Meta Interacts With CLI Flags
 - CLI flags have highest priority (for example `--target` overrides `@meta target=...`).
