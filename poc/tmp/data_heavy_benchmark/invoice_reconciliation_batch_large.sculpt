@@ -147,10 +147,10 @@ module(InvoiceReconciliation.Batch):
   end
 
   state():
-    invoicesPath = "poc/data/small/invoices.csv"
-    paymentsPath = "poc/data/small/payments.csv"
-    reportPath = "poc/runs/data_heavy_sculpt/small/reconciliation_report.json"
-    exceptionsPath = "poc/runs/data_heavy_sculpt/small/exceptions.csv"
+    invoicesPath = "poc/data/large/invoices.csv"
+    paymentsPath = "poc/data/large/payments.csv"
+    reportPath = "poc/runs/data_heavy_sculpt/large/reconciliation_report.json"
+    exceptionsPath = "poc/runs/data_heavy_sculpt/large/exceptions.csv"
     rulesVersion = "1.0"
     dateToleranceDays = 30
     amountTolerance = 0

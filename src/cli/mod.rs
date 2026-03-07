@@ -1924,14 +1924,15 @@ fn validate_required_output_contract(
             let Some(name) = call.get("name").and_then(|v| v.as_str()) else {
                 continue;
             };
-            if name != "writeJson" && name != "writeCsv" {
+            let canonical_name = canonical_runtime_call_name(name);
+            if canonical_name != "writeJson" && canonical_name != "writeCsv" {
                 continue;
             }
             let path_value = call.pointer("/args/0/value");
             let Some(output_path) = extract_runtime_path(path_value, &state_strings) else {
                 continue;
             };
-            writer_paths.push((name.to_string(), output_path));
+            writer_paths.push((canonical_name.to_string(), output_path));
         }
     }
 
@@ -1980,6 +1981,10 @@ fn extract_runtime_path(
     None
 }
 
+fn canonical_runtime_call_name(name: &str) -> &str {
+    name.rsplit('.').next().unwrap_or(name)
+}
+
 fn normalize_path_like(input: &str) -> String {
     input.replace('\\', "/")
 }
@@ -2021,6 +2026,26 @@ fn verify_required_outputs(ir: &IrModule) -> Result<()> {
             missing.join(", ")
         );
     }
+
+    // Harden deterministic data workloads: if the standard reconciliation artifacts are
+    // declared, validate their schema/header/order, not just existence.
+    let report_path = parse_meta_csv_list(raw).into_iter().find(|p| {
+        normalize_path_like(p).ends_with("/reconciliation_report.json")
+            || p == "reconciliation_report.json"
+    });
+    let exceptions_path = parse_meta_csv_list(raw)
+        .into_iter()
+        .find(|p| normalize_path_like(p).ends_with("/exceptions.csv") || p == "exceptions.csv");
+    if let (Some(report), Some(exceptions)) = (report_path, exceptions_path) {
+        let reconciliation_errors =
+            validate_reconciliation_artifacts(Path::new(&report), Path::new(&exceptions));
+        if !reconciliation_errors.is_empty() {
+            bail!(
+                "Required outputs check failed (@meta required_outputs): {}",
+                reconciliation_errors.join(", ")
+            );
+        }
+    }
     Ok(())
 }
 
@@ -2030,6 +2055,87 @@ fn parse_meta_csv_list(raw: &str) -> Vec<String> {
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
         .collect()
+}
+
+fn validate_reconciliation_artifacts(report_path: &Path, exceptions_path: &Path) -> Vec<String> {
+    let mut errors = Vec::new();
+
+    let report_raw = match fs::read_to_string(report_path) {
+        Ok(s) => s,
+        Err(e) => {
+            errors.push(format!("report read error: {e}"));
+            return errors;
+        }
+    };
+    let report_val: serde_json::Value = match serde_json::from_str(&report_raw) {
+        Ok(v) => v,
+        Err(e) => {
+            errors.push(format!("report parse error: {e}"));
+            return errors;
+        }
+    };
+    let Some(root) = report_val.as_object() else {
+        errors.push("report root is not an object".to_string());
+        return errors;
+    };
+    if root
+        .get("input_stats")
+        .and_then(|v| v.as_object())
+        .is_none()
+    {
+        errors.push("report.input_stats missing".to_string());
+    }
+    let required_counts = [
+        "matched_full",
+        "matched_partial",
+        "overpaid",
+        "missing_payment",
+        "duplicate_payment",
+        "ambiguous",
+        "suspicious",
+    ];
+    match root
+        .get("classification_counts")
+        .and_then(|v| v.as_object())
+    {
+        None => errors.push("report.classification_counts missing".to_string()),
+        Some(counts) => {
+            for key in required_counts {
+                if counts.get(key).and_then(|v| v.as_f64()).is_none() {
+                    errors.push(format!("classification_counts.{key} missing or non-number"));
+                }
+            }
+        }
+    }
+
+    let csv_raw = match fs::read_to_string(exceptions_path) {
+        Ok(s) => s,
+        Err(e) => {
+            errors.push(format!("exceptions read error: {e}"));
+            return errors;
+        }
+    };
+    let mut lines = csv_raw.lines();
+    let header = lines.next().unwrap_or_default();
+    if header.trim() != "invoice_id,payment_id,classification,reason" {
+        errors.push("exceptions header mismatch".to_string());
+    }
+    let mut prev: Option<(String, String)> = None;
+    for line in lines {
+        let mut parts = line.splitn(4, ',');
+        let invoice_id = parts.next().unwrap_or_default().to_string();
+        let payment_id = parts.next().unwrap_or_default().to_string();
+        let current = (invoice_id, payment_id);
+        if let Some(p) = &prev {
+            if current < *p {
+                errors.push("exceptions rows not sorted by invoice_id,payment_id".to_string());
+                break;
+            }
+        }
+        prev = Some(current);
+    }
+
+    errors
 }
 
 #[derive(Clone, Copy)]
@@ -4522,6 +4628,41 @@ end
     }
 
     #[test]
+    fn required_output_contract_passes_with_namespaced_writer_calls() {
+        let src = r#"@meta target=cli
+@meta required_outputs="reconciliation_report.json,exceptions.csv"
+module(App.Core):
+  flow(Main):
+    start > Exit
+    state(Exit):
+      terminate
+    end
+  end
+end
+"#;
+        let module = parse_source(src).expect("parse");
+        let ir = from_ast(module);
+        let target_ir: TargetIr = serde_json::from_value(serde_json::json!({
+            "type":"cli-ir",
+            "version":1,
+            "state": {
+                "reportPath":"reconciliation_report.json",
+                "exceptionsPath":"exceptions.csv"
+            },
+            "views":{},
+            "flow":{"start":"Exit","transitions":{"Exit":{}}},
+            "extensions":{
+                "runtimeRules":[
+                    {"name":"a","assign":[{"value":{"call":{"name":"data.writeJson","args":[{"value":{"ident":"reportPath"}},{"value":{"k":"v"}}]}}}],"emit":[]},
+                    {"name":"b","assign":[{"value":{"call":{"name":"data.writeCsv","args":[{"value":{"ident":"exceptionsPath"}},{"value":[]}]}}}],"emit":[]}
+                ]
+            }
+        }))
+        .expect("target ir");
+        validate_required_output_contract(&ir, &target_ir, "cli").expect("contract valid");
+    }
+
+    #[test]
     fn required_output_contract_fails_when_writer_call_missing() {
         let src = r#"@meta target=cli
 @meta required_outputs="exceptions.csv"
@@ -4596,6 +4737,80 @@ end
         fs::write(dist.join("gui/main.py"), "print('ok')").expect("write python entry");
 
         verify_build_artifacts("gui", &dist).expect("gui artifacts valid");
+        let _ = fs::remove_dir_all(ws);
+    }
+
+    #[test]
+    fn verify_required_outputs_enforces_reconciliation_schema_and_csv_header() {
+        let ws = temp_workspace();
+        let report_path = ws.join("reconciliation_report.json");
+        let exceptions_path = ws.join("exceptions.csv");
+
+        fs::write(
+            &report_path,
+            r#"{"input_stats":{"invoices":1},"classification_counts":{"matched_full":1,"matched_partial":0,"overpaid":0,"missing_payment":0,"duplicate_payment":0,"ambiguous":0,"suspicious":0}}"#,
+        )
+        .expect("write report");
+        fs::write(
+            &exceptions_path,
+            "invoice_id,payment_id,classification,reason\nINV-1,PAY-1,matched_full,ok\n",
+        )
+        .expect("write csv");
+
+        let src = format!(
+            "@meta target=cli\n@meta required_outputs=\"{},{}\"\nmodule(App.Core):\n",
+            report_path.display(),
+            exceptions_path.display()
+        ) + r#"  flow(Main):
+    start > Exit
+    state(Exit):
+      terminate
+    end
+  end
+end
+"#;
+        let module = parse_source(src.as_str()).expect("parse");
+        let ir = from_ast(module);
+        verify_required_outputs(&ir).expect("should pass");
+
+        let _ = fs::remove_dir_all(ws);
+    }
+
+    #[test]
+    fn verify_required_outputs_fails_on_bad_reconciliation_csv_header() {
+        let ws = temp_workspace();
+        let report_path = ws.join("reconciliation_report.json");
+        let exceptions_path = ws.join("exceptions.csv");
+
+        fs::write(
+            &report_path,
+            r#"{"input_stats":{"invoices":1},"classification_counts":{"matched_full":1,"matched_partial":0,"overpaid":0,"missing_payment":0,"duplicate_payment":0,"ambiguous":0,"suspicious":0}}"#,
+        )
+        .expect("write report");
+        fs::write(
+            &exceptions_path,
+            "invoice,payment,class,reason\nINV-1,PAY-1,matched_full,ok\n",
+        )
+        .expect("write csv");
+
+        let src = format!(
+            "@meta target=cli\n@meta required_outputs=\"{},{}\"\nmodule(App.Core):\n",
+            report_path.display(),
+            exceptions_path.display()
+        ) + r#"  flow(Main):
+    start > Exit
+    state(Exit):
+      terminate
+    end
+  end
+end
+"#;
+        let module = parse_source(src.as_str()).expect("parse");
+        let ir = from_ast(module);
+        let err = verify_required_outputs(&ir).expect_err("must fail");
+        assert!(format!("{err}").contains("Required outputs check failed"));
+        assert!(format!("{err}").contains("exceptions header mismatch"));
+
         let _ = fs::remove_dir_all(ws);
     }
 }

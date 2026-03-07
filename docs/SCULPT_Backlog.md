@@ -121,6 +121,12 @@
 - ND guardrails for critical data rules (warn/error policy).
 - Stronger diagnostics for data/signature/schema failures.
 - Strict artifact enforcement defaults in build/run paths.
+- Progress:
+  - `run` now enforces reconciliation artifact quality when `@meta required_outputs` declares `reconciliation_report.json` + `exceptions.csv`:
+    report schema keys, CSV header, and sorted row order are validated (not only file existence).
+  - Required-output contract validation now recognizes namespaced writer calls (`data.writeJson` / `data.writeCsv`) as deterministic writers.
+  - CLI runtime data ops now resolve namespaced calls in generated output (`data.*`), restoring deterministic artifact generation for the benchmark pipeline.
+  - `sculpt benchmark data-heavy --provider stub --target cli` now passes matrix + reproducibility gate (`3/3`, `5/5`, unique hashes `1`, gate `PASS`).
 - Exit: data-heavy benchmark passes matrix + reproducibility gate without manual fixes.
 
 2. B. Contract + Namespace Scalability (P1)

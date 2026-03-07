@@ -380,7 +380,8 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("}\n\n");
 
     out.push_str("function runtimeOp(name, args) {\n");
-    out.push_str("  if (name === 'csvRead') {\n");
+    out.push_str("  const op = String(name || '').split('.').pop();\n");
+    out.push_str("  if (op === 'csvRead') {\n");
     out.push_str("    const file = String(args[0] || '');\n");
     out.push_str(
         "    const full = path.isAbsolute(file) ? file : path.resolve(process.cwd(), file);\n",
@@ -389,17 +390,15 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
         "    try { return parseCsv(fs.readFileSync(full, 'utf8')); } catch { return []; }\n",
     );
     out.push_str("  }\n");
-    out.push_str(
-        "  if (name === 'rowCount') return Array.isArray(args[0]) ? args[0].length : 0;\n",
-    );
-    out.push_str("  if (name === 'csvHasColumns') {\n");
+    out.push_str("  if (op === 'rowCount') return Array.isArray(args[0]) ? args[0].length : 0;\n");
+    out.push_str("  if (op === 'csvHasColumns') {\n");
     out.push_str("    const rows = Array.isArray(args[0]) ? args[0] : [];\n");
     out.push_str("    const required = String(args[1] || '').split(',').map((s) => s.trim()).filter(Boolean);\n");
     out.push_str("    if (rows.length === 0) return required.length === 0 ? 1 : 0;\n");
     out.push_str("    const head = rows[0] || {};\n");
     out.push_str("    return required.every((k) => Object.prototype.hasOwnProperty.call(head, k)) ? 1 : 0;\n");
     out.push_str("  }\n");
-    out.push_str("  if (name === 'csvMissingColumns') {\n");
+    out.push_str("  if (op === 'csvMissingColumns') {\n");
     out.push_str("    const rows = Array.isArray(args[0]) ? args[0] : [];\n");
     out.push_str("    const required = String(args[1] || '').split(',').map((s) => s.trim()).filter(Boolean);\n");
     out.push_str("    if (required.length === 0) return [];\n");
@@ -409,7 +408,7 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
         "    return required.filter((k) => !Object.prototype.hasOwnProperty.call(head, k));\n",
     );
     out.push_str("  }\n");
-    out.push_str("  if (name === 'schemaErrorMessage') {\n");
+    out.push_str("  if (op === 'schemaErrorMessage') {\n");
     out.push_str("    const invMissing = Array.isArray(args[0]) ? args[0].map((x) => String(x)).filter(Boolean) : [];\n");
     out.push_str("    const payMissing = Array.isArray(args[1]) ? args[1].map((x) => String(x)).filter(Boolean) : [];\n");
     out.push_str("    const parts = [];\n");
@@ -418,7 +417,7 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("    if (parts.length === 0) return 'Input schema invalid';\n");
     out.push_str("    return `Input schema invalid: ${parts.join(' | ')}`;\n");
     out.push_str("  }\n");
-    out.push_str("  if (name === 'reconcileInvoices') {\n");
+    out.push_str("  if (op === 'reconcileInvoices') {\n");
     out.push_str("    const invoices = Array.isArray(args[0]) ? args[0] : [];\n");
     out.push_str("    const payments = Array.isArray(args[1]) ? args[1] : [];\n");
     out.push_str("    const toleranceDays = Number(args[2] || 30);\n");
@@ -505,16 +504,16 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("    }\n");
     out.push_str("    return { counts, exceptions, processing_ms: Date.now() - startedAt };\n");
     out.push_str("  }\n");
-    out.push_str("  if (name === 'metric') {\n");
+    out.push_str("  if (op === 'metric') {\n");
     out.push_str("    const rec = args[0] && typeof args[0] === 'object' ? args[0] : {};\n");
     out.push_str("    const key = String(args[1] || '');\n");
     out.push_str("    return Number((((rec.counts || {})[key]) || 0));\n");
     out.push_str("  }\n");
-    out.push_str("  if (name === 'buildExceptions') {\n");
+    out.push_str("  if (op === 'buildExceptions') {\n");
     out.push_str("    const rec = args[0] && typeof args[0] === 'object' ? args[0] : {};\n");
     out.push_str("    return Array.isArray(rec.exceptions) ? rec.exceptions.slice() : [];\n");
     out.push_str("  }\n");
-    out.push_str("  if (name === 'buildReportJson') {\n");
+    out.push_str("  if (op === 'buildReportJson') {\n");
     out.push_str("    return {\n");
     out.push_str(
         "      input_stats: { invoices: Number(args[0] || 0), payments: Number(args[1] || 0) },\n",
@@ -527,11 +526,11 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("      generated_at: new Date().toISOString()\n");
     out.push_str("    };\n");
     out.push_str("  }\n");
-    out.push_str("  if (name === 'processingMs') {\n");
+    out.push_str("  if (op === 'processingMs') {\n");
     out.push_str("    const rec = args[0] && typeof args[0] === 'object' ? args[0] : {};\n");
     out.push_str("    return Number(rec.processing_ms || 0);\n");
     out.push_str("  }\n");
-    out.push_str("  if (name === 'writeJson') {\n");
+    out.push_str("  if (op === 'writeJson') {\n");
     out.push_str("    try {\n");
     out.push_str("      const file = String(args[0] || '');\n");
     out.push_str(
@@ -544,7 +543,7 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("      return 1;\n");
     out.push_str("    } catch { return 0; }\n");
     out.push_str("  }\n");
-    out.push_str("  if (name === 'sortBy') {\n");
+    out.push_str("  if (op === 'sortBy') {\n");
     out.push_str("    const rows = Array.isArray(args[0]) ? args[0].slice() : [];\n");
     out.push_str(
         "    const keys = String(args[1] || '').split(',').map((k) => k.trim()).filter(Boolean);\n",
@@ -560,7 +559,7 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("    });\n");
     out.push_str("    return rows;\n");
     out.push_str("  }\n");
-    out.push_str("  if (name === 'writeCsv') {\n");
+    out.push_str("  if (op === 'writeCsv') {\n");
     out.push_str("    try {\n");
     out.push_str("      const file = String(args[0] || '');\n");
     out.push_str(
@@ -578,7 +577,9 @@ pub fn generate_cli_js(target: &TargetIr) -> String {
     out.push_str("      return 1;\n");
     out.push_str("    } catch { return 0; }\n");
     out.push_str("  }\n");
-    out.push_str("  if (name === 'summaryLine') return `${String(args[0] || '')}: ${Number(args[1] || 0)}`;\n");
+    out.push_str(
+        "  if (op === 'summaryLine') return `${String(args[0] || '')}: ${Number(args[1] || 0)}`;\n",
+    );
     out.push_str("  return null;\n");
     out.push_str("}\n\n");
 
