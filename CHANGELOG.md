@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.9
+- Added target smoke CI pipeline:
+  `.github/workflows/target-smoke.yml` + `scripts/ci_target_smoke.sh`
+- Added baseline target artifact checks for `cli`, `gui`, and `web` in CI:
+  each smoke build must emit `dist/<script>/target.ir.json`
+
 ## 0.2.8
 - Added CI provider gate pipeline:
   `.github/workflows/provider-gates.yml` + `scripts/ci_provider_gates.sh`

@@ -156,6 +156,9 @@
 - Strengthen `gui` parity across macOS/Windows/Linux.
 - Expand `web` stack adapter quality for SSR/CSR profiles.
 - Enforce deterministic artifact expectations per target.
+- Progress:
+  - Added CI target smoke workflow (`target-smoke.yml`) and script (`ci_target_smoke.sh`).
+  - CI now verifies one baseline build each for `cli`, `gui`, and `web` and checks `target.ir.json` artifact presence per target.
 - Exit: non-demo app scenarios pass platform-specific quality gates in CI.
 
 5. E. Competitive Benchmark Release Gates (P1)
