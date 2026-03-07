@@ -168,6 +168,13 @@ pub fn validate_module_against_contract(
     Ok(())
 }
 
+pub fn contract_signature_for_symbol(namespace: &str, symbol: &str) -> Option<&'static str> {
+    if namespace == "data" {
+        return data_signature_doc(symbol);
+    }
+    None
+}
+
 fn validate_portable_profile(ir: &IrModule, target: &str, errors: &mut Vec<String>) {
     let profile = ir
         .meta
@@ -697,6 +704,30 @@ fn validate_data_signature(
             }
         }
         _ => {}
+    }
+}
+
+fn data_signature_doc(symbol: &str) -> Option<&'static str> {
+    match symbol {
+        "csvRead" => Some("data.csvRead(path)"),
+        "rowCount" => Some("data.rowCount(rows)"),
+        "csvHasColumns" => Some("data.csvHasColumns(rows, requiredCsv)"),
+        "csvMissingColumns" => Some("data.csvMissingColumns(rows, requiredCsv)"),
+        "schemaErrorMessage" => Some("data.schemaErrorMessage(missingInvoiceCols, missingPaymentCols)"),
+        "reconcileInvoices" => {
+            Some("data.reconcileInvoices(invoices, payments, dateToleranceDays, amountTolerance)")
+        }
+        "metric" => Some("data.metric(reconciliation, key)"),
+        "buildExceptions" => Some("data.buildExceptions(reconciliation)"),
+        "buildReportJson" => Some(
+            "data.buildReportJson(invoiceCount, paymentCount, matchedFull, matchedPartial, overpaid, missing, duplicates, ambiguous, suspicious, rulesVersion, processingMs)",
+        ),
+        "processingMs" => Some("data.processingMs(reconciliation)"),
+        "writeJson" => Some("data.writeJson(path, jsonObject)"),
+        "sortBy" => Some("data.sortBy(rows, keyCsv)"),
+        "writeCsv" => Some("data.writeCsv(path, rows)"),
+        "summaryLine" => Some("data.summaryLine(label, value)"),
+        _ => None,
     }
 }
 

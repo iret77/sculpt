@@ -18,7 +18,9 @@ use sha2::{Digest, Sha256};
 
 use crate::ai::{generate_target_ir, AiProvider, DebugCapture, TargetSpec};
 use crate::build_meta::{dist_dir_for_input, now_unix_ms, write_build_meta, BuildMeta, TokenUsage};
-use crate::contracts::{parse_target_contract, validate_module_against_contract};
+use crate::contracts::{
+    contract_signature_for_symbol, parse_target_contract, validate_module_against_contract,
+};
 use crate::convergence::{ConvergenceControls, FallbackMode};
 use crate::freeze::{create_lock, read_lock, verify_lock, write_lock};
 use crate::ir::{from_ast, to_pretty_json, IrModule};
@@ -3759,6 +3761,15 @@ fn target_describe(target: &str) -> Result<()> {
 
 fn target_packages(target: &str) -> Result<()> {
     let spec = describe_target(target)?;
+    let contract_version = spec
+        .pointer("/contract/version")
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+    let capability_count = spec
+        .pointer("/contract/capabilities")
+        .and_then(Value::as_array)
+        .map(|a| a.len())
+        .unwrap_or(0);
     let packages = spec
         .pointer("/contract/packages")
         .and_then(Value::as_array)
@@ -3768,7 +3779,10 @@ fn target_packages(target: &str) -> Result<()> {
         println!("No packages declared for target '{}'", target);
         return Ok(());
     }
-    println!("Packages for target '{}':", target);
+    println!(
+        "Packages for target '{}' (contract v{}, capabilities={}):",
+        target, contract_version, capability_count
+    );
     for pkg in packages {
         let id = pkg.get("id").and_then(Value::as_str).unwrap_or("<unknown>");
         let ns = pkg
@@ -3789,10 +3803,17 @@ fn target_exports(target: &str, package: &str) -> Result<()> {
         .cloned()
         .unwrap_or_default();
     let Some(pkg) = packages.into_iter().find(|p| {
-        p.get("id")
+        let id_match = p
+            .get("id")
             .and_then(Value::as_str)
             .map(|id| id == package)
-            .unwrap_or(false)
+            .unwrap_or(false);
+        let ns_match = p
+            .get("namespace")
+            .and_then(Value::as_str)
+            .map(|ns| ns == package)
+            .unwrap_or(false);
+        id_match || ns_match
     }) else {
         bail!("Unknown package '{}' for target '{}'", package, target);
     };
@@ -3804,7 +3825,11 @@ fn target_exports(target: &str, package: &str) -> Result<()> {
     if let Some(exports) = pkg.get("exports").and_then(Value::as_array) {
         for symbol in exports {
             if let Some(s) = symbol.as_str() {
-                println!("  {}.{}", ns, s);
+                if let Some(sig) = contract_signature_for_symbol(ns, s) {
+                    println!("  {}.{}  -> {}", ns, s, sig);
+                } else {
+                    println!("  {}.{}", ns, s);
+                }
             }
         }
     } else {
