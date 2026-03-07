@@ -169,10 +169,15 @@ pub fn validate_module_against_contract(
 }
 
 pub fn contract_signature_for_symbol(namespace: &str, symbol: &str) -> Option<&'static str> {
-    if namespace == "data" {
-        return data_signature_doc(symbol);
+    match namespace {
+        "ui" => ui_signature_doc(symbol),
+        "input" => input_signature_doc(symbol),
+        "window" => window_signature_doc(symbol),
+        "net" => net_signature_doc(symbol),
+        "data" => data_signature_doc(symbol),
+        "guide" => guide_signature_doc(symbol),
+        _ => None,
     }
-    None
 }
 
 fn validate_portable_profile(ir: &IrModule, target: &str, errors: &mut Vec<String>) {
@@ -727,6 +732,163 @@ fn data_signature_doc(symbol: &str) -> Option<&'static str> {
         "sortBy" => Some("data.sortBy(rows, keyCsv)"),
         "writeCsv" => Some("data.writeCsv(path, rows)"),
         "summaryLine" => Some("data.summaryLine(label, value)"),
+        "query" => Some("data.query(source, expression)"),
+        "mutate" => Some("data.mutate(source, patchSpec)"),
+        "filter" => Some("data.filter(rows, predicate)"),
+        "sort" => Some("data.sort(rows, keySpec)"),
+        "paginate" => Some("data.paginate(rows, page, pageSize)"),
+        "group" => Some("data.group(rows, keySpec)"),
+        "aggregate" => Some("data.aggregate(rows, aggregateSpec)"),
+        "join" => Some("data.join(leftRows, rightRows, joinSpec)"),
+        _ => None,
+    }
+}
+
+fn ui_signature_doc(symbol: &str) -> Option<&'static str> {
+    match symbol {
+        "text" => Some("ui.text(content, color?)"),
+        "line" => Some("ui.line(content, color?)"),
+        "clear" => Some("ui.clear()"),
+        "panel" => Some("ui.panel(title?)"),
+        "list" => Some("ui.list(items, style?)"),
+        "table" => Some("ui.table(rows, columns?)"),
+        "progress" => Some("ui.progress(label, value, max?)"),
+        "status" => Some("ui.status(label, level?)"),
+        "banner" => Some("ui.banner(title, subtitle?)"),
+        "separator" => Some("ui.separator(style?)"),
+        "metric" => Some("ui.metric(label, value, trend?)"),
+        "chart" => Some("ui.chart(series, kind?)"),
+        "heading" => Some("ui.heading(text, level?)"),
+        "button" => Some("ui.button(label, action?)"),
+        "input" => Some("ui.input(name, placeholder?)"),
+        "textarea" => Some("ui.textarea(name, placeholder?)"),
+        "select" => Some("ui.select(name, options)"),
+        "checkbox" => Some("ui.checkbox(name, label, checked?)"),
+        "radio" => Some("ui.radio(name, options, selected?)"),
+        "image" => Some("ui.image(source, alt?)"),
+        "icon" => Some("ui.icon(name, color?)"),
+        "card" => Some("ui.card(title, body?)"),
+        "tabs" => Some("ui.tabs(items, active?)"),
+        "spacer" => Some("ui.spacer(size?)"),
+        "badge" => Some("ui.badge(text, tone?)"),
+        "modal" => Some("ui.modal(title, body?)"),
+        "toast" => Some("ui.toast(message, tone?)"),
+        "link" => Some("ui.link(label, href)"),
+        _ => None,
+    }
+}
+
+fn input_signature_doc(symbol: &str) -> Option<&'static str> {
+    match symbol {
+        "key" => Some("input.key(name)"),
+        "tick" => Some("input.tick"),
+        "submit" => Some("input.submit(formId?)"),
+        "confirm" => Some("input.confirm(action?)"),
+        "select" => Some("input.select(value)"),
+        "cancel" => Some("input.cancel()"),
+        "resize" => Some("input.resize(width, height)"),
+        "click" => Some("input.click(target)"),
+        "change" => Some("input.change(field)"),
+        "focus" => Some("input.focus(field)"),
+        "blur" => Some("input.blur(field)"),
+        "closeWindow" => Some("input.closeWindow()"),
+        "navigate" => Some("input.navigate(route)"),
+        "back" => Some("input.back()"),
+        "refresh" => Some("input.refresh()"),
+        _ => None,
+    }
+}
+
+fn window_signature_doc(symbol: &str) -> Option<&'static str> {
+    match symbol {
+        "open" => Some("window.open(name, options?)"),
+        "close" => Some("window.close(name?)"),
+        "resize" => Some("window.resize(width, height)"),
+        "modalOk" => Some("window.modalOk(title, message)"),
+        "modalConfirm" => Some("window.modalConfirm(title, message)"),
+        "notify" => Some("window.notify(message, level?)"),
+        _ => None,
+    }
+}
+
+fn net_signature_doc(symbol: &str) -> Option<&'static str> {
+    match symbol {
+        "get" => Some("net.get(url, params?)"),
+        "post" => Some("net.post(url, body)"),
+        "put" => Some("net.put(url, body)"),
+        "patch" => Some("net.patch(url, body)"),
+        "delete" => Some("net.delete(url)"),
+        "upload" => Some("net.upload(url, file, options?)"),
+        "download" => Some("net.download(url, destination?)"),
+        _ => None,
+    }
+}
+
+fn guide_signature_doc(symbol: &str) -> Option<&'static str> {
+    match symbol {
+        "playable" => Some("guide.playable()"),
+        "menuClarity" => Some("guide.menuClarity()"),
+        "readableHud" => Some("guide.readableHud()"),
+        "readableTableLayout" => Some("guide.readableTableLayout()"),
+        "responsiveControls" => Some("guide.responsiveControls()"),
+        "visuallyDistinctHeadAndFood" => Some("guide.visuallyDistinctHeadAndFood()"),
+        "smoothDifficultyCurve" => Some("guide.smoothDifficultyCurve()"),
+        "clearWinOrLossFeedback" => Some("guide.clearWinOrLossFeedback()"),
+        "loopedGameplay" => Some("guide.loopedGameplay()"),
+        "compactTerminalLayout" => Some("guide.compactTerminalLayout()"),
+        "exact" => Some("guide.exact(subject)"),
+        "exactPalette" => Some("guide.exactPalette(name)"),
+        "highContrast" => Some("guide.highContrast()"),
+        "lowFlickerOutput" => Some("guide.lowFlickerOutput()"),
+        "clearOperationalSummary" => Some("guide.clearOperationalSummary()"),
+        "professionalTone" => Some("guide.professionalTone()"),
+        "conciseLanguage" => Some("guide.conciseLanguage()"),
+        "noLegalRiskTerms" => Some("guide.noLegalRiskTerms()"),
+        "hasClearTitle" => Some("guide.hasClearTitle()"),
+        "hasActionableSteps" => Some("guide.hasActionableSteps()"),
+        "usesOperationalLanguage" => Some("guide.usesOperationalLanguage()"),
+        "supportsQuickKeyNavigation" => Some("guide.supportsQuickKeyNavigation()"),
+        "fullyInsideBounds" => Some("guide.fullyInsideBounds(width, height)"),
+        "mirroredDifficultyCurve" => Some("guide.mirroredDifficultyCurve()"),
+        "guaranteedLaunchLane" => Some("guide.guaranteedLaunchLane()"),
+        "noUnreachableBricks" => Some("guide.noUnreachableBricks()"),
+        "firstLevelIsForgiving" => Some("guide.firstLevelIsForgiving()"),
+        "visualPalette" => Some("guide.visualPalette(name)"),
+        "followsClassicBreakoutRules" => Some("guide.followsClassicBreakoutRules()"),
+        "hasPaddleBallBrickLoop" => Some("guide.hasPaddleBallBrickLoop()"),
+        "supportsControls" => Some("guide.supportsControls(list)"),
+        "launchesBallOnSpace" => Some("guide.launchesBallOnSpace()"),
+        "bouncesOnWallsAndPaddle" => Some("guide.bouncesOnWallsAndPaddle()"),
+        "removesBricksOnImpact" => Some("guide.removesBricksOnImpact()"),
+        "tracksScoreAndLives" => Some("guide.tracksScoreAndLives()"),
+        "emitsWinWhenBricksCleared" => Some("guide.emitsWinWhenBricksCleared()"),
+        "emitsDoneWhenLivesDepleted" => Some("guide.emitsDoneWhenLivesDepleted()"),
+        "preservesArcadePacing" => Some("guide.preservesArcadePacing()"),
+        "includesReadableHud" => Some("guide.includesReadableHud()"),
+        "usesHighContrastTerminalColors" => Some("guide.usesHighContrastTerminalColors()"),
+        "noSoftLocks" => Some("guide.noSoftLocks()"),
+        "deterministicCoreWithOptionalStyleVariance" => {
+            Some("guide.deterministicCoreWithOptionalStyleVariance()")
+        }
+        "startsForgiving" => Some("guide.startsForgiving()"),
+        "increasesAfterEachStage" => Some("guide.increasesAfterEachStage()"),
+        "keepsRunDurationReasonable" => Some("guide.keepsRunDurationReasonable()"),
+        "desktopNativeLook" => Some("guide.desktopNativeLook()"),
+        "focusOrderStable" => Some("guide.focusOrderStable()"),
+        "dialogCopyClarity" => Some("guide.dialogCopyClarity()"),
+        "clearPriorityContrast" => Some("guide.clearPriorityContrast()"),
+        "keyboardFirstNavigation" => Some("guide.keyboardFirstNavigation()"),
+        "readableOnLaptopScreens" => Some("guide.readableOnLaptopScreens()"),
+        "mobileFirstLayout" => Some("guide.mobileFirstLayout()"),
+        "desktopDensityBalanced" => Some("guide.desktopDensityBalanced()"),
+        "responsiveBreakpoints" => Some("guide.responsiveBreakpoints()"),
+        "noOverlap" => Some("guide.noOverlap()"),
+        "clearSeverityHierarchy" => Some("guide.clearSeverityHierarchy()"),
+        "clearInformationHierarchy" => Some("guide.clearInformationHierarchy()"),
+        "keyboardNavigable" => Some("guide.keyboardNavigable()"),
+        "mobileFallbackExists" => Some("guide.mobileFallbackExists()"),
+        "accessibleColorContrast" => Some("guide.accessibleColorContrast()"),
+        "formValidationClarity" => Some("guide.formValidationClarity()"),
         _ => None,
     }
 }

@@ -137,7 +137,7 @@
   - Added optional `@meta contract_version=<int>` validation; compile now fails fast when script and active target contract versions diverge.
   - Improved CLI contract visibility:
     `sculpt target packages` now shows contract version/capability count;
-    `sculpt target exports` now prints known deterministic signatures for `data` symbols.
+    `sculpt target exports` now prints known signatures for `ui`, `input`, `window`, `net`, `data`, and `guide` symbols.
 - Exit: large multi-module projects compile with deterministic symbol resolution and actionable diagnostics.
 
 3. C. Provider Platform Hardening (P1)
