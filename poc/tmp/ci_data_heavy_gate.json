@@ -1,0 +1,18 @@
+{
+  "name": "data_heavy_sculpt_gate_input_v1",
+  "observed": {
+    "acceptance_rate": 1.0,
+    "infra_blocked": false,
+    "infra_failures": 0,
+    "repro_pass": 1,
+    "repro_unique_hashes": 1,
+    "reproducible": true
+  },
+  "source_metrics": "poc/tmp/ci_data_heavy_metrics.json",
+  "thresholds": {
+    "max_repro_unique_hashes": 1,
+    "min_acceptance_rate": 1.0,
+    "min_repro_pass": 1,
+    "require_reproducible": true
+  }
+}

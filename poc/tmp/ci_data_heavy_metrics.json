@@ -1,0 +1,84 @@
+{
+  "model": null,
+  "provider": "stub",
+  "provider_strategy": {
+    "fallback_chain": [
+      "stub"
+    ],
+    "requested_model": null,
+    "requested_provider": "stub",
+    "strict_provider": false
+  },
+  "repro": [
+    {
+      "build_rc": 0,
+      "build_s": 0.255608042,
+      "errors": [],
+      "failure_kind": "none",
+      "failure_reason": null,
+      "fallback_used": false,
+      "hash": "02a10d40388af156ac05327084c8dd7d84c001cede056dc96940a8fd6a8805aa",
+      "model_used": null,
+      "ok": true,
+      "provider_attempts": [
+        {
+          "error": null,
+          "model": null,
+          "ok": true,
+          "provider": "stub"
+        }
+      ],
+      "provider_used": "stub",
+      "run": 1,
+      "run_rc": 0,
+      "run_s": 0.571681458,
+      "size": "small"
+    }
+  ],
+  "runs": [
+    {
+      "build_rc": 0,
+      "build_s": 0.25460275,
+      "errors": [],
+      "exceptions_exists": true,
+      "exceptions_path": "poc/runs/data_heavy_sculpt/small/exceptions.csv",
+      "failure_kind": "none",
+      "failure_reason": null,
+      "fallback_used": false,
+      "model_used": null,
+      "normalized_hash": "02a10d40388af156ac05327084c8dd7d84c001cede056dc96940a8fd6a8805aa",
+      "ok": true,
+      "provider_attempts": [
+        {
+          "error": null,
+          "model": null,
+          "ok": true,
+          "provider": "stub"
+        }
+      ],
+      "provider_used": "stub",
+      "report_exists": true,
+      "report_path": "poc/runs/data_heavy_sculpt/small/reconciliation_report.json",
+      "run_rc": 0,
+      "run_s": 0.575700458,
+      "size": "small"
+    }
+  ],
+  "summary": {
+    "acceptance_rate": 1.0,
+    "fallback_repro_runs": 0,
+    "fallback_runs": 0,
+    "infra_blocked": false,
+    "infra_failures": 0,
+    "matrix_evaluable": 1,
+    "matrix_pass": 1,
+    "matrix_total": 1,
+    "repro_evaluable": 1,
+    "repro_infra_failures": 0,
+    "repro_pass": 1,
+    "repro_runs": 1,
+    "repro_unique_hashes": 1,
+    "reproducible": true
+  },
+  "target": "cli"
+}

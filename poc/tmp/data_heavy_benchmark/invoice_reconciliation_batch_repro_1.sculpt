@@ -147,8 +147,8 @@ module(InvoiceReconciliation.Batch):
   end
 
   state():
-    invoicesPath = "poc/data/medium/invoices.csv"
-    paymentsPath = "poc/data/medium/payments.csv"
+    invoicesPath = "poc/data/small/invoices.csv"
+    paymentsPath = "poc/data/small/payments.csv"
     reportPath = "poc/runs/data_heavy_sculpt/repro/run_1/reconciliation_report.json"
     exceptionsPath = "poc/runs/data_heavy_sculpt/repro/run_1/exceptions.csv"
     rulesVersion = "1.0"
