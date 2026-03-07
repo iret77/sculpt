@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.10
+- Added cross-platform GUI parity CI workflow:
+  `.github/workflows/gui-parity.yml` + `scripts/ci_gui_parity.sh`
+- Added web profile CI smoke workflow:
+  `.github/workflows/web-profiles-smoke.yml` + `scripts/ci_web_profiles_smoke.sh`
+- Added baseline web standard-profile example:
+  `examples/web/web_profile_standard.sculpt`
+
 ## 0.2.9
 - Added target smoke CI pipeline:
   `.github/workflows/target-smoke.yml` + `scripts/ci_target_smoke.sh`

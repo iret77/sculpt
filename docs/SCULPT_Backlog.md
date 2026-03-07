@@ -159,6 +159,10 @@
 - Progress:
   - Added CI target smoke workflow (`target-smoke.yml`) and script (`ci_target_smoke.sh`).
   - CI now verifies one baseline build each for `cli`, `gui`, and `web` and checks `target.ir.json` artifact presence per target.
+  - Added cross-platform GUI parity workflow (`gui-parity.yml`) with matrix checks on `ubuntu`, `windows`, and `macos`.
+  - Added web profile smoke workflow (`web-profiles-smoke.yml`) for `standard`, `next-app`, and `laravel-mvc`.
+  - Added baseline `standard` web profile example:
+    `examples/web/web_profile_standard.sculpt`.
 - Exit: non-demo app scenarios pass platform-specific quality gates in CI.
 
 5. E. Competitive Benchmark Release Gates (P1)

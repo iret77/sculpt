@@ -6,6 +6,11 @@
 Target name: `web`  
 Standard IR: `web-ir`
 
+Examples:
+- `examples/web/web_profile_standard.sculpt` (`@meta web_profile="standard"`)
+- `examples/web/incident_status_dashboard.sculpt` (`@meta web_profile="next-app"`)
+- `examples/web/support_ticket_board.sculpt` (`@meta web_profile="laravel-mvc"`)
+
 ## What Works Today
 - Browser-based text rendering
 - Keyboard-driven transitions

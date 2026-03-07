@@ -1,0 +1,31 @@
+name: gui-parity
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  gui-smoke-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked
+
+      - name: Run GUI parity smoke
+        shell: bash
+        run: ./scripts/ci_gui_parity.sh

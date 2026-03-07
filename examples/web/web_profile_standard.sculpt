@@ -1,0 +1,44 @@
+# Web Profile Standard (Web)
+# Baseline "standard" web profile smoke example for CI and local checks.
+
+@meta target=web
+@meta web_profile="standard"
+@meta nd_budget=4
+
+module(ServiceDesk.Web.StandardProfile):
+  use(web.ui) as ui
+  use(web.input) as input
+
+  flow(App):
+    start > Home
+
+    state(Home):
+      ui.heading("System Health Board", color: "yellow")
+      ui.text("Press Enter to open status details", color: "white")
+      ui.text("Esc exits", color: "blue")
+      on input.key(Enter) > Details
+      on input.key(Esc) > Exit
+    end
+
+    state(Details):
+      ui.text("API: healthy", color: "green")
+      ui.text("Queue: warning", color: "magenta")
+      ui.text("DB: healthy", color: "green")
+      ui.text("Enter back to home", color: "blue")
+      on input.key(Enter) > Home
+      on input.key(Esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  nd(layout):
+    propose panelDensity(level: "compact")
+    satisfy(
+      ?"Keep two clear view states only",
+      ?"Text remains readable on 13-inch laptop screens"
+    )
+  end
+end
