@@ -158,6 +158,7 @@ struct AppState {
     config_field: ConfigField,
     config_editing: bool,
     config_input: String,
+    needs_full_redraw: bool,
 }
 
 struct LastRun {
@@ -181,6 +182,10 @@ pub fn run() -> Result<()> {
     let mut state = AppState::new()?;
 
     let res = loop {
+        if state.needs_full_redraw {
+            terminal.clear()?;
+            state.needs_full_redraw = false;
+        }
         terminal.draw(|f| ui(f, &mut state))?;
 
         if event::poll(Duration::from_millis(200))? {
@@ -255,6 +260,7 @@ impl AppState {
             config_field: ConfigField::Provider,
             config_editing: false,
             config_input: String::new(),
+            needs_full_redraw: false,
         })
     }
 
@@ -434,6 +440,7 @@ impl AppState {
             crossterm::cursor::MoveTo(0, 0)
         );
         let _ = enable_raw_mode();
+        self.needs_full_redraw = true;
         let duration = started.elapsed();
 
         let action = args.get(0).cloned().unwrap_or_else(|| "run".to_string());
@@ -2672,6 +2679,7 @@ mod tests {
             config_field: ConfigField::Provider,
             config_editing: false,
             config_input: String::new(),
+            needs_full_redraw: false,
         }
     }
 
