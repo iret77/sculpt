@@ -19,6 +19,7 @@ Standard IR: `gui-ir`
 - Shared interaction contract (v1):
   - `Enter` triggers the primary button action
   - `Esc` closes the active window
+- GUI state-machine transitions from target IR (`flow.start`, `flow.transitions`) are applied at runtime.
 
 ## Supported Render Calls
 Practical SCULPT patterns:
@@ -76,8 +77,8 @@ Relevant layout fields:
   - `?"..."` (inline ND prompt).
 
 ## Important Current Limitation
-GUI runtime generation currently emphasizes start-view UX plus core interactions.
-Full event-driven GUI state-machine parity with CLI/Web is still evolving.
+GUI parity currently focuses on keyboard-first flows and text/button primitives.
+Richer widget semantics (tables/forms/charts with full interactive parity) are still evolving.
 
 Use GUI target today for:
 - simple native windows,

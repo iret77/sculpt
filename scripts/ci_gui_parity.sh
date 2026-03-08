@@ -33,6 +33,8 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   fi
   grep -q "keyboardShortcut(.defaultAction)" "$swift_src"
   grep -q "onExitCommand" "$swift_src"
+  grep -q "KeyCapture" "$swift_src"
+  grep -q "dispatch(\"key(\\\\(key))\")" "$swift_src"
   echo "[gui-parity] macOS executable found: $exe"
 else
   py_file="${GUI_DIR}/main.py"
@@ -55,6 +57,8 @@ else
   grep -q "root.bind('<Escape>'" "$py_file"
   grep -q "root.bind('<Return>'" "$py_file"
   grep -q "root.bind('<KP_Enter>'" "$py_file"
+  grep -q "TRANSITIONS" "$py_file"
+  grep -q "def dispatch(event):" "$py_file"
   echo "[gui-parity] python GUI source validated: $py_file"
 fi
 

@@ -167,6 +167,8 @@
     verifies behavior-level output signals for `cli`, `gui`, and `web` (runtime source markers + target IR shape checks).
   - Added GUI shared interaction contract v1 in runtime generation:
     `Enter` -> primary action, `Esc` -> close window (validated by GUI parity smoke checks).
+  - Added GUI state-machine parity v1 in runtime emitters:
+    generated GUI runtimes now apply `flow.start` + `flow.transitions` at runtime (macOS SwiftUI + Windows/Linux Tkinter).
 - Exit: non-demo app scenarios pass platform-specific quality gates in CI.
 
 5. E. Competitive Benchmark Release Gates (P1)

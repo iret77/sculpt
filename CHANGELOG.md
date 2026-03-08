@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.13
+- Added GUI runtime state-machine parity v1:
+  generated GUI runtimes now apply `flow.start` and `flow.transitions` dynamically.
+- Updated macOS SwiftUI GUI emitter with runtime key dispatch (`KeyCapture`) and state transition handling.
+- Updated Tkinter GUI emitter to runtime transition dispatch (Enter/Esc/keys + click event path).
+- Strengthened GUI parity smoke checks for runtime transition markers.
+
 ## 0.2.12
 - Added GUI shared interaction contract v1 in generated runtimes:
   - `Enter` triggers the primary action

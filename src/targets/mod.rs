@@ -12,9 +12,6 @@ use crate::ir::{to_pretty_json, IrModule};
 use crate::target_ir::TargetIr;
 
 struct GuiViewData {
-    text_views: Vec<(String, String, Option<String>)>,
-    button_label: String,
-    show_ok_modal: bool,
     window_title: String,
     width: i64,
     height: i64,
@@ -110,7 +107,7 @@ pub fn emit_gui(target: &TargetIr, out_dir: &Path) -> Result<()> {
     }
     match std::env::consts::OS {
         "macos" => emit_gui_macos_swift(target, out_dir, &data),
-        _ => emit_gui_tkinter(out_dir, &data),
+        _ => emit_gui_tkinter(target, out_dir, &data),
     }
 }
 
@@ -135,12 +132,14 @@ let package = Package(
 "#;
     std::fs::write(app_dir.join("Package.swift"), package)?;
 
-    let view_name = target.flow.start.clone();
-    let text_views = &data.text_views;
+    let target_json = serde_json::to_string(target).unwrap_or_else(|_| "{}".to_string());
     let window_title = &data.window_title;
     let width = data.width;
     let height = data.height;
-    let layout = target.layout.as_ref().and_then(|map| map.get(&view_name));
+    let layout = target
+        .layout
+        .as_ref()
+        .and_then(|map| map.get(&target.flow.start));
     let padding = layout.and_then(|l| l.padding).unwrap_or(24);
     let spacing = layout.and_then(|l| l.spacing).unwrap_or(12);
     let align = layout.and_then(|l| l.align.as_deref()).unwrap_or("leading");
@@ -150,42 +149,130 @@ let package = Package(
 
     let mut swift = String::new();
     swift.push_str("import SwiftUI\nimport AppKit\n\n");
+    swift.push_str("struct RenderItem: Codable, Identifiable {\n");
+    swift.push_str("  var id = UUID()\n");
+    swift.push_str("  let kind: String\n");
+    swift.push_str("  let text: String?\n");
+    swift.push_str("  let color: String?\n");
+    swift.push_str("  let action: String?\n");
+    swift.push_str("  let style: String?\n");
+    swift.push_str("  enum CodingKeys: String, CodingKey { case kind, text, color, action, style }\n");
+    swift.push_str("}\n\n");
+    swift.push_str("struct FlowData: Codable {\n");
+    swift.push_str("  let start: String\n");
+    swift.push_str("  let transitions: [String: [String: String]]\n");
+    swift.push_str("}\n\n");
+    swift.push_str("struct TargetData: Codable {\n");
+    swift.push_str("  let views: [String: [RenderItem]]\n");
+    swift.push_str("  let flow: FlowData\n");
+    swift.push_str("}\n\n");
+    swift.push_str("final class KeyView: NSView {\n");
+    swift.push_str("  var onKey: ((String) -> Void)?\n");
+    swift.push_str("  override var acceptsFirstResponder: Bool { true }\n");
+    swift.push_str("  override func viewDidMoveToWindow() {\n");
+    swift.push_str("    super.viewDidMoveToWindow()\n");
+    swift.push_str("    DispatchQueue.main.async { self.window?.makeFirstResponder(self) }\n");
+    swift.push_str("  }\n");
+    swift.push_str("  override func keyDown(with event: NSEvent) {\n");
+    swift.push_str("    if let mapped = Self.map(event) { onKey?(mapped) }\n");
+    swift.push_str("  }\n");
+    swift.push_str("  static func map(_ event: NSEvent) -> String? {\n");
+    swift.push_str("    switch event.keyCode {\n");
+    swift.push_str("    case 123: return \"left\"\n");
+    swift.push_str("    case 124: return \"right\"\n");
+    swift.push_str("    case 125: return \"down\"\n");
+    swift.push_str("    case 126: return \"up\"\n");
+    swift.push_str("    default: break\n");
+    swift.push_str("    }\n");
+    swift.push_str("    let chars = event.charactersIgnoringModifiers ?? \"\"\n");
+    swift.push_str("    if chars == \"\\r\" { return \"enter\" }\n");
+    swift.push_str("    if chars == \"\\u{1b}\" { return \"esc\" }\n");
+    swift.push_str("    if chars == \" \" { return \"space\" }\n");
+    swift.push_str("    let t = chars.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()\n");
+    swift.push_str("    return t.isEmpty ? nil : t\n");
+    swift.push_str("  }\n");
+    swift.push_str("}\n\n");
+    swift.push_str("struct KeyCapture: NSViewRepresentable {\n");
+    swift.push_str("  let onKey: (String) -> Void\n");
+    swift.push_str("  func makeNSView(context: Context) -> KeyView {\n");
+    swift.push_str("    let v = KeyView(frame: .zero)\n");
+    swift.push_str("    v.onKey = onKey\n");
+    swift.push_str("    return v\n");
+    swift.push_str("  }\n");
+    swift.push_str("  func updateNSView(_ nsView: KeyView, context: Context) {\n");
+    swift.push_str("    nsView.onKey = onKey\n");
+    swift.push_str("  }\n");
+    swift.push_str("}\n\n");
     swift.push_str("final class AppDelegate: NSObject, NSApplicationDelegate {\n");
     swift.push_str("  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }\n");
     swift.push_str("}\n\n");
     swift.push_str("struct ContentView: View {\n");
-    let show_alert = data.show_ok_modal;
-    if show_alert {
-        swift.push_str("  @State private var showAlert = false\n\n");
-    }
+    swift.push_str("  let targetData: TargetData\n");
+    swift.push_str("  @State private var currentState: String\n");
+    swift.push_str("  @State private var showAlert = false\n");
+    swift.push_str("  init() {\n");
+    swift.push_str("    let json = \"");
+    swift.push_str(&escape_swift(&target_json));
+    swift.push_str("\"\n");
+    swift.push_str("    let decoded = (try? JSONDecoder().decode(TargetData.self, from: Data(json.utf8)))\n");
+    swift.push_str("      ?? TargetData(views: [:], flow: FlowData(start: \"\", transitions: [:]))\n");
+    swift.push_str("    self.targetData = decoded\n");
+    swift.push_str("    _currentState = State(initialValue: decoded.flow.start)\n");
+    swift.push_str("  }\n\n");
+    swift.push_str("  var activeItems: [RenderItem] { targetData.views[currentState] ?? [] }\n\n");
+    swift.push_str("  func dispatch(_ event: String) {\n");
+    swift.push_str("    if let next = targetData.flow.transitions[currentState]?[event] {\n");
+    swift.push_str("      currentState = next\n");
+    swift.push_str("      if next.lowercased() == \"exit\" { NSApp.keyWindow?.close() }\n");
+    swift.push_str("      return\n");
+    swift.push_str("    }\n");
+    swift.push_str("    if event == \"key(esc)\" { NSApp.keyWindow?.close() }\n");
+    swift.push_str("  }\n\n");
+    swift.push_str("  @ViewBuilder func renderItem(_ item: RenderItem) -> some View {\n");
+    swift.push_str("    switch item.kind {\n");
+    swift.push_str("    case \"button\":\n");
+    swift.push_str("      Button(item.text ?? \"OK\") {\n");
+    swift.push_str("        if item.action == \"modal.ok\" { showAlert = true }\n");
+    swift.push_str("        dispatch(\"click\")\n");
+    swift.push_str("      }\n");
+    swift.push_str("      .buttonStyle(.borderedProminent)\n");
+    swift.push_str("      .controlSize(.large)\n");
+    swift.push_str("      .keyboardShortcut(.defaultAction)\n");
+    swift.push_str("    default:\n");
+    swift.push_str("      Text(item.text ?? \"\")\n");
+    swift.push_str("        .font(mapFont(item.style))\n");
+    swift.push_str("        .foregroundStyle(mapColor(item.color))\n");
+    swift.push_str("    }\n");
+    swift.push_str("  }\n\n");
+    swift.push_str("  func mapFont(_ style: String?) -> Font {\n");
+    swift.push_str("    switch style ?? \"\" {\n");
+    swift.push_str("    case \"title\": return .title2.weight(.semibold)\n");
+    swift.push_str("    case \"subtitle\": return .headline\n");
+    swift.push_str("    case \"caption\": return .caption\n");
+    swift.push_str("    default: return .body\n");
+    swift.push_str("    }\n");
+    swift.push_str("  }\n\n");
+    swift.push_str("  func mapColor(_ color: String?) -> Color {\n");
+    swift.push_str("    switch (color ?? \"\").lowercased() {\n");
+    swift.push_str("    case \"yellow\": return .yellow\n");
+    swift.push_str("    case \"blue\": return .blue\n");
+    swift.push_str("    case \"green\": return .green\n");
+    swift.push_str("    case \"red\": return .red\n");
+    swift.push_str("    case \"black\": return .black\n");
+    swift.push_str("    case \"white\": return .white\n");
+    swift.push_str("    case \"secondary\": return .secondary\n");
+    swift.push_str("    default: return .primary\n");
+    swift.push_str("    }\n");
+    swift.push_str("  }\n\n");
     swift.push_str("  var body: some View {\n");
     swift.push_str(&format!(
         "    VStack(alignment: {}, spacing: {}) {{\n",
         map_alignment(align),
         spacing
     ));
-    for (idx, (text, color, style)) in text_views.iter().enumerate() {
-        let (font, fallback_color) = map_text_style(style.as_deref(), idx);
-        let mapped = map_color_or(color, fallback_color);
-        swift.push_str(&format!(
-            "      Text(\"{}\"){font}.foregroundStyle({})\n",
-            escape_swift(text),
-            mapped
-        ));
-    }
-    let button_action_code = if show_alert {
-        "{ showAlert = true }"
-    } else {
-        "{}"
-    };
-    swift.push_str(&format!(
-        "      Button(\"{}\") {}\n",
-        escape_swift(&data.button_label),
-        button_action_code
-    ));
-    swift.push_str("        .buttonStyle(.borderedProminent)\n");
-    swift.push_str("        .controlSize(.large)\n");
-    swift.push_str("        .keyboardShortcut(.defaultAction)\n");
+    swift.push_str("      ForEach(activeItems) { item in\n");
+    swift.push_str("        renderItem(item)\n");
+    swift.push_str("      }\n");
     swift.push_str("    }\n");
     swift.push_str(&format!("    .padding({})\n", padding));
     swift.push_str(
@@ -199,12 +286,9 @@ let package = Package(
         "    .background({})\n",
         map_background(background)
     ));
-    if show_alert {
-        swift.push_str(
-            "    .alert(\"OK\", isPresented: $showAlert) { Button(\"OK\", role: .cancel) { } }\n",
-        );
-    }
-    swift.push_str("    .onExitCommand { NSApp.keyWindow?.close() }\n");
+    swift.push_str("    .background(KeyCapture { key in dispatch(\"key(\\(key))\") }.frame(width: 0, height: 0))\n");
+    swift.push_str("    .alert(\"OK\", isPresented: $showAlert) { Button(\"OK\", role: .cancel) { } }\n");
+    swift.push_str("    .onExitCommand { dispatch(\"key(esc)\") }\n");
     swift.push_str("  }\n");
     swift.push_str("}\n\n");
     swift.push_str("@main struct SculptGuiApp: App {\n");
@@ -234,51 +318,102 @@ let package = Package(
     Ok(())
 }
 
-fn emit_gui_tkinter(out_dir: &Path, data: &GuiViewData) -> Result<()> {
+fn emit_gui_tkinter(target: &TargetIr, out_dir: &Path, data: &GuiViewData) -> Result<()> {
+    let _ = data;
+    emit_gui_tkinter_state_machine(out_dir, Some(target))
+}
+
+fn emit_gui_tkinter_state_machine(out_dir: &Path, target: Option<&TargetIr>) -> Result<()> {
     let gui_dir = out_dir.join("gui");
     std::fs::create_dir_all(&gui_dir)?;
+    let target_json = target
+        .map(|t| serde_json::to_string(t).unwrap_or_else(|_| "{}".to_string()))
+        .unwrap_or_else(|| "{}".to_string());
+    let target_json_literal = serde_json::to_string(&target_json).unwrap_or_else(|_| "\"{}\"".to_string());
     let mut py = String::new();
+    py.push_str("import json\n");
     py.push_str("import tkinter as tk\n");
     py.push_str("from tkinter import messagebox\n\n");
+    py.push_str(&format!("TARGET = json.loads({})\n", target_json_literal));
+    py.push_str("VIEWS = TARGET.get('views', {})\n");
+    py.push_str("FLOW = TARGET.get('flow', {})\n");
+    py.push_str("TRANSITIONS = FLOW.get('transitions', {})\n");
+    py.push_str("state = FLOW.get('start', '')\n\n");
     py.push_str("root = tk.Tk()\n");
-    py.push_str(&format!(
-        "root.title(\"{}\")\n",
-        escape_py(&data.window_title)
-    ));
-    py.push_str(&format!(
-        "root.geometry(\"{}x{}\")\n",
-        data.width, data.height
-    ));
+    py.push_str("window = TARGET.get('window') or {}\n");
+    py.push_str("root.title(window.get('title') or 'SCULPT')\n");
+    py.push_str("width = int(window.get('width') or 420)\n");
+    py.push_str("height = int(window.get('height') or 260)\n");
+    py.push_str("root.geometry(f'{width}x{height}')\n");
     py.push_str("root.resizable(False, False)\n\n");
     py.push_str("frame = tk.Frame(root, padx=24, pady=24)\n");
     py.push_str("frame.pack(fill='both', expand=True)\n\n");
-
-    for (idx, (text, color, style)) in data.text_views.iter().enumerate() {
-        let font = map_tk_font(style.as_deref(), idx);
-        let fg = map_tk_color(color);
-        py.push_str(&format!(
-            "tk.Label(frame, text=\"{}\", fg=\"{}\", font={}).pack(anchor='w', pady=(0, 8))\n",
-            escape_py(text),
-            fg,
-            font
-        ));
-    }
-
-    if data.show_ok_modal {
-        py.push_str("def on_primary(_event=None):\n");
-        py.push_str("    messagebox.showinfo('OK', 'OK')\n\n");
-    } else {
-        py.push_str("def on_primary(_event=None):\n");
-        py.push_str("    return\n\n");
-    }
-    py.push_str(&format!(
-        "tk.Button(frame, text=\"{}\", command=on_primary).pack(anchor='w', pady=(10, 0))\n",
-        escape_py(&data.button_label)
-    ));
-    py.push_str("root.bind('<Escape>', lambda _e: root.destroy())\n");
+    py.push_str("def map_color(name):\n");
+    py.push_str("    c = str(name or '').lower()\n");
+    py.push_str("    return {\n");
+    py.push_str("        'yellow': '#ffd60a',\n");
+    py.push_str("        'blue': '#0a84ff',\n");
+    py.push_str("        'green': '#30d158',\n");
+    py.push_str("        'red': '#ff453a',\n");
+    py.push_str("        'magenta': '#ea5172',\n");
+    py.push_str("        'secondary': '#9aa0aa',\n");
+    py.push_str("        'white': '#ffffff',\n");
+    py.push_str("        'black': '#111111',\n");
+    py.push_str("    }.get(c, '#ffffff')\n\n");
+    py.push_str("def map_font(style):\n");
+    py.push_str("    s = str(style or '')\n");
+    py.push_str("    if s == 'title': return ('Menlo', 20, 'bold')\n");
+    py.push_str("    if s == 'subtitle': return ('Menlo', 13, 'bold')\n");
+    py.push_str("    if s == 'caption': return ('Menlo', 11)\n");
+    py.push_str("    return ('Menlo', 13)\n\n");
+    py.push_str("def dispatch(event):\n");
+    py.push_str("    global state\n");
+    py.push_str("    next_state = (TRANSITIONS.get(state) or {}).get(event)\n");
+    py.push_str("    if next_state:\n");
+    py.push_str("        state = next_state\n");
+    py.push_str("        if str(state).lower() == 'exit':\n");
+    py.push_str("            root.destroy()\n");
+    py.push_str("            return\n");
+    py.push_str("        render()\n");
+    py.push_str("    elif event == 'key(esc)':\n");
+    py.push_str("        root.destroy()\n\n");
+    py.push_str("def current_button_action():\n");
+    py.push_str("    for item in VIEWS.get(state, []):\n");
+    py.push_str("        if item.get('kind') == 'button':\n");
+    py.push_str("            return item.get('action')\n");
+    py.push_str("    return None\n\n");
+    py.push_str("def on_primary(_event=None):\n");
+    py.push_str("    action = current_button_action()\n");
+    py.push_str("    if action == 'modal.ok':\n");
+    py.push_str("        messagebox.showinfo('OK', 'OK')\n");
+    py.push_str("    dispatch('click')\n");
+    py.push_str("    dispatch('key(enter)')\n\n");
+    py.push_str("def normalize_key(evt):\n");
+    py.push_str("    k = str(evt.keysym or '').lower()\n");
+    py.push_str("    if k in ('return', 'kp_enter'): return 'enter'\n");
+    py.push_str("    if k == 'escape': return 'esc'\n");
+    py.push_str("    if k == 'space': return 'space'\n");
+    py.push_str("    if len(k) == 1: return k\n");
+    py.push_str("    return k\n\n");
+    py.push_str("def on_key(evt):\n");
+    py.push_str("    dispatch(f\"key({normalize_key(evt)})\")\n\n");
+    py.push_str("def render():\n");
+    py.push_str("    for child in frame.winfo_children():\n");
+    py.push_str("        child.destroy()\n");
+    py.push_str("    for idx, item in enumerate(VIEWS.get(state, [])):\n");
+    py.push_str("        kind = item.get('kind')\n");
+    py.push_str("        text = item.get('text') or ''\n");
+    py.push_str("        color = map_color(item.get('color'))\n");
+    py.push_str("        if kind == 'button':\n");
+    py.push_str("            tk.Button(frame, text=text or 'OK', command=on_primary).pack(anchor='w', pady=(8, 0))\n");
+    py.push_str("        else:\n");
+    py.push_str("            tk.Label(frame, text=text, fg=color, font=map_font(item.get('style'))).pack(anchor='w', pady=(0, 8 if idx == 0 else 4))\n\n");
+    py.push_str("root.bind('<KeyPress>', on_key)\n");
+    py.push_str("root.bind('<Escape>', lambda _e: dispatch('key(esc)'))\n");
     py.push_str("root.bind('<Return>', on_primary)\n");
     py.push_str("root.bind('<KP_Enter>', on_primary)\n");
-    py.push_str("\nroot.mainloop()\n");
+    py.push_str("render()\n");
+    py.push_str("root.mainloop()\n");
 
     std::fs::write(gui_dir.join("main.py"), py)?;
     Ok(())
@@ -430,34 +565,7 @@ fn emit_gui_tkinter_snake(out_dir: &Path, data: &GuiViewData) -> Result<()> {
 }
 
 fn extract_gui_view_data(target: &TargetIr) -> GuiViewData {
-    let view_name = target.flow.start.clone();
-    let items = target.views.get(&view_name).cloned().unwrap_or_default();
-    let mut text_views: Vec<(String, String, Option<String>)> = Vec::new();
-    let mut button_label = None;
-    let mut button_action = None;
-
-    for item in items {
-        match item.kind.as_str() {
-            "text" => {
-                if let Some(text) = item.text {
-                    let color = item.color.unwrap_or_else(|| "primary".to_string());
-                    text_views.push((text, color, item.style));
-                }
-            }
-            "button" => {
-                button_label = item.text.or(Some("OK".to_string()));
-                if let Some(action) = item.action {
-                    button_action = Some(action);
-                }
-            }
-            _ => {}
-        }
-    }
-
     GuiViewData {
-        text_views,
-        button_label: button_label.unwrap_or_else(|| "OK".to_string()),
-        show_ok_modal: matches!(button_action.as_deref(), Some("modal.ok")),
         window_title: target
             .window
             .as_ref()
@@ -487,36 +595,6 @@ fn escape_swift(input: &str) -> String {
 
 fn escape_py(input: &str) -> String {
     input.replace('\\', "\\\\").replace('\"', "\\\"")
-}
-
-fn map_color_or(color: &str, fallback: &str) -> String {
-    match color.to_lowercase().as_str() {
-        "yellow" => "Color.yellow".to_string(),
-        "blue" => "Color.blue".to_string(),
-        "green" => "Color.green".to_string(),
-        "red" => "Color.red".to_string(),
-        "black" => "Color.black".to_string(),
-        "white" => "Color.white".to_string(),
-        "primary" => "Color.primary".to_string(),
-        "secondary" => "Color.secondary".to_string(),
-        _ => format!("Color.{}", fallback),
-    }
-}
-
-fn map_text_style(style: Option<&str>, index: usize) -> (&'static str, &'static str) {
-    match style.unwrap_or("") {
-        "title" => (".font(.title2.weight(.semibold))", "primary"),
-        "subtitle" => (".font(.headline)", "secondary"),
-        "caption" => (".font(.caption)", "secondary"),
-        "body" => (".font(.body)", "secondary"),
-        _ => {
-            if index == 0 {
-                (".font(.title2.weight(.semibold))", "primary")
-            } else {
-                (".font(.body)", "secondary")
-            }
-        }
-    }
 }
 
 fn map_alignment(align: &str) -> &'static str {
@@ -1087,33 +1165,4 @@ fn external_describe(target: &str) -> Result<Value> {
     }
     let value: Value = serde_json::from_slice(&output.stdout)?;
     Ok(value)
-}
-
-fn map_tk_color(color: &str) -> &'static str {
-    match color.to_lowercase().as_str() {
-        "yellow" => "#ffd60a",
-        "blue" => "#0a84ff",
-        "green" => "#30d158",
-        "red" => "#ff453a",
-        "black" => "#000000",
-        "white" => "#ffffff",
-        "secondary" => "#6e6e73",
-        _ => "#111111",
-    }
-}
-
-fn map_tk_font(style: Option<&str>, index: usize) -> &'static str {
-    match style.unwrap_or("") {
-        "title" => "(\"Arial\", 18, \"bold\")",
-        "subtitle" => "(\"Arial\", 14, \"bold\")",
-        "caption" => "(\"Arial\", 11)",
-        "body" => "(\"Arial\", 12)",
-        _ => {
-            if index == 0 {
-                "(\"Arial\", 18, \"bold\")"
-            } else {
-                "(\"Arial\", 12)"
-            }
-        }
-    }
 }
