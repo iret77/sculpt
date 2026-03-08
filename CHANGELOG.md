@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.12
+- Added GUI shared interaction contract v1 in generated runtimes:
+  - `Enter` triggers the primary action
+  - `Esc` closes the active window
+- Hardened GUI parity smoke checks to validate interaction markers in generated runtime source.
+- Updated GUI target reference and backlog progress for parity milestone tracking.
+
 ## 0.2.11
 - Added benchmark rerun Go/No-Go gate criteria to backlog documentation.
 - Added deterministic target quality gate CI workflow:

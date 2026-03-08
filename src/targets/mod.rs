@@ -204,6 +204,7 @@ let package = Package(
             "    .alert(\"OK\", isPresented: $showAlert) { Button(\"OK\", role: .cancel) { } }\n",
         );
     }
+    swift.push_str("    .onExitCommand { NSApp.keyWindow?.close() }\n");
     swift.push_str("  }\n");
     swift.push_str("}\n\n");
     swift.push_str("@main struct SculptGuiApp: App {\n");
@@ -264,16 +265,19 @@ fn emit_gui_tkinter(out_dir: &Path, data: &GuiViewData) -> Result<()> {
     }
 
     if data.show_ok_modal {
-        py.push_str(&format!(
-      "tk.Button(frame, text=\"{}\", command=lambda: messagebox.showinfo(\"OK\", \"OK\")).pack(anchor='w', pady=(10, 0))\n",
-      escape_py(&data.button_label)
-    ));
+        py.push_str("def on_primary(_event=None):\n");
+        py.push_str("    messagebox.showinfo('OK', 'OK')\n\n");
     } else {
-        py.push_str(&format!(
-            "tk.Button(frame, text=\"{}\", command=lambda: None).pack(anchor='w', pady=(10, 0))\n",
-            escape_py(&data.button_label)
-        ));
+        py.push_str("def on_primary(_event=None):\n");
+        py.push_str("    return\n\n");
     }
+    py.push_str(&format!(
+        "tk.Button(frame, text=\"{}\", command=on_primary).pack(anchor='w', pady=(10, 0))\n",
+        escape_py(&data.button_label)
+    ));
+    py.push_str("root.bind('<Escape>', lambda _e: root.destroy())\n");
+    py.push_str("root.bind('<Return>', on_primary)\n");
+    py.push_str("root.bind('<KP_Enter>', on_primary)\n");
     py.push_str("\nroot.mainloop()\n");
 
     std::fs::write(gui_dir.join("main.py"), py)?;

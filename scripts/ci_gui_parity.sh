@@ -20,11 +20,19 @@ echo "[gui-parity] build target=gui script=${SCRIPT_PATH} provider=${PROVIDER}"
 
 if [[ "$(uname -s)" == "Darwin" ]]; then
   exe="${GUI_DIR}/.build/release/SculptGui"
+  swift_src="${GUI_DIR}/Sources/main.swift"
   if [[ ! -f "$exe" ]]; then
     echo "[gui-parity] missing macOS gui executable: $exe"
     cat /tmp/sculpt_gui_parity.log
     exit 1
   fi
+  if [[ ! -f "$swift_src" ]]; then
+    echo "[gui-parity] missing macOS gui source: $swift_src"
+    cat /tmp/sculpt_gui_parity.log
+    exit 1
+  fi
+  grep -q "keyboardShortcut(.defaultAction)" "$swift_src"
+  grep -q "onExitCommand" "$swift_src"
   echo "[gui-parity] macOS executable found: $exe"
 else
   py_file="${GUI_DIR}/main.py"
@@ -44,6 +52,9 @@ else
     echo "[gui-parity] no python runtime available to validate generated GUI script"
     exit 1
   fi
+  grep -q "root.bind('<Escape>'" "$py_file"
+  grep -q "root.bind('<Return>'" "$py_file"
+  grep -q "root.bind('<KP_Enter>'" "$py_file"
   echo "[gui-parity] python GUI source validated: $py_file"
 fi
 

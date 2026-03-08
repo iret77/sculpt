@@ -165,6 +165,8 @@
     `examples/web/web_profile_standard.sculpt`.
   - Added deterministic target quality gate workflow (`target-quality-gates.yml`):
     verifies behavior-level output signals for `cli`, `gui`, and `web` (runtime source markers + target IR shape checks).
+  - Added GUI shared interaction contract v1 in runtime generation:
+    `Enter` -> primary action, `Esc` -> close window (validated by GUI parity smoke checks).
 - Exit: non-demo app scenarios pass platform-specific quality gates in CI.
 
 5. E. Competitive Benchmark Release Gates (P1)

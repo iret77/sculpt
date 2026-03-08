@@ -16,6 +16,9 @@ Standard IR: `gui-ir`
 - Optional `modal.ok` button behavior
 - Window title/size from target IR
 - Optional explicit layout metadata (`padding`, `spacing`, `align`, `background`)
+- Shared interaction contract (v1):
+  - `Enter` triggers the primary button action
+  - `Esc` closes the active window
 
 ## Supported Render Calls
 Practical SCULPT patterns:
@@ -73,7 +76,7 @@ Relevant layout fields:
   - `?"..."` (inline ND prompt).
 
 ## Important Current Limitation
-Current GUI runtime generation is focused on the start view and static UI output.
+GUI runtime generation currently emphasizes start-view UX plus core interactions.
 Full event-driven GUI state-machine parity with CLI/Web is still evolving.
 
 Use GUI target today for:
