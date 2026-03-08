@@ -20,6 +20,8 @@ Standard IR: `gui-ir`
   - `Enter` triggers the primary button action
   - `Esc` closes the active window
 - GUI state-machine transitions from target IR (`flow.start`, `flow.transitions`) are applied at runtime.
+- Widget parity baseline (v1):
+  - `heading`, `input`, `checkbox`, `table`, `panel`, `card`, `modal` render deterministically in generated GUI runtimes.
 
 ## Supported Render Calls
 Practical SCULPT patterns:

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.14
+- Added GUI widget parity baseline v1 in generated runtimes:
+  `heading`, `input`, `checkbox`, `table`, `panel`, `card`, `modal`.
+- Extended GUI parity smoke checks to assert widget-render branch coverage in generated runtime source.
+- Updated GUI target reference and backlog progress for parity tracking.
+
 ## 0.2.13
 - Added GUI runtime state-machine parity v1:
   generated GUI runtimes now apply `flow.start` and `flow.transitions` dynamically.

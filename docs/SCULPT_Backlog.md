@@ -169,6 +169,8 @@
     `Enter` -> primary action, `Esc` -> close window (validated by GUI parity smoke checks).
   - Added GUI state-machine parity v1 in runtime emitters:
     generated GUI runtimes now apply `flow.start` + `flow.transitions` at runtime (macOS SwiftUI + Windows/Linux Tkinter).
+  - Added GUI widget parity baseline v1 for generated runtime rendering:
+    `heading`, `input`, `checkbox`, `table`, `panel`, `card`, `modal`.
 - Exit: non-demo app scenarios pass platform-specific quality gates in CI.
 
 5. E. Competitive Benchmark Release Gates (P1)
