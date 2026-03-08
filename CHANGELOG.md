@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.15
+- Added web adapter quality CI workflow:
+  `.github/workflows/web-adapter-quality.yml` + `scripts/ci_web_adapter_quality.sh`
+- Added profile-aware web quality gates for `standard`, `next-app`, and `laravel-mvc`:
+  adapter registry validation, metadata checks, and runtime hook checks.
+- Updated backlog and web target reference with the new quality gate path.
+
 ## 0.2.14
 - Added GUI widget parity baseline v1 in generated runtimes:
   `heading`, `input`, `checkbox`, `table`, `panel`, `card`, `modal`.

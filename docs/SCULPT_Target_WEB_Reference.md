@@ -84,6 +84,12 @@ sculpt target stacks --target web
 The built-in web emitter is `builtin.web.standard@1`.  
 `next-app` and `laravel-mvc` are modeled as adapter profiles and can be implemented as external target providers.
 
+CI quality gate:
+- `scripts/ci_web_adapter_quality.sh`
+  - validates web adapter registry entries
+  - builds all three web profiles (`standard`, `next-app`, `laravel-mvc`)
+  - verifies profile metadata + runtime hook markers in generated artifacts
+
 ## Known Limits (Current)
 - No built-in web component system in this target yet
 - Runtime behavior parity across all advanced widgets is still evolving

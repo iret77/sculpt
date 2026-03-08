@@ -171,6 +171,9 @@
     generated GUI runtimes now apply `flow.start` + `flow.transitions` at runtime (macOS SwiftUI + Windows/Linux Tkinter).
   - Added GUI widget parity baseline v1 for generated runtime rendering:
     `heading`, `input`, `checkbox`, `table`, `panel`, `card`, `modal`.
+  - Added web adapter quality workflow (`web-adapter-quality.yml`) and gate script (`ci_web_adapter_quality.sh`):
+    validates declared adapter registry + profile-specific build artifacts and runtime hooks for
+    `standard`, `next-app`, and `laravel-mvc`.
 - Exit: non-demo app scenarios pass platform-specific quality gates in CI.
 
 5. E. Competitive Benchmark Release Gates (P1)
