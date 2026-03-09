@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.23
+- Added automated workflow benchmark gate:
+  - `scripts/ci_workflow_benchmark_gate.sh`
+  - generates fresh workflow SCULPT metrics (`incident_triage_assistant`) with reproducibility runs
+  - evaluates competitive criteria against `poc/workflow_vibe_metrics.json`
+- Updated benchmark matrix gate to consume the automated workflow gate output
+  instead of static incident gate values.
+- Removed obsolete static workflow gate evaluator:
+  `scripts/eval_vibe_gate.py`.
+- Updated benchmark docs/backlog to reflect fully automated workflow benchmark path.
+
 ## 0.2.22
 - Added benchmark matrix gate automation:
   - `scripts/ci_benchmark_matrix_gate.sh`

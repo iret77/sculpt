@@ -14,7 +14,7 @@ Matrix benchmark gate output:
   - emitted by `scripts/ci_benchmark_matrix_gate.sh`
   - aggregates pass/fail across:
     - data-heavy competitive gate
-    - workflow competitive gate
+    - workflow competitive gate (`poc/tmp/workflow_sculpt_metrics.json`, `poc/tmp/workflow_gate_result.json`)
     - UI practical quality gate
 
 Safety update path:

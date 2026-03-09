@@ -54,7 +54,7 @@ flowchart LR
 | **2** | **B. Contract + Namespace Scalability** | Contract versioning + compatibility checks, larger namespace/import workflows, explicit symbol cataloging per target package. | Large multi-module projects compile with clear dependency diagnostics and no magic symbol ambiguity. |
 | **3** | **C. Provider Platform Hardening** | Stable provider interfaces (LLM + target), retry/fallback policies, provider telemetry normalized in build metadata and TUI. | External providers can plug in with predictable behavior and pass contract validation test suites. |
 | **4** | **D. Production-Grade Target Outputs** (completed) | `gui` parity across macOS/Windows/Linux, stronger `web` stack adapters (SSR/CSR profiles), deterministic build artifacts per target. | Non-demo app scenarios run across platforms with target-specific quality gates passing in CI. |
-| **5** | **E. Competitive Benchmark Release Gates** | Standard benchmark suite (workflow, data-heavy, UI) as release gate; SCULPT-vs-vibe deltas tracked by version. | Release candidate blocked unless SCULPT meets pre-registered pass thresholds on benchmark matrix. |
+| **5** | **E. Competitive Benchmark Release Gates** (completed) | Standard benchmark suite (workflow, data-heavy, UI) as release gate; SCULPT-vs-vibe deltas tracked by version. | Release candidate blocked unless SCULPT meets pre-registered pass thresholds on benchmark matrix. |
 
 ---
 

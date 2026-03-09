@@ -191,7 +191,7 @@
     covering `cli_control_center`, `gui_service_desk`, and `web_ops_portal`.
 - Exit: non-demo app scenarios pass platform-specific quality gates in CI.
 
-5. E. Competitive Benchmark Release Gates (P1)
+5. E. Competitive Benchmark Release Gates (P1) [completed]
 - Standardize benchmark suite for workflow, data-heavy, and UI scenarios.
 - Add release gating based on benchmark thresholds.
 - Track SCULPT-vs-vibe deltas by release version.
@@ -216,7 +216,8 @@
     + `.github/workflows/benchmark-matrix-gate.yml`
     combining:
     1) data-heavy competitive release gate
-    2) workflow competitive gate (`incident_triage_vibe_gate.json`)
+    2) workflow competitive gate (automated reproducibility + acceptance run):
+       `scripts/ci_workflow_benchmark_gate.sh`
     3) UI practical target quality gate (`cli/gui/web` practical scenarios).
 - Exit: release candidates are blocked automatically when benchmark gates fail.
 

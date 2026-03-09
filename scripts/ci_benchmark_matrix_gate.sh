@@ -6,8 +6,7 @@ cd "$ROOT_DIR"
 
 SCULPT_BIN="${SCULPT_BIN:-target/debug/sculpt}"
 RELEASE_GATE_RESULT="${SCULPT_RELEASE_GATE_RESULT:-poc/tmp/release_gate_result.json}"
-INCIDENT_GATE_FILE="${SCULPT_INCIDENT_GATE_FILE:-poc/gates/incident_triage_vibe_gate.json}"
-INCIDENT_RESULT="${SCULPT_INCIDENT_GATE_RESULT:-poc/tmp/incident_triage_gate_result.json}"
+WORKFLOW_RESULT="${SCULPT_WORKFLOW_GATE_RESULT:-poc/tmp/workflow_gate_result.json}"
 UI_QUALITY_RESULT="${SCULPT_UI_QUALITY_RESULT:-poc/tmp/target_practical_quality_result.json}"
 MATRIX_RESULT="${SCULPT_MATRIX_GATE_RESULT:-poc/tmp/benchmark_matrix_gate_result.json}"
 
@@ -19,8 +18,8 @@ fi
 echo "[matrix-gate] data-heavy competitive gate"
 "$ROOT_DIR/scripts/ci_benchmark_release_gate.sh"
 
-echo "[matrix-gate] workflow competitive gate (incident triage)"
-python3 "$ROOT_DIR/scripts/eval_vibe_gate.py" "$INCIDENT_GATE_FILE" "$INCIDENT_RESULT"
+echo "[matrix-gate] workflow competitive gate"
+"$ROOT_DIR/scripts/ci_workflow_benchmark_gate.sh"
 
 echo "[matrix-gate] ui target quality gate"
 "$ROOT_DIR/scripts/ci_target_practical_gates.sh"
@@ -33,7 +32,7 @@ cat > "$UI_QUALITY_RESULT" <<'JSON'
 JSON
 
 echo "[matrix-gate] aggregate benchmark matrix"
-python3 - <<'PY' "$RELEASE_GATE_RESULT" "$INCIDENT_RESULT" "$UI_QUALITY_RESULT" "$MATRIX_RESULT"
+python3 - <<'PY' "$RELEASE_GATE_RESULT" "$WORKFLOW_RESULT" "$UI_QUALITY_RESULT" "$MATRIX_RESULT"
 import json
 import sys
 from pathlib import Path

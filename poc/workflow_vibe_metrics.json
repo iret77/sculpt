@@ -1,0 +1,8 @@
+{
+  "name": "incident_triage_vibe_baseline_v1",
+  "study": "poc/SCULPT_vs_Vibe_Incident_Triage.md",
+  "summary": {
+    "acceptance_rate": 1.0,
+    "repro_unique_hashes": 5
+  }
+}
