@@ -1,0 +1,41 @@
+name: benchmark-matrix-gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  benchmark-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked
+
+      - name: Run benchmark matrix gate
+        run: ./scripts/ci_benchmark_matrix_gate.sh
+
+      - name: Upload benchmark matrix artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-matrix-gate-artifacts
+          path: |
+            poc/tmp/release_gate_sculpt_metrics.json
+            poc/tmp/release_gate_sculpt_gate_input.json
+            poc/tmp/release_gate_result.json
+            poc/tmp/release_delta_report.json
+            poc/tmp/release_delta_report.md
+            poc/tmp/incident_triage_gate_result.json
+            poc/tmp/target_practical_quality_result.json
+            poc/tmp/benchmark_matrix_gate_result.json

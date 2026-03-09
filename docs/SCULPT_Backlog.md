@@ -211,6 +211,13 @@
   - Added pass-only baseline update guard:
     `scripts/ci_benchmark_baseline_update.sh`
     (`candidate` or `inplace` mode; blocks baseline updates unless all release criteria pass).
+  - Added benchmark matrix gate automation across core scenario classes:
+    `scripts/ci_benchmark_matrix_gate.sh`
+    + `.github/workflows/benchmark-matrix-gate.yml`
+    combining:
+    1) data-heavy competitive release gate
+    2) workflow competitive gate (`incident_triage_vibe_gate.json`)
+    3) UI practical target quality gate (`cli/gui/web` practical scenarios).
 - Exit: release candidates are blocked automatically when benchmark gates fail.
 
 ### Benchmark Re-Run Go/No-Go Gate (Business Use Case)

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.22
+- Added benchmark matrix gate automation:
+  - `scripts/ci_benchmark_matrix_gate.sh`
+  - `.github/workflows/benchmark-matrix-gate.yml`
+- Matrix gate now combines three scenario classes in one release signal:
+  1) data-heavy competitive gate (`ci_benchmark_release_gate.sh`)
+  2) workflow competitive gate (`poc/gates/incident_triage_vibe_gate.json`)
+  3) UI practical quality gate (`ci_target_practical_gates.sh`)
+- Added reusable gate evaluator:
+  `scripts/eval_vibe_gate.py`
+- Updated benchmark/backlog docs for matrix-gate artifacts and flow.
+
 ## 0.2.21
 - Closed Milestone D with non-demo practical target quality gates in CI:
   - `.github/workflows/target-practical-gates.yml`

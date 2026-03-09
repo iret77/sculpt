@@ -9,6 +9,14 @@ Recommended file:
   - last accepted output from `scripts/ci_benchmark_release_gate.sh`
   - used as `--previous` reference by `scripts/ci_benchmark_delta_report.sh`
 
+Matrix benchmark gate output:
+- `poc/tmp/benchmark_matrix_gate_result.json`
+  - emitted by `scripts/ci_benchmark_matrix_gate.sh`
+  - aggregates pass/fail across:
+    - data-heavy competitive gate
+    - workflow competitive gate
+    - UI practical quality gate
+
 Safety update path:
 - `scripts/ci_benchmark_baseline_update.sh`
   - validates that release gate is fully green before writing baseline
