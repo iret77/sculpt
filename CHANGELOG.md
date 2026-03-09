@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.19
+- Added pass-only benchmark baseline update guard:
+  `scripts/ci_benchmark_baseline_update.sh`
+- Updated benchmark release-gate workflow to publish baseline candidate artifact:
+  `poc/tmp/latest_release_gate_result.candidate.json`
+- Updated benchmark docs/backlog with guarded baseline update flow (`candidate` vs `inplace`).
+
 ## 0.2.18
 - Initialized benchmark release baseline snapshot:
   `poc/benchmarks/latest_release_gate_result.json`

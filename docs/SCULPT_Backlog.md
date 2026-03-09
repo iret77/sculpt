@@ -193,6 +193,9 @@
   - Added automated release-over-release delta reporting:
     `scripts/ci_benchmark_delta_report.sh` + `scripts/benchmark_delta_report.py`
     with CI artifact export (`release_delta_report.json` / `.md`).
+  - Added pass-only baseline update guard:
+    `scripts/ci_benchmark_baseline_update.sh`
+    (`candidate` or `inplace` mode; blocks baseline updates unless all release criteria pass).
 - Exit: release candidates are blocked automatically when benchmark gates fail.
 
 ### Benchmark Re-Run Go/No-Go Gate (Business Use Case)

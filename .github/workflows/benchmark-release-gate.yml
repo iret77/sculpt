@@ -33,6 +33,9 @@ jobs:
       - name: Generate benchmark delta report
         run: ./scripts/ci_benchmark_delta_report.sh
 
+      - name: Create baseline candidate (pass-only)
+        run: ./scripts/ci_benchmark_baseline_update.sh
+
       - name: Upload benchmark gate artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -43,4 +46,5 @@ jobs:
             poc/tmp/release_gate_result.json
             poc/tmp/release_delta_report.json
             poc/tmp/release_delta_report.md
+            poc/tmp/latest_release_gate_result.candidate.json
           if-no-files-found: error

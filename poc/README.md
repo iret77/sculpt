@@ -43,6 +43,8 @@ This folder is intentionally curated to keep case-study evidence readable.
   - evaluates fresh SCULPT benchmark + SCULPT internal gate + competitive SCULPT-vs-vibe gate
   - `../scripts/ci_benchmark_delta_report.sh`
   - generates release-over-release delta artifacts (`poc/tmp/release_delta_report.json/.md`)
+  - `../scripts/ci_benchmark_baseline_update.sh`
+  - pass-only guarded baseline update (`candidate` or `inplace`)
 - generated datasets:
   - `data/small/invoices.csv`
   - `data/small/payments.csv`
