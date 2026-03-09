@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.18
+- Initialized benchmark release baseline snapshot:
+  `poc/benchmarks/latest_release_gate_result.json`
+- Delta reporting can now compare against a concrete previous baseline by default.
+
 ## 0.2.17
 - Added automated benchmark delta reporting scripts:
   `scripts/ci_benchmark_delta_report.sh` and `scripts/benchmark_delta_report.py`

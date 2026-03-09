@@ -1,0 +1,62 @@
+{
+  "name": "data_heavy_release_competitive_gate_v1",
+  "sculpt_metrics": "poc/tmp/release_gate_sculpt_metrics.json",
+  "vibe_metrics": "poc/data_heavy_vibe_metrics.json",
+  "criteria": [
+    {
+      "id": "R1",
+      "description": "SCULPT acceptance rate is production-grade (>= 0.90)",
+      "passed": true,
+      "detail": {
+        "sculpt": 1.0,
+        "required_min": 0.9
+      }
+    },
+    {
+      "id": "R2",
+      "description": "SCULPT reproducibility pass is full (>= 5)",
+      "passed": true,
+      "detail": {
+        "sculpt": 5,
+        "required_min": 5
+      }
+    },
+    {
+      "id": "R3",
+      "description": "SCULPT reproducibility is deterministic (unique hashes <= 1)",
+      "passed": true,
+      "detail": {
+        "sculpt": 1,
+        "required_max": 1
+      }
+    },
+    {
+      "id": "R4",
+      "description": "SCULPT acceptance is at least vibe acceptance",
+      "passed": true,
+      "detail": {
+        "sculpt": 1.0,
+        "vibe": 1.0
+      }
+    },
+    {
+      "id": "R5",
+      "description": "SCULPT reproducibility uniqueness beats vibe by >= 1 hash",
+      "passed": true,
+      "detail": {
+        "sculpt": 1,
+        "vibe": 5,
+        "required_max": 4
+      }
+    }
+  ],
+  "pass": true,
+  "failed_count": 0,
+  "summary": {
+    "sculpt_acceptance_rate": 1.0,
+    "sculpt_repro_pass": 5,
+    "sculpt_repro_unique_hashes": 1,
+    "vibe_acceptance_rate": 1.0,
+    "vibe_repro_unique_hashes": 5
+  }
+}
