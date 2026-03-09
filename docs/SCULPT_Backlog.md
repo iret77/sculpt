@@ -26,6 +26,18 @@
 - Report: `poc/SCULPT_vs_Vibe_Data_Heavy_Report.md`
 - Gate: `poc/gates/data_heavy_vibe_gate.json`
 
+9. Production-Grade Target Outputs (P1)
+- Added practical non-demo quality gates in CI:
+  - script: `scripts/ci_target_practical_gates.sh`
+  - workflow: `.github/workflows/target-practical-gates.yml`
+- Practical scenarios now validated per target:
+  - CLI: `examples/practical/cli_control_center.sculpt`
+  - GUI: `examples/practical/gui_service_desk.sculpt`
+  - Web: `examples/practical/web_ops_portal.sculpt`
+- Gate checks include both:
+  - source-level richness (`ir.json` state/transition thresholds),
+  - target runtime hooks/artifacts (`main.js`/`main.py`/`main.swift`, `index.html`, `target.ir.json`).
+
 
 ## Validation, Tooling, and Scale
 
@@ -152,7 +164,7 @@
     provider conformance check + deterministic data-heavy smoke benchmark + gate check.
 - Exit: external providers plug in cleanly and pass contract + behavior checks.
 
-4. D. Production-Grade Target Outputs (P1)
+4. D. Production-Grade Target Outputs (P1) [completed]
 - Strengthen `gui` parity across macOS/Windows/Linux.
 - Expand `web` stack adapter quality for SSR/CSR profiles.
 - Enforce deterministic artifact expectations per target.
@@ -174,6 +186,9 @@
   - Added web adapter quality workflow (`web-adapter-quality.yml`) and gate script (`ci_web_adapter_quality.sh`):
     validates declared adapter registry + profile-specific build artifacts and runtime hooks for
     `standard`, `next-app`, and `laravel-mvc`.
+  - Added practical non-demo target quality gates:
+    `target-practical-gates.yml` + `scripts/ci_target_practical_gates.sh`
+    covering `cli_control_center`, `gui_service_desk`, and `web_ops_portal`.
 - Exit: non-demo app scenarios pass platform-specific quality gates in CI.
 
 5. E. Competitive Benchmark Release Gates (P1)

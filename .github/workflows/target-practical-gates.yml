@@ -1,0 +1,26 @@
+name: target-practical-gates
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  practical-target-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked
+
+      - name: Run practical target gates
+        run: ./scripts/ci_target_practical_gates.sh

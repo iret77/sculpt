@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.21
+- Closed Milestone D with non-demo practical target quality gates in CI:
+  - `.github/workflows/target-practical-gates.yml`
+  - `scripts/ci_target_practical_gates.sh`
+- Added practical scenario validation for all built-in targets:
+  - CLI: `examples/practical/cli_control_center.sculpt`
+  - GUI: `examples/practical/gui_service_desk.sculpt`
+  - Web: `examples/practical/web_ops_portal.sculpt`
+- Practical gates now enforce both:
+  - source-level complexity checks on `ir.json` (state/transition thresholds)
+  - deterministic target runtime/artifact checks (`target.ir.json`, runtime hooks, and required output files).
+- Updated roadmap/backlog milestone status for D completion.
+
 ## 0.2.20
 - Added CLI baseline-update command:
   `sculpt benchmark baseline update --mode candidate|inplace`
