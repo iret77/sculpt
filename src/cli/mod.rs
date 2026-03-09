@@ -178,6 +178,24 @@ pub enum BenchmarkCommand {
         #[arg(long, default_value = "cli")]
         target: String,
     },
+    Baseline {
+        #[command(subcommand)]
+        cmd: BenchmarkBaselineCommand,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum BenchmarkBaselineCommand {
+    Update {
+        #[arg(long, default_value = "poc/tmp/release_gate_result.json")]
+        current: PathBuf,
+        #[arg(long, value_parser = ["candidate", "inplace"], default_value = "candidate")]
+        mode: String,
+        #[arg(long, default_value = "poc/benchmarks/latest_release_gate_result.json")]
+        baseline: PathBuf,
+        #[arg(long, default_value = "poc/tmp/latest_release_gate_result.candidate.json")]
+        candidate: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -293,6 +311,14 @@ pub fn run() -> Result<()> {
                 strict_provider,
                 &target,
             ),
+            BenchmarkCommand::Baseline { cmd } => match cmd {
+                BenchmarkBaselineCommand::Update {
+                    current,
+                    mode,
+                    baseline,
+                    candidate,
+                } => benchmark_baseline_update(&current, &mode, &baseline, &candidate),
+            },
         },
         Command::Auth { cmd } => match cmd {
             AuthCommand::Check { provider, verify } => auth_check(&provider, verify),
@@ -3316,6 +3342,109 @@ fn benchmark_data_heavy(
         "{} {}",
         style_dim("Gate input:"),
         style_dim(&gate_output.display().to_string())
+    );
+    Ok(())
+}
+
+fn benchmark_baseline_update(
+    current: &Path,
+    mode: &str,
+    baseline: &Path,
+    candidate: &Path,
+) -> Result<()> {
+    let raw = fs::read_to_string(current)
+        .with_context(|| format!("Failed to read release gate result {}", current.display()))?;
+    let value: Value = serde_json::from_str(&raw)
+        .with_context(|| format!("Invalid JSON in {}", current.display()))?;
+
+    let pass = value.get("pass").and_then(|v| v.as_bool()).unwrap_or(false);
+    if !pass {
+        bail!("Baseline update blocked: release gate pass=false");
+    }
+    let failed_count = value
+        .get("failed_count")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(1);
+    if failed_count != 0 {
+        bail!(
+            "Baseline update blocked: failed_count={} (expected 0)",
+            failed_count
+        );
+    }
+
+    for criterion in value
+        .get("criteria")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+    {
+        if criterion.get("passed").and_then(|v| v.as_bool()) != Some(true) {
+            let id = criterion
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            bail!("Baseline update blocked: criterion {} failed", id);
+        }
+    }
+
+    let summary = value.get("summary").cloned().unwrap_or(Value::Null);
+    let acceptance = summary
+        .get("sculpt_acceptance_rate")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let repro_pass = summary
+        .get("sculpt_repro_pass")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let unique_hashes = summary
+        .get("sculpt_repro_unique_hashes")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(u64::MAX);
+    if acceptance < 0.90 {
+        bail!(
+            "Baseline update blocked: sculpt_acceptance_rate={:.3} (< 0.90)",
+            acceptance
+        );
+    }
+    if repro_pass < 5 {
+        bail!(
+            "Baseline update blocked: sculpt_repro_pass={} (< 5)",
+            repro_pass
+        );
+    }
+    if unique_hashes > 1 {
+        bail!(
+            "Baseline update blocked: sculpt_repro_unique_hashes={} (> 1)",
+            unique_hashes
+        );
+    }
+
+    let destination = match mode {
+        "candidate" => candidate,
+        "inplace" => baseline,
+        other => bail!("Invalid mode '{}', expected candidate|inplace", other),
+    };
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(destination, format!("{}\n", serde_json::to_string_pretty(&value)?))?;
+
+    println!();
+    println!(
+        "{} {}",
+        style_title("SCULPT"),
+        style_title(&format!("Benchmark Baseline {}", env!("CARGO_PKG_VERSION")))
+    );
+    println!(
+        "{} {}",
+        style_dim("Current gate:"),
+        style_dim(&current.display().to_string())
+    );
+    println!("{} {}", style_dim("Mode:"), style_dim(mode));
+    println!(
+        "{} {}",
+        style_dim("Written:"),
+        style_dim(&destination.display().to_string())
     );
     Ok(())
 }

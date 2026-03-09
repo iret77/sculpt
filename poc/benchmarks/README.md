@@ -17,4 +17,8 @@ Safety update path:
   - `inplace` mode updates:
     `poc/benchmarks/latest_release_gate_result.json`
 
+CLI shortcut:
+- `sculpt benchmark baseline update --mode candidate`
+- `sculpt benchmark baseline update --mode inplace`
+
 If the file is missing, delta reports still run and mark the previous baseline as `none`.

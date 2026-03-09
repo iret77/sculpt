@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.20
+- Added CLI baseline-update command:
+  `sculpt benchmark baseline update --mode candidate|inplace`
+- Command enforces the same pass-only baseline guards as the CI helper script:
+  gate pass, zero failures, criteria pass, acceptance/repro thresholds.
+
 ## 0.2.19
 - Added pass-only benchmark baseline update guard:
   `scripts/ci_benchmark_baseline_update.sh`
