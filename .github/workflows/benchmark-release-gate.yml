@@ -29,3 +29,18 @@ jobs:
 
       - name: Run release benchmark gate
         run: ./scripts/ci_benchmark_release_gate.sh
+
+      - name: Generate benchmark delta report
+        run: ./scripts/ci_benchmark_delta_report.sh
+
+      - name: Upload benchmark gate artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-release-gate-artifacts
+          path: |
+            poc/tmp/release_gate_sculpt_metrics.json
+            poc/tmp/release_gate_sculpt_gate_input.json
+            poc/tmp/release_gate_result.json
+            poc/tmp/release_delta_report.json
+            poc/tmp/release_delta_report.md
+          if-no-files-found: error

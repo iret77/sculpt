@@ -190,6 +190,9 @@
     2) internal SCULPT gate check (`gate check`)
     3) competitive SCULPT-vs-vibe release gate using `poc/data_heavy_vibe_metrics.json`
        with explicit pass/fail criteria and machine-readable output (`poc/tmp/release_gate_result.json`).
+  - Added automated release-over-release delta reporting:
+    `scripts/ci_benchmark_delta_report.sh` + `scripts/benchmark_delta_report.py`
+    with CI artifact export (`release_delta_report.json` / `.md`).
 - Exit: release candidates are blocked automatically when benchmark gates fail.
 
 ### Benchmark Re-Run Go/No-Go Gate (Business Use Case)

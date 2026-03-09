@@ -41,6 +41,8 @@ This folder is intentionally curated to keep case-study evidence readable.
 - release gate automation:
   - `../scripts/ci_benchmark_release_gate.sh`
   - evaluates fresh SCULPT benchmark + SCULPT internal gate + competitive SCULPT-vs-vibe gate
+  - `../scripts/ci_benchmark_delta_report.sh`
+  - generates release-over-release delta artifacts (`poc/tmp/release_delta_report.json/.md`)
 - generated datasets:
   - `data/small/invoices.csv`
   - `data/small/payments.csv`

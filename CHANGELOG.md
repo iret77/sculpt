@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.17
+- Added automated benchmark delta reporting scripts:
+  `scripts/ci_benchmark_delta_report.sh` and `scripts/benchmark_delta_report.py`
+- Updated benchmark release-gate workflow to publish machine-readable artifacts:
+  release gate metrics/result + delta report JSON/Markdown.
+- Added baseline benchmark documentation in `poc/benchmarks/README.md`.
+
 ## 0.2.16
 - Added competitive benchmark release gate automation:
   `scripts/ci_benchmark_release_gate.sh`
