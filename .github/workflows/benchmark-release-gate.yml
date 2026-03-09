@@ -1,0 +1,31 @@
+name: benchmark-release-gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "examples/business/invoice_reconciliation_batch.sculpt"
+      - "src/**"
+      - "scripts/ci_benchmark_release_gate.sh"
+      - "poc/data_heavy_vibe_metrics.json"
+
+jobs:
+  data-heavy-release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked
+
+      - name: Run release benchmark gate
+        run: ./scripts/ci_benchmark_release_gate.sh

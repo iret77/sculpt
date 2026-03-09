@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.16
+- Added competitive benchmark release gate automation:
+  `scripts/ci_benchmark_release_gate.sh`
+- Added CI workflow for the release benchmark gate:
+  `.github/workflows/benchmark-release-gate.yml`
+- Release gate now enforces:
+  fresh SCULPT benchmark + SCULPT gate check + SCULPT-vs-vibe competitive criteria.
+- Updated backlog and POC index documentation for the new release-gate path.
+
 ## 0.2.15
 - Added web adapter quality CI workflow:
   `.github/workflows/web-adapter-quality.yml` + `scripts/ci_web_adapter_quality.sh`

@@ -180,6 +180,16 @@
 - Standardize benchmark suite for workflow, data-heavy, and UI scenarios.
 - Add release gating based on benchmark thresholds.
 - Track SCULPT-vs-vibe deltas by release version.
+- Progress:
+  - Added benchmark release gate script:
+    `scripts/ci_benchmark_release_gate.sh`
+  - Added CI workflow:
+    `.github/workflows/benchmark-release-gate.yml`
+  - Gate now runs:
+    1) fresh SCULPT data-heavy benchmark (`small,medium,large`, repro `N=5`)
+    2) internal SCULPT gate check (`gate check`)
+    3) competitive SCULPT-vs-vibe release gate using `poc/data_heavy_vibe_metrics.json`
+       with explicit pass/fail criteria and machine-readable output (`poc/tmp/release_gate_result.json`).
 - Exit: release candidates are blocked automatically when benchmark gates fail.
 
 ### Benchmark Re-Run Go/No-Go Gate (Business Use Case)

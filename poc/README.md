@@ -38,6 +38,9 @@ This folder is intentionally curated to keep case-study evidence readable.
 
 ## Data-Heavy Utilities
 - `generate_data_heavy_benchmark_data.py` (dataset generator)
+- release gate automation:
+  - `../scripts/ci_benchmark_release_gate.sh`
+  - evaluates fresh SCULPT benchmark + SCULPT internal gate + competitive SCULPT-vs-vibe gate
 - generated datasets:
   - `data/small/invoices.csv`
   - `data/small/payments.csv`
