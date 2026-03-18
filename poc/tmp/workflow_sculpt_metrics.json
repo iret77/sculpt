@@ -1,0 +1,48 @@
+{
+  "name": "workflow_sculpt_metrics_v1",
+  "script": "examples/business/incident_triage_assistant.sculpt",
+  "target": "cli",
+  "provider": "openai",
+  "runs": [
+    {
+      "run": 1,
+      "ok": false,
+      "elapsed_ms": 5953,
+      "hash": null,
+      "reason": "build_failed"
+    },
+    {
+      "run": 2,
+      "ok": false,
+      "elapsed_ms": 5456,
+      "hash": null,
+      "reason": "build_failed"
+    },
+    {
+      "run": 3,
+      "ok": false,
+      "elapsed_ms": 5328,
+      "hash": null,
+      "reason": "build_failed"
+    },
+    {
+      "run": 4,
+      "ok": false,
+      "elapsed_ms": 6355,
+      "hash": null,
+      "reason": "build_failed"
+    },
+    {
+      "run": 5,
+      "ok": false,
+      "elapsed_ms": 5838,
+      "hash": null,
+      "reason": "build_failed"
+    }
+  ],
+  "summary": {
+    "acceptance_rate": 0.0,
+    "repro_pass": 0,
+    "repro_unique_hashes": 0
+  }
+}

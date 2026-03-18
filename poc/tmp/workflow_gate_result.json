@@ -1,0 +1,62 @@
+{
+  "name": "workflow_release_competitive_gate_v1",
+  "sculpt_metrics": "poc/tmp/workflow_sculpt_metrics.json",
+  "vibe_metrics": "poc/workflow_vibe_metrics.json",
+  "criteria": [
+    {
+      "id": "W1",
+      "description": "SCULPT workflow acceptance rate is production-grade (>= 0.90)",
+      "passed": false,
+      "detail": {
+        "sculpt": 0.0,
+        "required_min": 0.9
+      }
+    },
+    {
+      "id": "W2",
+      "description": "SCULPT workflow reproducibility pass is full (>= 5)",
+      "passed": false,
+      "detail": {
+        "sculpt": 0,
+        "required_min": 5
+      }
+    },
+    {
+      "id": "W3",
+      "description": "SCULPT workflow reproducibility is deterministic (unique hashes <= 1)",
+      "passed": true,
+      "detail": {
+        "sculpt": 0,
+        "required_max": 1
+      }
+    },
+    {
+      "id": "W4",
+      "description": "SCULPT workflow acceptance is at least vibe acceptance",
+      "passed": false,
+      "detail": {
+        "sculpt": 0.0,
+        "vibe": 1.0
+      }
+    },
+    {
+      "id": "W5",
+      "description": "SCULPT workflow reproducibility uniqueness beats vibe by >= 1 hash",
+      "passed": true,
+      "detail": {
+        "sculpt": 0,
+        "vibe": 5,
+        "required_max": 4
+      }
+    }
+  ],
+  "pass": false,
+  "failed_count": 3,
+  "summary": {
+    "sculpt_acceptance_rate": 0.0,
+    "sculpt_repro_pass": 0,
+    "sculpt_repro_unique_hashes": 0,
+    "vibe_acceptance_rate": 1.0,
+    "vibe_repro_unique_hashes": 5
+  }
+}
