@@ -1,0 +1,108 @@
+# Snake (Low ND, CLI)
+# Goal: classic playable snake with explicit controls and predictable behavior.
+
+@meta target=cli
+@meta nd_budget=8
+
+module(Showcase.Snake.LowND):
+  use(cli.ui) as ui
+  use(cli.input) as input
+  use(cli.guide) as guide
+
+  flow(Game):
+    start > Title
+
+    state(Title):
+      ui.clear()
+      ui.line("========================================", color: "cyan")
+      ui.text("SNAKE // LOW ND", color: "yellow")
+      ui.line("========================================", color: "cyan")
+      ui.text("Enter: Start  C: Controls  Esc: Quit", color: "blue")
+      on input.key(enter) > Play
+      on input.key(c) > Controls
+      on input.key(esc) > Exit
+    end
+
+    state(Controls):
+      ui.text("W/A/S/D or Arrows: move", color: "white")
+      ui.text("P: pause   Esc: quit", color: "white")
+      ui.text("Backspace: lose life", color: "white")
+      ui.text("Enter: back", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Play):
+      ui.text("Runtime active", color: "green")
+      on input.key(w):: direction = "up"
+      on input.key(up):: direction = "up"
+      on input.key(s):: direction = "down"
+      on input.key(down):: direction = "down"
+      on input.key(a):: direction = "left"
+      on input.key(left):: direction = "left"
+      on input.key(d):: direction = "right"
+      on input.key(right):: direction = "right"
+      on input.key(space):: score += 1
+      on input.key(backspace):: lives = 0
+      on input.key(p) > Pause
+      on input.key(esc) > Exit
+      on input.tick > Play
+      on win > Victory
+      on done > GameOver
+    end
+
+    state(Pause):
+      ui.text("PAUSED", color: "yellow")
+      on input.key(enter) > Play
+      on input.key(p) > Play
+      on input.key(esc) > Exit
+    end
+
+    state(Victory):
+      ui.text("YOU WIN", color: "green")
+      ui.text("Enter: play again  Esc: quit", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(GameOver):
+      ui.text("GAME OVER", color: "red")
+      ui.text("Enter: retry  Esc: quit", color: "cyan")
+      on input.key(enter) > Title
+      on input.key(esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    score = 0
+    lives = 3
+    targetScore = 12
+    direction = "right"
+  end
+
+  rule(win):
+    when score >= targetScore:
+      emit win
+    end
+  end
+
+  rule(lose):
+    when lives < 1:
+      emit done
+    end
+  end
+
+  nd(style):
+    propose snakeLook(profile: "retro-cli")
+    satisfy(
+      guide.playable(),
+      guide.readableHud(),
+      guide.responsiveControls(keys: "wasd+arrows"),
+      ?"keep the game easy to read in dark terminals"
+    )
+  end
+end

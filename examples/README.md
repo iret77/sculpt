@@ -9,13 +9,27 @@ All current examples use explicit provider namespaces via:
 - `use(<target>.input) as input`
 Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
 
-## 1) Getting Started
+## 1) Showcase Pairs (Low ND vs High ND)
+- `showcase/games/snake_low_nd.sculpt`
+- `showcase/games/snake_high_nd.sculpt`
+  - Same game objective, different ND strategy.
+- `showcase/gui/service_desk_low_nd.sculpt`
+- `showcase/gui/service_desk_high_nd.sculpt`
+  - GUI business workflow with explicit vs delegated behavior.
+- `showcase/web/ops_portal_low_nd.sculpt`
+- `showcase/web/ops_portal_high_nd.sculpt`
+  - Web operations portal, low vs high ND.
+- `showcase/cli/invoice_reconcile_low_nd.sculpt`
+- `showcase/cli/invoice_reconcile_high_nd.sculpt`
+  - Data-heavy CLI reconciliation, low vs high ND.
+
+## 2) Getting Started
 - `getting-started/hello_world.sculpt`
   - Smallest deterministic program.
 - `getting-started/native_window.sculpt`
   - Basic GUI output with explicit target metadata.
 
-## 2) Games
+## 3) Games
 - `games/snake_portable.sculpt`
   - One portable snake script intended to run on `cli`, `gui`, and `web` with a shared gameplay core (`@meta profile=portable`).
 - `games/snake_cli_low_nd_showcase.sculpt`
@@ -34,7 +48,7 @@ Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
 - `games/legacy/snake_low_nd_legacy.sculpt`
   - Archived pre-showcase versions kept for reference only.
 
-## 3) Business
+## 4) Business
 - `business/invoice_review.sculpt`
   - Simple approval/rejection flow.
 - `business/incident_triage_assistant.sculpt`
@@ -43,14 +57,16 @@ Legacy shorthand (`render ...`, `key(...)`) is rejected by default.
   - Realistic workflow-oriented example with strict logic and light ND.
 - `business/modular_invoice_app.sculpt`
   - Multi-file business app using namespace imports (`import(Billing.Shared.InvoiceRules)`) and project file `business/modular_invoice_app.sculpt.json`.
+  - Build this one via project file:
+    - `sculpt build examples/business/modular_invoice_app.sculpt.json --provider stub`
 
-## 4) Web
+## 5) Web
 - `web/incident_status_dashboard.sculpt`
   - Web-target incident overview with clear state navigation (`web_profile=next-app`).
 - `web/support_ticket_board.sculpt`
   - Small service-desk use case with ticket detail flow and SLA screen (`web_profile=laravel-mvc`).
 
-## 5) Practical UI Kit (Real-App Direction)
+## 6) Practical UI Kit (Real-App Direction)
 - `practical/cli_control_center.sculpt`
   - CLI operations console with panels, queues, progress, and deployment gate flow.
 - `practical/gui_service_desk.sculpt`

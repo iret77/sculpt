@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.24
+- Added curated low-ND/high-ND showcase pairs under `examples/showcase/`:
+  - `games/snake_*`
+  - `gui/service_desk_*`
+  - `web/ops_portal_*`
+  - `cli/invoice_reconcile_*`
+- Updated showcase CLI invoice examples to align with strict deterministic
+  output checks (`required_outputs`) by moving artifact writes into explicit
+  runtime rules.
+- Updated `examples/README.md` to present showcase pairs as the primary
+  starting point and clarified project-file build usage for modular examples.
+
 ## 0.2.23
 - Added automated workflow benchmark gate:
   - `scripts/ci_workflow_benchmark_gate.sh`

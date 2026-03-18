@@ -1,0 +1,108 @@
+# Invoice Reconciliation (High ND, CLI)
+# Same business objective as low ND, but compact and heavily delegated.
+
+@meta target=cli
+@meta required_outputs="reconciliation_report.json,exceptions.csv"
+@meta nd_critical_path=error
+@meta nd_budget=56
+
+module(Showcase.InvoiceReconcile.HighND):
+  use(cli.ui)
+  use(cli.input) as input
+  use(cli.data) as data
+  use(cli.guide) as guide
+
+  flow(Batch):
+    start > Boot
+
+    state(Boot):
+      ui.text("INVOICE RECONCILIATION", color: "yellow")
+      ui.text("Enter: start   Esc: quit", color: "cyan")
+      on input.key(enter) > Process
+      on input.key(esc) > Exit
+    end
+
+    state(Process):
+      rule(processBatch):
+        on input.tick:
+          invoices = data.csvRead(invoicesPath)
+          payments = data.csvRead(paymentsPath)
+          reconciliation = data.reconcileInvoices(invoices, payments, dateToleranceDays, amountTolerance)
+          exceptionRows = data.buildExceptions(reconciliation)
+          summaryJson = data.buildReportJson(data.rowCount(invoices), data.rowCount(payments), data.metric(reconciliation, "matched_full"), data.metric(reconciliation, "matched_partial"), data.metric(reconciliation, "overpaid"), data.metric(reconciliation, "missing_payment"), data.metric(reconciliation, "duplicate_payment"), data.metric(reconciliation, "ambiguous"), data.metric(reconciliation, "suspicious"), rulesVersion, data.processingMs(reconciliation))
+          writeOk1 = data.writeJson(reportPath, summaryJson)
+          writeOk2 = data.writeCsv(exceptionsPath, data.sortBy(exceptionRows, "invoice_id,payment_id"))
+        end
+      end
+      on done > Summary
+      on failed > Failed
+    end
+
+    state(Summary):
+      ui.text("Artifacts written", color: "green")
+      ui.text("reconciliation_report.json", color: "cyan")
+      ui.text("exceptions.csv", color: "cyan")
+      ui.text("Enter: rerun   Esc: quit", color: "blue")
+      on input.key(enter) > Process
+      on input.key(esc) > Exit
+    end
+
+    state(Failed):
+      ui.text("RECONCILIATION FAILED", color: "red")
+      ui.text(errorText, color: "white")
+      ui.text("Enter: retry   Esc: quit", color: "cyan")
+      on input.key(enter) > Process
+      on input.key(esc) > Exit
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    invoicesPath = "poc/data/small/invoices.csv"
+    paymentsPath = "poc/data/small/payments.csv"
+    reportPath = "reconciliation_report.json"
+    exceptionsPath = "exceptions.csv"
+    rulesVersion = "1.0"
+    dateToleranceDays = 30
+    amountTolerance = 0
+
+    invoices = null
+    payments = null
+    reconciliation = null
+    exceptionRows = null
+    summaryJson = null
+    writeOk1 = 0
+    writeOk2 = 0
+    errorText = ""
+  end
+
+  rule(outputsDone):
+    when writeOk1 >= 1 and writeOk2 >= 1:
+      emit done
+    end
+  end
+
+  rule(outputsFailed):
+    when writeOk1 < 1 and writeOk2 < 1:
+      errorText = "Could not write output artifacts"
+      emit failed
+    end
+  end
+
+  nd(contract):
+    define reconcile.coreContract():
+      "Read invoices/payments CSV, reconcile, write reconciliation_report.json and exceptions.csv deterministically."
+    end
+
+    propose reconciliationPipeline(profile: "high-nd")
+    satisfy(
+      ?reconcile.coreContract(),
+      guide.clearOperationalSummary(),
+      guide.readableTableLayout(),
+      ?"allow flexible report wording but keep deterministic artifact schema"
+    )
+  end
+end

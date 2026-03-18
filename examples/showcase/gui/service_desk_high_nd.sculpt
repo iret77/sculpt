@@ -1,0 +1,85 @@
+# Service Desk (High ND, GUI)
+# Same task as low ND, but with compact intent and delegated UI shaping.
+
+@meta target=gui
+@meta nd_budget=64
+
+module(Showcase.ServiceDesk.HighND):
+  use(gui.ui)
+  use(gui.input) as input
+  use(gui.window) as window
+  use(gui.guide) as guide
+
+  flow(App):
+    start > Inbox
+
+    state(Inbox):
+      ui.heading("Service Desk", level: 1)
+      ui.table("ID | Priority | Assignee | State")
+      ui.text("INC-4821 | P1 | Mia | open")
+      ui.text("INC-4822 | P2 | Leo | in_progress")
+      ui.button("Open INC-4821", action: "open4821")
+      ui.button("Open INC-4822", action: "open4822")
+      ui.button("Close", action: "close")
+      on input.click("open4821") > Ticket
+      on input.click("open4822") > Ticket
+      on input.click("close") > Exit
+      on input.closeWindow() > Exit
+    end
+
+    state(Ticket):
+      ui.heading("Incident", level: 1)
+      ui.input("Owner", value: owner)
+      ui.select("State", options: "open,in_progress,done", value: ticketState)
+      ui.textarea("Notes", value: notes)
+      ui.button("Save", action: "save")
+      ui.button("Resolve", action: "resolve")
+      ui.button("Back", action: "back")
+      on input.click("save") > Saved
+      on input.click("resolve") > ConfirmResolve
+      on input.click("back") > Inbox
+    end
+
+    state(ConfirmResolve):
+      window.modalConfirm("Mark incident as resolved?", action: "ok")
+      ui.button("Cancel", action: "cancel")
+      on input.click("ok") > Resolved
+      on input.click("cancel") > Ticket
+    end
+
+    state(Saved):
+      window.notify("Changes saved", tone: "success")
+      on input.tick() > Inbox
+    end
+
+    state(Resolved):
+      window.notify("Incident resolved", tone: "success")
+      on input.tick() > Inbox
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    owner = "Mia"
+    ticketState = "open"
+    notes = "Investigating customer-facing outage indicators"
+  end
+
+  nd(ux):
+    define desk.coreFlow():
+      "Inbox list, editable detail, save/resolve feedback, close via window control."
+    end
+
+    propose desktopWorkbench(mode: "service-desk")
+    satisfy(
+      ?desk.coreFlow(),
+      guide.desktopNativeLook(),
+      guide.focusOrderStable(),
+      guide.dialogCopyClarity(),
+      ?"allow flexible panel/layout composition while preserving the same user journey"
+    )
+  end
+end

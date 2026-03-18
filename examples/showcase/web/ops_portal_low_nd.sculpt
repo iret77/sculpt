@@ -1,0 +1,107 @@
+# Ops Portal (Low ND, Web)
+# Explicit operations workflow with dashboard, incidents, timeline, and change request.
+
+@meta target=web
+@meta web_profile="next-app"
+
+module(Showcase.OpsPortal.LowND):
+  use(web.ui)
+  use(web.input) as input
+  use(web.data) as data
+  use(web.net) as net
+  use(web.guide) as guide
+
+  flow(App):
+    start > Dashboard
+
+    state(Dashboard):
+      ui.heading("Operations Portal", level: 1)
+      ui.tabs("dashboard,incidents,changes", active: currentTab)
+      ui.panel("Service Health")
+      ui.metric("SLO", value: "99.93%")
+      ui.metric("Open incidents", value: openIncidents)
+      ui.chart("Error rate", series: "5m")
+      ui.button("Open incidents", action: "goIncidents")
+      ui.button("Refresh", action: "refresh")
+      on input.click("goIncidents") > Incidents
+      on input.click("refresh") > Refreshing
+      on input.key(esc) > Exit
+    end
+
+    state(Incidents):
+      ui.heading("Active Incidents", level: 1)
+      ui.table("ID | Severity | Owner | Started")
+      ui.text("INC-4821 | critical | Mia | 09:32")
+      ui.text("INC-4822 | major | Leo | 10:11")
+      ui.input("Filter", value: filterText)
+      ui.button("Apply filter", action: "filter")
+      ui.button("Open timeline", action: "timeline")
+      ui.button("Back", action: "back")
+      on input.submit("filter") > Filtered
+      on input.click("timeline") > Timeline
+      on input.click("back") > Dashboard
+      on input.key(esc) > Exit
+    end
+
+    state(Filtered):
+      ui.badge("Filter active", tone: "info")
+      ui.text("Showing filtered incident set", color: "cyan")
+      on input.tick() > Incidents
+    end
+
+    state(Timeline):
+      ui.heading("Incident Timeline", level: 1)
+      ui.list("09:32 detect  09:35 mitigate  09:48 stable")
+      ui.button("Create change", action: "change")
+      ui.button("Back", action: "back")
+      on input.click("change") > ChangeRequest
+      on input.click("back") > Incidents
+      on input.key(esc) > Exit
+    end
+
+    state(ChangeRequest):
+      ui.modal("Create emergency change?")
+      ui.button("Confirm", action: "confirm")
+      ui.button("Cancel", action: "cancel")
+      on input.click("confirm") > ChangeCreated
+      on input.click("cancel") > Timeline
+    end
+
+    state(ChangeCreated):
+      changeResp = net.post("/api/changes", payload)
+      ui.toast("Change request submitted", tone: "success")
+      on input.tick() > Dashboard
+    end
+
+    state(Refreshing):
+      incidentRows = data.query("incidents.active")
+      openIncidents = data.rowCount(incidentRows)
+      ui.toast("Dashboard refreshed", tone: "success")
+      on input.tick() > Dashboard
+    end
+
+    state(Exit):
+      terminate
+    end
+  end
+
+  state():
+    currentTab = "dashboard"
+    filterText = ""
+    openIncidents = 2
+    incidentRows = null
+    changeResp = null
+    payload = "{\"reason\":\"incident\"}"
+  end
+
+  nd(layout):
+    propose portalLayout(kind: "ops")
+    satisfy(
+      guide.clearInformationHierarchy(),
+      guide.responsiveBreakpoints(),
+      guide.accessibleColorContrast(),
+      guide.formValidationClarity(),
+      ?"optimize for on-call speed"
+    )
+  end
+end
