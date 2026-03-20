@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.28
+- Polished built-in GUI target theming for showcase quality on both supported GUI backends:
+  - macOS SwiftUI emitter now uses branded dark surfaces, improved card layout, and explicit button tinting via a generated hex-color helper.
+  - Tkinter emitter now applies a consistent dark palette and improved control styling for frames, labels, entries, and buttons.
+- Updated GUI color mappings to align emitted widgets with the SCULPT brand palette.
+
 ## 0.2.27
 - Upgraded built-in web target shell from plain page to structured showcase layout:
   - branded dark theme variables

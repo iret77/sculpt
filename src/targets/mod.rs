@@ -263,6 +263,14 @@ let package = Package(
 
     let mut swift = String::new();
     swift.push_str("import SwiftUI\nimport AppKit\n\n");
+    swift.push_str("extension Color {\n");
+    swift.push_str("  init(hex: UInt32) {\n");
+    swift.push_str("    let r = Double((hex >> 16) & 0xFF) / 255.0\n");
+    swift.push_str("    let g = Double((hex >> 8) & 0xFF) / 255.0\n");
+    swift.push_str("    let b = Double(hex & 0xFF) / 255.0\n");
+    swift.push_str("    self.init(red: r, green: g, blue: b)\n");
+    swift.push_str("  }\n");
+    swift.push_str("}\n\n");
     swift.push_str("struct RenderItem: Codable, Identifiable {\n");
     swift.push_str("  var id = UUID()\n");
     swift.push_str("  let kind: String\n");
@@ -354,6 +362,7 @@ let package = Package(
     swift.push_str("        }\n");
     swift.push_str("      }\n");
     swift.push_str("      .buttonStyle(.borderedProminent)\n");
+    swift.push_str("      .tint(Color(hex: 0x004B73))\n");
     swift.push_str("      .controlSize(.large)\n");
     swift.push_str("      .keyboardShortcut(.defaultAction)\n");
     swift.push_str("    case \"heading\":\n");
@@ -381,6 +390,8 @@ let package = Package(
     swift.push_str("        Text(item.text ?? \"\")\n");
     swift.push_str("          .foregroundStyle(mapColor(item.color))\n");
     swift.push_str("      }\n");
+    swift.push_str("      .padding(8)\n");
+    swift.push_str("      .background(Color(hex: 0x142131), in: RoundedRectangle(cornerRadius: 10, style: .continuous))\n");
     swift.push_str("    default:\n");
     swift.push_str("      Text(item.text ?? \"\")\n");
     swift.push_str("        .font(mapFont(item.style))\n");
@@ -397,38 +408,51 @@ let package = Package(
     swift.push_str("  }\n\n");
     swift.push_str("  func mapColor(_ color: String?) -> Color {\n");
     swift.push_str("    switch (color ?? \"\").lowercased() {\n");
-    swift.push_str("    case \"yellow\": return .yellow\n");
-    swift.push_str("    case \"blue\": return .blue\n");
-    swift.push_str("    case \"green\": return .green\n");
-    swift.push_str("    case \"red\": return .red\n");
-    swift.push_str("    case \"black\": return .black\n");
-    swift.push_str("    case \"white\": return .white\n");
-    swift.push_str("    case \"secondary\": return .secondary\n");
+    swift.push_str("    case \"yellow\": return Color(hex: 0xFFD166)\n");
+    swift.push_str("    case \"blue\": return Color(hex: 0x00FFFF)\n");
+    swift.push_str("    case \"green\": return Color(hex: 0x66F7A8)\n");
+    swift.push_str("    case \"red\": return Color(hex: 0xEA5172)\n");
+    swift.push_str("    case \"black\": return Color(hex: 0x0B111A)\n");
+    swift.push_str("    case \"white\": return Color(hex: 0xEAF5FF)\n");
+    swift.push_str("    case \"secondary\": return Color(hex: 0x9FB6C8)\n");
     swift.push_str("    default: return .primary\n");
     swift.push_str("    }\n");
     swift.push_str("  }\n\n");
     swift.push_str("  var body: some View {\n");
+    swift.push_str("    ZStack {\n");
+    swift.push_str("      LinearGradient(colors: [Color(hex: 0x0B111A), Color(hex: 0x0A0F17)], startPoint: .top, endPoint: .bottom)\n");
+    swift.push_str("        .ignoresSafeArea()\n");
     swift.push_str(&format!(
-        "    VStack(alignment: {}, spacing: {}) {{\n",
+        "      VStack(alignment: {}, spacing: {}) {{\n",
         map_alignment(align),
         spacing
     ));
+    swift.push_str("        Text(\"SCULPT GUI\")\n");
+    swift.push_str("          .font(.caption.weight(.semibold))\n");
+    swift.push_str("          .foregroundStyle(Color(hex: 0x00FFFF))\n");
+    swift.push_str("          .frame(maxWidth: .infinity, alignment: .leading)\n");
+    swift.push_str("          .padding(.bottom, 6)\n");
+    swift.push_str("        Divider().overlay(Color(hex: 0x004B73)).padding(.bottom, 4)\n");
     swift.push_str("      ForEach(activeItems) { item in\n");
     swift.push_str("        renderItem(item)\n");
     swift.push_str("      }\n");
-    swift.push_str("    }\n");
+    swift.push_str("      }\n");
     swift.push_str(&format!("    .padding({})\n", padding));
     swift.push_str(
-        "    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)\n",
+        "      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)\n",
     );
     swift.push_str(&format!(
-        "    .frame(width: {}, height: {})\n",
+        "      .frame(width: {}, height: {})\n",
         width, height
     ));
     swift.push_str(&format!(
-        "    .background({})\n",
+        "      .background({})\n",
         map_background(background)
     ));
+    swift.push_str("      .background(Color(hex: 0x142131), in: RoundedRectangle(cornerRadius: 12, style: .continuous))\n");
+    swift.push_str("      .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: 0x004B73), lineWidth: 1))\n");
+    swift.push_str("      .padding(12)\n");
+    swift.push_str("    }\n");
     swift.push_str("    .background(KeyCapture { key in dispatch(\"key(\\(key))\") }.frame(width: 0, height: 0))\n");
     swift.push_str("    .alert(\"OK\", isPresented: $showAlert) { Button(\"OK\", role: .cancel) { } }\n");
     swift.push_str("    .onExitCommand { dispatch(\"key(esc)\") }\n");
@@ -488,8 +512,9 @@ fn emit_gui_tkinter_state_machine(out_dir: &Path, target: Option<&TargetIr>) -> 
     py.push_str("width = int(window.get('width') or 420)\n");
     py.push_str("height = int(window.get('height') or 260)\n");
     py.push_str("root.geometry(f'{width}x{height}')\n");
-    py.push_str("root.resizable(False, False)\n\n");
-    py.push_str("frame = tk.Frame(root, padx=24, pady=24)\n");
+    py.push_str("root.resizable(False, False)\n");
+    py.push_str("root.configure(bg='#0b111a')\n\n");
+    py.push_str("frame = tk.Frame(root, padx=24, pady=24, bg='#142131')\n");
     py.push_str("frame.pack(fill='both', expand=True)\n\n");
     py.push_str("def map_color(name):\n");
     py.push_str("    c = str(name or '').lower()\n");
@@ -500,9 +525,9 @@ fn emit_gui_tkinter_state_machine(out_dir: &Path, target: Option<&TargetIr>) -> 
     py.push_str("        'red': '#ff453a',\n");
     py.push_str("        'magenta': '#ea5172',\n");
     py.push_str("        'secondary': '#9aa0aa',\n");
-    py.push_str("        'white': '#ffffff',\n");
-    py.push_str("        'black': '#111111',\n");
-    py.push_str("    }.get(c, '#ffffff')\n\n");
+    py.push_str("        'white': '#eaf5ff',\n");
+    py.push_str("        'black': '#0b111a',\n");
+    py.push_str("    }.get(c, '#eaf5ff')\n\n");
     py.push_str("def map_font(style):\n");
     py.push_str("    s = str(style or '')\n");
     py.push_str("    if s == 'title': return ('Menlo', 20, 'bold')\n");
@@ -550,32 +575,32 @@ fn emit_gui_tkinter_state_machine(out_dir: &Path, target: Option<&TargetIr>) -> 
     py.push_str("        text = item.get('text') or ''\n");
     py.push_str("        color = map_color(item.get('color'))\n");
     py.push_str("        if kind == 'button':\n");
-    py.push_str("            tk.Button(frame, text=text or 'OK', command=on_primary).pack(anchor='w', pady=(8, 0))\n");
+    py.push_str("            tk.Button(frame, text=text or 'OK', command=on_primary, bg='#004b73', fg='#eaf5ff', activebackground='#006896', activeforeground='#eaf5ff', relief='flat', padx=10, pady=6).pack(anchor='w', pady=(8, 0))\n");
     py.push_str("        elif kind == 'heading':\n");
-    py.push_str("            tk.Label(frame, text=text, fg=color, font=('Menlo', 16, 'bold')).pack(anchor='w', pady=(0, 8))\n");
+    py.push_str("            tk.Label(frame, text=text, fg=color, bg='#142131', font=('Menlo', 16, 'bold')).pack(anchor='w', pady=(0, 8))\n");
     py.push_str("        elif kind == 'input':\n");
-    py.push_str("            entry = tk.Entry(frame, width=36)\n");
+    py.push_str("            entry = tk.Entry(frame, width=36, bg='#0b111a', fg='#eaf5ff', disabledforeground='#9fb6c8', insertbackground='#00ffff', relief='flat')\n");
     py.push_str("            entry.insert(0, text)\n");
     py.push_str("            entry.configure(state='readonly')\n");
     py.push_str("            entry.pack(anchor='w', pady=(0, 6))\n");
     py.push_str("        elif kind == 'checkbox':\n");
     py.push_str("            var = tk.BooleanVar(value=False)\n");
-    py.push_str("            cb = tk.Checkbutton(frame, text=text or 'Option', variable=var)\n");
+    py.push_str("            cb = tk.Checkbutton(frame, text=text or 'Option', variable=var, bg='#142131', fg=color, selectcolor='#0b111a', activebackground='#142131', activeforeground=color)\n");
     py.push_str("            cb.configure(state='disabled')\n");
     py.push_str("            cb.pack(anchor='w', pady=(0, 6))\n");
     py.push_str("        elif kind == 'table':\n");
-    py.push_str("            box = tk.Text(frame, width=44, height=6)\n");
+    py.push_str("            box = tk.Text(frame, width=44, height=6, bg='#0b111a', fg='#eaf5ff', relief='flat')\n");
     py.push_str("            box.insert('1.0', text)\n");
     py.push_str("            box.configure(state='disabled')\n");
     py.push_str("            box.pack(anchor='w', pady=(0, 6))\n");
     py.push_str("        elif kind in ('panel', 'card'):\n");
-    py.push_str("            panel = tk.LabelFrame(frame, text='')\n");
+    py.push_str("            panel = tk.LabelFrame(frame, text='', bg='#101a29', fg='#9fb6c8', bd=1, relief='solid')\n");
     py.push_str("            panel.pack(anchor='w', fill='x', pady=(0, 6))\n");
-    py.push_str("            tk.Label(panel, text=text, fg=color).pack(anchor='w', padx=8, pady=6)\n");
+    py.push_str("            tk.Label(panel, text=text, fg=color, bg='#101a29').pack(anchor='w', padx=8, pady=6)\n");
     py.push_str("        elif kind == 'modal':\n");
-    py.push_str("            tk.Button(frame, text=text or 'Open', command=lambda: messagebox.showinfo('Info', text or 'OK')).pack(anchor='w', pady=(0, 6))\n");
+    py.push_str("            tk.Button(frame, text=text or 'Open', command=lambda: messagebox.showinfo('Info', text or 'OK'), bg='#004b73', fg='#eaf5ff', activebackground='#006896', activeforeground='#eaf5ff', relief='flat', padx=10, pady=6).pack(anchor='w', pady=(0, 6))\n");
     py.push_str("        else:\n");
-    py.push_str("            tk.Label(frame, text=text, fg=color, font=map_font(item.get('style'))).pack(anchor='w', pady=(0, 8 if idx == 0 else 4))\n\n");
+    py.push_str("            tk.Label(frame, text=text, fg=color, bg='#142131', font=map_font(item.get('style'))).pack(anchor='w', pady=(0, 8 if idx == 0 else 4))\n\n");
     py.push_str("root.bind('<KeyPress>', on_key)\n");
     py.push_str("root.bind('<Escape>', lambda _e: dispatch('key(esc)'))\n");
     py.push_str("root.bind('<Return>', on_primary)\n");
