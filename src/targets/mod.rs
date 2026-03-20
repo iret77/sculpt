@@ -233,7 +233,11 @@ let package = Package(
     swift.push_str("    case \"button\":\n");
     swift.push_str("      Button(item.text ?? \"OK\") {\n");
     swift.push_str("        if item.action == \"modal.ok\" { showAlert = true }\n");
-    swift.push_str("        dispatch(\"click\")\n");
+    swift.push_str("        if let action = item.action, !action.isEmpty {\n");
+    swift.push_str("          dispatch(\"input.click(\\(action))\")\n");
+    swift.push_str("        } else {\n");
+    swift.push_str("          dispatch(\"input.click\")\n");
+    swift.push_str("        }\n");
     swift.push_str("      }\n");
     swift.push_str("      .buttonStyle(.borderedProminent)\n");
     swift.push_str("      .controlSize(.large)\n");
@@ -411,8 +415,10 @@ fn emit_gui_tkinter_state_machine(out_dir: &Path, target: Option<&TargetIr>) -> 
     py.push_str("    action = current_button_action()\n");
     py.push_str("    if action == 'modal.ok':\n");
     py.push_str("        messagebox.showinfo('OK', 'OK')\n");
-    py.push_str("    dispatch('click')\n");
-    py.push_str("    dispatch('key(enter)')\n\n");
+    py.push_str("    if action:\n");
+    py.push_str("        dispatch(f\"input.click({action})\")\n");
+    py.push_str("    else:\n");
+    py.push_str("        dispatch('input.click')\n\n");
     py.push_str("def normalize_key(evt):\n");
     py.push_str("    k = str(evt.keysym or '').lower()\n");
     py.push_str("    if k in ('return', 'kp_enter'): return 'enter'\n");

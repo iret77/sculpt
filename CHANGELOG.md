@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.25
+- Expanded deterministic target-IR patching to all built-in targets (`cli-ir`, `gui-ir`, `web-ir`) so deterministic UI/state/event structure survives LLM variance.
+- Extended UI call mapping for namespaced `ui.*` calls to emit richer widget kinds (not only text/button).
+- Added action-aware event normalization for namespaced input calls (`input.click(...)`, `input.submit(...)`, etc.).
+- Updated compact `web-ir` LLM schema to allow button widgets.
+- Upgraded web runtime codegen to render multiple widget kinds and dispatch action-specific click/submit events.
+- Updated GUI emitters to dispatch action-specific click events.
+- Updated showcase web examples to rely on explicit click-driven transitions for consistent run behavior.
+
 ## 0.2.24
 - Added curated low-ND/high-ND showcase pairs under `examples/showcase/`:
   - `games/snake_*`

@@ -37,7 +37,7 @@ module(Showcase.OpsPortal.LowND):
       ui.button("Apply filter", action: "filter")
       ui.button("Open timeline", action: "timeline")
       ui.button("Back", action: "back")
-      on input.submit("filter") > Filtered
+      on input.click("filter") > Filtered
       on input.click("timeline") > Timeline
       on input.click("back") > Dashboard
       on input.key(esc) > Exit
@@ -46,7 +46,8 @@ module(Showcase.OpsPortal.LowND):
     state(Filtered):
       ui.badge("Filter active", tone: "info")
       ui.text("Showing filtered incident set", color: "cyan")
-      on input.tick() > Incidents
+      ui.button("Back to incidents", action: "backIncidents")
+      on input.click("backIncidents") > Incidents
     end
 
     state(Timeline):
@@ -70,14 +71,16 @@ module(Showcase.OpsPortal.LowND):
     state(ChangeCreated):
       changeResp = net.post("/api/changes", payload)
       ui.toast("Change request submitted", tone: "success")
-      on input.tick() > Dashboard
+      ui.button("Back to dashboard", action: "backDashboard")
+      on input.click("backDashboard") > Dashboard
     end
 
     state(Refreshing):
       incidentRows = data.query("incidents.active")
       openIncidents = data.rowCount(incidentRows)
       ui.toast("Dashboard refreshed", tone: "success")
-      on input.tick() > Dashboard
+      ui.button("Back to dashboard", action: "backDashboard")
+      on input.click("backDashboard") > Dashboard
     end
 
     state(Exit):

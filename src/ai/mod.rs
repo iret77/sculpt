@@ -504,7 +504,7 @@ fn patch_target_ir_with_deterministic_parts(
     standard_ir: &str,
     sculpt_ir: &Value,
 ) {
-    if standard_ir != "cli-ir" {
+    if standard_ir != "cli-ir" && standard_ir != "gui-ir" && standard_ir != "web-ir" {
         return;
     }
     let Some(root) = target.as_object_mut() else {
@@ -575,7 +575,7 @@ fn patch_target_ir_with_deterministic_parts(
                             }
                         }
                     }
-                } else if expr_name == "ui.text" || expr_name == "ui.button" {
+                } else if expr_name.starts_with("ui.") {
                     if let Some(item) = render_item_from_call(expr) {
                         render_items.push(Value::Object(item));
                     }
@@ -716,12 +716,21 @@ fn normalize_event_name_from_call(call: &serde_json::Map<String, Value>) -> Stri
             .to_lowercase();
         return format!("key({key})");
     }
-    if call
+    let canonical = normalize_input_event_name(name);
+    let first_arg = call
         .get("args")
         .and_then(Value::as_array)
-        .map(|a| a.is_empty())
-        .unwrap_or(true)
-    {
+        .and_then(|args| args.first())
+        .and_then(|arg| extract_scalar_string(arg.get("value")));
+
+    if let Some(event_name) = canonical {
+        if let Some(arg) = first_arg {
+            return format!("{event_name}({arg})");
+        }
+        return event_name;
+    }
+
+    if first_arg.is_none() {
         return name.to_string();
     }
     name.to_string()
@@ -843,6 +852,15 @@ fn normalize_event_name(name: &str, args: Option<&Vec<Value>>) -> String {
             .to_lowercase();
         return format!("key({})", key);
     }
+    if let Some(event_name) = normalize_input_event_name(name) {
+        let arg = args
+            .and_then(|list| list.first())
+            .and_then(|a| extract_scalar_string(a.get("value")));
+        if let Some(a) = arg {
+            return format!("{event_name}({a})");
+        }
+        return event_name;
+    }
     if let Some(list) = args {
         if list.is_empty() {
             return name.to_string();
@@ -855,13 +873,42 @@ fn render_item_from_call(
     call: &serde_json::Map<String, Value>,
 ) -> Option<serde_json::Map<String, Value>> {
     let raw_name = call.get("name").and_then(Value::as_str).unwrap_or_default();
-    let kind = if raw_name == "text" || raw_name == "ui.text" {
-        "text"
-    } else if raw_name == "button" || raw_name == "ui.button" {
-        "button"
-    } else {
-        return None;
-    };
+    let kind = raw_name
+        .strip_prefix("ui.")
+        .or_else(|| {
+            if raw_name == "text" || raw_name == "button" {
+                Some(raw_name)
+            } else {
+                None
+            }
+        })
+        .filter(|k| {
+            matches!(
+                *k,
+                "text"
+                    | "heading"
+                    | "button"
+                    | "badge"
+                    | "list"
+                    | "table"
+                    | "input"
+                    | "textarea"
+                    | "select"
+                    | "checkbox"
+                    | "radio"
+                    | "panel"
+                    | "card"
+                    | "tabs"
+                    | "modal"
+                    | "toast"
+                    | "banner"
+                    | "progress"
+                    | "metric"
+                    | "chart"
+                    | "link"
+                    | "image"
+            )
+        })?;
     let mut item = serde_json::Map::new();
     item.insert("kind".to_string(), Value::String(kind.to_string()));
     if let Some(call_args) = call.get("args").and_then(Value::as_array) {
@@ -883,9 +930,31 @@ fn render_item_from_call(
                     item.insert("style".to_string(), Value::String(s));
                 }
             }
+            if name == Some("action") {
+                if let Some(s) = extract_scalar_string(val) {
+                    item.insert("action".to_string(), Value::String(s));
+                }
+            }
         }
     }
     Some(item)
+}
+
+fn normalize_input_event_name(name: &str) -> Option<String> {
+    let raw = name.strip_prefix("input.").unwrap_or(name);
+    let normalized = match raw {
+        "click" => "input.click",
+        "submit" => "input.submit",
+        "change" => "input.change",
+        "select" => "input.select",
+        "focus" => "input.focus",
+        "blur" => "input.blur",
+        "navigate" => "input.navigate",
+        "back" => "input.back",
+        "refresh" => "input.refresh",
+        _ => return None,
+    };
+    Some(normalized.to_string())
 }
 
 fn extract_scalar_string(value: Option<&Value>) -> Option<String> {

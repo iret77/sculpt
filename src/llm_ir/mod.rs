@@ -3,7 +3,7 @@ use serde_json::{json, Map, Value};
 pub fn compact_schema_for(standard_ir: &str) -> Option<Value> {
     match standard_ir {
         "cli-ir" => Some(schema_base(standard_ir, false, false)),
-        "web-ir" => Some(schema_base(standard_ir, false, false)),
+        "web-ir" => Some(schema_base(standard_ir, false, true)),
         "gui-ir" => Some(schema_base(standard_ir, true, true)),
         _ => None,
     }
