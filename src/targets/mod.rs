@@ -85,9 +85,123 @@ pub fn emit_web(target: &TargetIr, out_dir: &Path) -> Result<()> {
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Sculpt Web Target</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SCULPT Web Target</title>
     <style>
-      body { font-family: sans-serif; padding: 24px; }
+      :root {
+        --bg: #0b111a;
+        --bg-elev: #101a29;
+        --bg-card: #142131;
+        --line: rgba(0, 255, 255, 0.28);
+        --text: #eaf5ff;
+        --muted: #9fb6c8;
+        --accent: #00ffff;
+        --accent-2: #ea5172;
+        --good: #66f7a8;
+        --warn: #ffd166;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        color: var(--text);
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Arial, sans-serif;
+        background:
+          radial-gradient(1200px 700px at 10% -20%, rgba(0, 255, 255, 0.12), transparent 60%),
+          radial-gradient(900px 700px at 95% 0%, rgba(234, 81, 114, 0.12), transparent 55%),
+          linear-gradient(180deg, #0b111a 0%, #0a0f17 100%);
+      }
+
+      #app {
+        max-width: 1080px;
+        margin: 28px auto;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(15,24,38,0.95), rgba(11,17,26,0.95));
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+      }
+
+      .sculpt-shell {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(20,33,49,0.9), rgba(14,24,36,0.9));
+      }
+      .sculpt-titlebar {
+        padding: 10px 14px;
+        color: var(--accent);
+        font-weight: 700;
+        letter-spacing: .03em;
+        border-bottom: 1px solid var(--line);
+        background: rgba(0, 75, 115, 0.2);
+      }
+      .sculpt-body {
+        padding: 16px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .sculpt-heading { margin: 2px 0 8px; color: var(--accent); font-size: 1.2rem; }
+      .sculpt-text { color: var(--text); line-height: 1.4; }
+      .sculpt-list { color: var(--text); }
+      .sculpt-badge {
+        display: inline-block;
+        width: fit-content;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(0,255,255,.35);
+        background: rgba(0,255,255,.12);
+        color: var(--accent);
+        font-size: .86rem;
+      }
+      .sculpt-metric {
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(0,75,115,.16);
+        color: var(--text);
+      }
+      .sculpt-card {
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(16,26,41,.8);
+      }
+      .sculpt-tabs {
+        color: var(--muted);
+        border-bottom: 1px solid rgba(159,182,200,.3);
+        padding-bottom: 6px;
+      }
+      .sculpt-table {
+        margin: 0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        color: #cfe4f3;
+        background: #0f1724;
+        border: 1px solid rgba(159,182,200,.3);
+        border-radius: 8px;
+        padding: 10px;
+        white-space: pre-wrap;
+      }
+      .sculpt-input {
+        width: 100%;
+        border: 1px solid rgba(0,255,255,.35);
+        border-radius: 8px;
+        background: rgba(8,14,22,.9);
+        color: var(--text);
+        padding: 8px 10px;
+      }
+      .sculpt-btn {
+        width: fit-content;
+        border: 1px solid rgba(0,255,255,.4);
+        border-radius: 8px;
+        padding: 8px 12px;
+        background: linear-gradient(180deg, rgba(0,75,115,.36), rgba(0,46,72,.42));
+        color: var(--text);
+        cursor: pointer;
+      }
+      .sculpt-btn:hover { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(0,255,255,.2) inset; }
     </style>
   </head>
   <body>

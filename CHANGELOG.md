@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.26
+- Polished built-in web presentation layer for stronger showcase quality:
+  - upgraded default HTML shell/theme (layout, spacing, typography, color system)
+  - added reusable UI classes (`shell`, `titlebar`, `card`, `badge`, `input`, `button`, `table`, etc.)
+- Expanded web renderer output composition:
+  - state-based shell rendering with title bar and structured content body
+  - richer widget construction path for heading/text/list/table/panel/card/metric/tabs/modal/toast/input/textarea/button
+  - centralized color/style mapping for consistent look-and-feel across web examples.
+
 ## 0.2.25
 - Expanded deterministic target-IR patching to all built-in targets (`cli-ir`, `gui-ir`, `web-ir`) so deterministic UI/state/event structure survives LLM variance.
 - Extended UI call mapping for namespaced `ui.*` calls to emit richer widget kinds (not only text/button).
