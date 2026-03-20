@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.27
+- Upgraded built-in web target shell from plain page to structured showcase layout:
+  - branded dark theme variables
+  - polished container/surface styles
+  - reusable visual classes for heading/text/list/table/card/badge/input/button
+- Refactored web runtime rendering into composable widget builder functions:
+  - centralized color/style mapping
+  - state titlebar + body shell composition
+  - consistent event wiring for action buttons and submit-capable inputs.
+
 ## 0.2.26
 - Polished built-in web presentation layer for stronger showcase quality:
   - upgraded default HTML shell/theme (layout, spacing, typography, color system)
