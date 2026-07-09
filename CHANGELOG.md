@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.29
+- Added a consolidated open work register at docs/SCULPT_Open_Work_Register.md covering open milestones, packages, issues, todos, and product ideas.
+
 ## 0.2.28
 - Polished built-in GUI target theming for showcase quality on both supported GUI backends:
   - macOS SwiftUI emitter now uses branded dark surfaces, improved card layout, and explicit button tinting via a generated hex-color helper.
