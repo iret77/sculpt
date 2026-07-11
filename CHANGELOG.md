@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.30
+- Established the canonical Convergent Programming concept for SCULPT's next architecture.
+- Reframed SCULPT as a language for programming bounded solution spaces with explicit obligations, preferences, freedoms, and evidence.
+- Defined progressive formalization, agentic compilation, incremental semantic graphs, evidence classes, and hybrid provider-specific lowering.
+- Updated the README pitch and documentation index to make the new strategic direction discoverable.
+
 ## 0.2.29
 - Added a consolidated open work register at docs/SCULPT_Open_Work_Register.md covering open milestones, packages, issues, todos, and product ideas.
 

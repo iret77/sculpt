@@ -2,6 +2,11 @@
 
 (C) 2026 byte5 GmbH
 
+> This document records detailed requirements from the current architecture.
+> The [SCULPT Convergent Programming Concept](SCULPT_Convergent_Programming_Concept.md)
+> is the canonical strategic direction. Where the documents conflict, the
+> Convergent Programming concept takes precedence.
+
 ## Goal
 Define what SCULPT needs to support real-world, large-scale software projects
 (ERP, commercial games, multi-team platforms) with predictable quality.
