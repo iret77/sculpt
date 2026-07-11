@@ -1,7 +1,5 @@
 # SCULPT
 
-(C) 2026 byte5 GmbH
-
 ## Elevator Pitch
 **Prompts tell AI what you want. SCULPT lets you program what AI is allowed to build.**
 
