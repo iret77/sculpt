@@ -1,5 +1,10 @@
 # SCULPT vs Vibe: Data-Heavy Benchmark Setup
 
+> **Historical protocol — retired.** This prompt-first comparison is not a
+> valid baseline for the current concept. See
+> [SCULPT Evidence Status](SCULPT_Evidence_Status.md) and the three-arm protocol
+> in the canonical concept.
+
 (C) 2026 byte5 GmbH
 
 ## Purpose

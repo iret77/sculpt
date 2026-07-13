@@ -1,53 +1,84 @@
-# SCULPT Baseline Provider Plan
+# SCULPT Reference Provider Plan
+
+Status: **replaces the former three-target baseline provider program as of
+2026-07-12**.
+
+The legacy filename is retained to avoid broken links. The built-in CLI, GUI,
+and Web providers are maintenance-only. This plan authorizes one first-party
+Brownfield reference provider after the commercial gate in the
+[canonical concept](SCULPT_Convergent_Programming_Concept.md) passes.
 
 ## Goal
-Bring built-in providers (`cli`, `gui`, `web`) from demo-grade to practical app-grade while keeping SCULPT strict, contract-driven, and predictable.
 
-## Non-Negotiables
-- No implicit magic words in ND constraints.
-- Every callable symbol is contract-exported and discoverable (`sculpt target packages/exports`).
-- Deterministic runtime path remains stable under build/replay.
+Prove that the SCULPT kernel can govern repeated native changes in a real
+design-partner stack without compiler-owned domain logic and with commercially
+viable setup and maintenance cost.
 
-## Provider Upgrade Blocks
+Before the first counted commercial interview, the project freezes a provider
+compatibility corridor: language/runtime, supported framework-major range,
+build/test interface, data boundary, and deployment shape. G0 requires four
+real repositories from two external organizations inside that corridor. The
+selection is not driven by existing demos and remains fixed through the
+existence gate.
 
-| Block | Scope | Deliverables | Exit Criteria |
-|---|---|---|---|
-| B1 | Contract Completeness | Expand `ui`, `input`, and `nd` packages for each target. Add descriptions and export lists for every symbol. | Each target can build at least one non-trivial CRUD/business example and one interactive example without undefined symbols. |
-| B2 | Deterministic Data Core | Add a shared `data` package profile (`readCsv`, `readJson`, `filter`, `group`, `sort`, `writeCsv`, `writeJson`) with strict signatures. | Data-heavy benchmark artifacts are reproducible and schema-validated. |
-| B3 | Practical UI Kit | `cli`: forms/tables/pagination; `gui`: dialogs/forms/list+detail; `web`: board/list/filter/detail patterns. | Real app examples (ticketing/invoice/review) compile without ad-hoc custom glue. |
-| B4 | ND Catalogs by Domain | Curated ND vocab sets (`layout`, `tone`, `playability`, `accessibility`, `ops`) exported via `nd` namespace per target. | Examples no longer use unqualified ND names; all ND constraints resolve via contract or local `define`. |
-| B5 | Cross-Platform Runtime Parity | `gui` backend parity (macOS/Windows/Linux), equivalent interaction semantics where possible. | Same SCULPT script yields functionally equivalent behavior across desktop platforms. |
-| B6 | Quality Gates + Benchmarks | Contract validation tests, provider conformance tests, benchmark regression checks in CI. | Release gate blocks on contract drift, missing exports, benchmark regressions. |
+## Architecture Boundary
 
-## Target-Specific Focus
+| Layer | Responsibility |
+|---|---|
+| Compiler kernel | Typed graph, permissions, invalidation, convergence, evidence policy, locks |
+| Stack adapter | Native build/test/run/package tools, diagnostics, sandbox declarations |
+| Capability packs | Versioned stack and domain contracts, effects, freedom slots |
+| Organization assurance | Policies, validators, human authority, external trust roots |
 
-### CLI
-- Strengths to amplify: deterministic automation/data flows, terminal-first ops tools.
-- Missing today: richer widgets, stronger multi-step interaction primitives.
-- Priority: B2 -> B3 -> B4.
+Model, stack, and assurance providers remain logically separate even when one
+bundle implements multiple roles.
 
-### GUI
-- Strengths to amplify: native-feeling desktop workflows.
-- Missing today: parity and robust component coverage.
-- Priority: B3 -> B5 -> B6.
+## Required Deliverables
 
-### Web
-- Strengths to amplify: app-level flows, stack profile abstraction.
-- Missing today: deeper practical patterns for dashboard/business apps.
-- Priority: B3 -> B4 -> B6.
+| Block | Deliverable | Exit criterion |
+|---|---|---|
+| R1 | Versioned provider protocol | Capabilities, effects, freedom slots, tools, diagnostics, validators, sandbox permissions, and compatibility rules validate before synthesis. |
+| R2 | Native Brownfield binding | Existing types, schemas, APIs, tests, and owned regions enter the graph without a full rewrite. |
+| R3 | Bounded patch transaction | Agent can edit only declared regions and the provider returns attributable native patches. |
+| R4 | Verification integration | Native static checks, builds, tests, and external validators emit evidence attestations for exact semantic subjects. |
+| R5 | Operations integration | Emergency override, taint, waiver, reconciliation, and full reverification work on the real stack. |
+| R6 | Conformance suite | Clean/incremental equivalence, permission denial, provenance, evidence freshness, and compatibility are machine-tested. |
+| R7 | SDK extension proof | An independent developer adds a non-trivial capability without compiler changes or fork. |
+| R8 | Second-repository proof | Same provider supports a second real repository within the fixed setup and maintenance limits. |
 
-## Delivery Rhythm (Suggested)
-- Sprint 1: B1 + B4 (strict symbol baseline, no ND magic leakage).
-- Sprint 2: B2 + CLI half of B3.
-- Sprint 3: GUI/Web half of B3 + start B5.
-- Sprint 4: B5 completion + B6 hard release gating.
+## Hard Prohibitions
 
-## Current B3 Reference Examples
-- CLI: `/Users/cwendler/Dev/App/sculpt/examples/practical/cli_control_center.sculpt`
-- GUI: `/Users/cwendler/Dev/App/sculpt/examples/practical/gui_service_desk.sculpt`
-- Web: `/Users/cwendler/Dev/App/sculpt/examples/practical/web_ops_portal.sculpt`
+- No claims, invoices, games, showcase, benchmark, or other application
+  behavior in compiler or stack adapter.
+- No unknown symbol or prose phrase interpreted as an implicit capability.
+- No provider self-certification as the sole evidence for its own critical
+  output.
+- No fallback stub or replay accepted as evidence of real synthesis.
+- No provider override of core graph, invalidation, or acceptance semantics.
+- No broad catalog built in anticipation of hypothetical applications.
+- No second target, registry, or marketplace before Full-Go.
 
-## Definition of Practical
-- A developer can build a useful app without hidden provider knowledge.
-- Symbol discovery is self-service from CLI + docs.
-- Behavior is stable enough for CI and team-scale collaboration.
+## Portability And Economics Gates
+
+The provider passes only if:
+
+- the second real repository needs no compiler change and at most five
+  person-days of project-specific adapter work;
+- a representative minor stack upgrade needs at most two person-days;
+- the independent SDK extension passes the same conformance suite;
+- provider authoring, setup, support, upgrades, and failed attempts appear in
+  the fully loaded benchmark cost;
+- native output remains buildable and maintainable without SCULPT.
+
+Application-specific business contracts remain customer-owned. A later
+commercial hypothesis is paid LTS provider bundles, assurance integrations,
+and support. It is not a current product claim.
+
+## Existing Providers
+
+The existing CLI, GUI, and Web providers remain useful prototype and regression
+fixtures. They do not satisfy this plan, and their demo-specific behavior must
+not enter the reference proof.
+
+Allowed work before Full-Go is limited to security, critical regression fixes,
+and reuse directly required by the single reference-provider path.

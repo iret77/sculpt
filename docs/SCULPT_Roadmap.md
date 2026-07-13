@@ -2,77 +2,114 @@
 
 (C) 2026 byte5 GmbH
 
+Status: **binary existence roadmap after the 2026-07-12 strategic reset**.
+
+The [Convergent Programming Concept](SCULPT_Convergent_Programming_Concept.md)
+defines the product and immutable gates. The
+[Open Work Register](SCULPT_Open_Work_Register.md) is the operative backlog.
+
 ## Vision Target
 
-**SCULPT must become the default coding interface for AI-era development teams:**  
-more controllable than vibe coding, more expressive than rigid templates, and more reproducible than prompt-only workflows.
+**SCULPT must become the evidence-carrying change compiler for AI-written
+software in audit-intensive Brownfield systems.**
 
----
+It succeeds only if typed intent, bounded synthesis, semantic invalidation, and
+fresh obligation-level evidence reduce the fully loaded cost of an accepted
+change materially below best-practice spec-driven agentic development.
+
+The former vision of a universal app-generation language and simultaneous
+multi-target platform is retired.
 
 ## Milestone Path
 
-```mermaid
+~~~mermaid
 flowchart LR
-  M1["M1 Foundation Stability"] --> M2["M2 Deterministic Core"]
-  M2 --> M3["M3 Team-Scale Language"]
-  M3 --> M4["M4 Production Targets"]
-  M4 --> M5["M5 Performance & CI at Scale"]
-  M5 --> M6["M6 Ecosystem & 1.0"]
-```
+  G0["G0 Commercial proof"] --> M1["M1 Semantic kernel"]
+  M1 --> G1["G1 Language"]
+  G1 --> M2["M2 Real agentic loop"]
+  M2 --> G2["G2 Loop"]
+  G2 --> M3["M3 Graph + operations"]
+  M3 --> G3["G3 Graph"]
+  G3 --> G4["G4 Operations"]
+  G4 --> M4["M4 Reference provider"]
+  M4 --> G5["G5 Provider"]
+  G5 --> M5["M5 Three-arm experiment"]
+  M5 --> G6["G6 Full-Go or archive"]
+~~~
 
----
+Every gate is binary. A failed gate receives at most the single remediation
+cycle defined in the concept. A second failure ends the project.
 
-## Milestones (Outcome-Driven)
+## Milestones
 
-| Milestone | Strategic Goal | Exit Criteria |
+| Milestone | Outcome | Exit criteria |
 |---|---|---|
-| **M1 Foundation Stability** | Make current compiler behavior predictable for daily use. | Parser/semantics stable across examples, TUI/CLI workflow reliable, artifacts isolated per script, no blocking known regressions. |
-| **M2 Deterministic Core** | Enforce contract-driven behavior where it matters. | Target functions/constants validated pre-LLM, strict ND policy with explicit soft constraints, deterministic replay path trusted in CI. |
-| **M3 Team-Scale Language** | Enable large codebases and multi-dev collaboration. | Module imports, namespace refactoring safety, scoped rules inside states/flows, project-level structure for 100+ files. |
-| **M4 Production Targets** | Deliver credible cross-platform outputs, not demos. | `gui` parity on macOS/Windows/Linux, meaningful `web` app output, target provider contract extensions documented and testable. |
-| **M5 Performance & CI at Scale** | Keep large projects fast and affordable. | Incremental compile slices, compact IR pipeline default, token budgets and cost telemetry, cache/reuse of unchanged units. |
-| **M6 Ecosystem & 1.0** | Open ecosystem without losing quality. | Versioned provider SDK, contract compatibility checks, curated provider registry process, publish-ready 1.0 language/compiler spec. |
+| M0 Commercial Proof | Real problem, compatible repositories, tasks, and buyer commitment exist. | Provider corridor frozen before interviews; four repositories from two external organizations inside it; one paid pilot or binding commitment within 20 qualified interviews. |
+| M1 Semantic Kernel | Minimal typed graph and evidence semantics are normative. | Stable IDs; types/effects/boundaries; obligations; closed-world freedoms; ownership; policies; candidate/accepted/releasable states. |
+| M2 Real Agentic Loop | SCULPT performs bounded search rather than one-shot generation or transport retry. | Real model repairs a real verifier failure in an isolated transaction; evidence policy alone accepts; no stub or hardcoded behavior. |
+| M3 Graph And Operations | Repeated changes remain sound and operational incidents are supported. | Clean/incremental equivalence, critical invalidation recall, semantic diff, refinement, granular lock, override, taint, reconciliation. |
+| M4 Reference Provider | One real Brownfield stack works without domain leakage. | First repository complete; second repository within setup limits; independent SDK extension; representative stack update within maintenance limit. |
+| M5 Existence Experiment | SCULPT is isolated from agent/harness and convention effects. | Independent baseline bake-off; frozen three-arm clustered benchmark over four repositories and at least forty assigned changes; complete raw audit package. |
+| M6 Full-Go Or Archive | Project decision is evidence-based and final. | Every immutable threshold and the independent artifact audit pass, or the negative result is published and the project is archived. |
 
----
+## Current Wave
 
-## Execution Waves
-
-| Wave | Priority | Focus |
+| Order | Work | Constraint |
 |---|---|---|
-| **Now** | Highest | M1 + M2 |
-| **Next** | High | M3 + M4 |
-| **Then** | High | M5 |
-| **Release Track** | Medium | M6 |
+| 1 | Quarantine historical benchmark claims. | Existing POCs are exploratory only. |
+| 2 | Complete commercial discovery. | No platform build before G0. |
+| 3 | Specify language/evidence kernel. | Small graph kernel, not a universal Target IR. |
+| 4 | Build one vertical Brownfield change. | One provider, one unit, one real repair, one evidence chain. |
+| 5 | Prove incrementality and operations. | No unsound cache hit; hotfix must reconcile. |
+| 6 | Prove provider portability. | Second real repository, no compiler change. |
+| 7 | Run the frozen existence experiment. | No official benchmark earlier. |
+| 8 | Independent audit and final decision. | Full-Go or archive; no third outcome. |
 
----
+## North-Star And Guardrails
 
-## Next Milestones (Execution Order)
+Primary metric:
 
-| Step | Milestone | Scope (Concrete) | Exit Criteria |
-|---|---|---|---|
-| **1** | **A. Data-Path Safety Completion** | ND guardrails for critical data rules, stronger diagnostics for data/signature/schema failures, strict artifact enforcement defaults. | Data-heavy benchmark passes matrix + reproducibility gate without manual fixes; failures are explicit and actionable. |
-| **2** | **B. Contract + Namespace Scalability** | Contract versioning + compatibility checks, larger namespace/import workflows, explicit symbol cataloging per target package. | Large multi-module projects compile with clear dependency diagnostics and no magic symbol ambiguity. |
-| **3** | **C. Provider Platform Hardening** | Stable provider interfaces (LLM + target), retry/fallback policies, provider telemetry normalized in build metadata and TUI. | External providers can plug in with predictable behavior and pass contract validation test suites. |
-| **4** | **D. Production-Grade Target Outputs** (completed) | `gui` parity across macOS/Windows/Linux, stronger `web` stack adapters (SSR/CSR profiles), deterministic build artifacts per target. | Non-demo app scenarios run across platforms with target-specific quality gates passing in CI. |
-| **5** | **E. Competitive Benchmark Release Gates** (completed) | Standard benchmark suite (workflow, data-heavy, UI) as release gate; SCULPT-vs-vibe deltas tracked by version. | Release candidate blocked unless SCULPT meets pre-registered pass thresholds on benchmark matrix. |
+> fully loaded cost per policy-compliant accepted change over a sequential
+> change series.
 
----
-
-## North-Star Metrics
-
-| Dimension | 1.0 Direction |
+| Dimension | Full-Go direction |
 |---|---|
-| **Developer Control** | Lower failure rate vs prompt-first vibe coding on same tasks. |
-| **Reproducibility** | Same input + lock + provider version => same build output class. |
-| **Team Scalability** | Large projects remain navigable and merge-safe. |
-| **Target Portability** | Same SCULPT source can compile through multiple target providers with predictable constraints. |
-| **Economics** | Token/cost/latency become first-class compile metrics with optimization knobs. |
+| Functional quality | Non-inferior to the best baseline; no escaped critical defect. |
+| Assurance | Zero critical false-green; fresh, independently correct evidence mapping for every critical obligation. |
+| Economics | FLC10 across clustered repository sequences at least 25% below the strongest baseline. |
+| Human effort | At least 40% lower review and audit time. |
+| Language contribution | At least 20% better than the same harness without the typed SCULPT graph. |
+| Incrementality | 100% critical invalidation recall; cache benefit measured rather than assumed. |
+| Adoption | External team succeeds and paid design partner continues. |
 
----
+Model tokens, latency, LOC, and file hashes are diagnostic metrics, not product
+success on their own.
 
 ## Non-Negotiables
 
-- Keep SCULPT code-first, not prose-first.
-- Keep AI flexibility explicit and controllable.
-- Keep deterministic paths available for CI and release workflows.
-- Keep target/provider ecosystem open, but contract-validated.
+- Brownfield-first and unit-by-unit adoption.
+- Native source remains native outside explicitly governed or derived regions.
+- Models generate candidates and never self-accept critical output.
+- Permissions and freedom slots are typed and closed-world.
+- Evidence is obligation-specific, hash-bound, and automatically invalidated.
+- Security, financial, and data-correctness obligations need a non-model
+  verification channel.
+- Compiler and providers contain no application or benchmark business logic.
+- One first-party provider only until Full-Go.
+- Historical vibe and deterministic-codegen benchmarks make no existence claim.
+- No target, showcase, game, theme, TUI, or marketplace expansion on the
+  critical path.
+- Failure of an immutable gate ends the project.
+
+## Post-Full-Go Only
+
+Only after G6 passes may SCULPT consider:
+
+- a second stack provider,
+- assurance-system integrations,
+- LTS provider bundles,
+- a provider registry,
+- additional domains or targets,
+- wider language and IDE tooling.
+
+These are not current roadmap promises.

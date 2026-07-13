@@ -2,6 +2,14 @@
 
 (C) 2026 byte5 GmbH
 
+> **Prototype-era document — not an operative roadmap.** Capability contracts
+> and provider separation remain useful implementation foundations. The
+> universal target resolver, multi-provider profiles, registry, and ecosystem
+> phases below are retired or blocked by the 2026-07-12
+> [strategic reset](SCULPT_Convergent_Programming_Concept.md). The authorized
+> architecture is a minimal semantic graph plus one Brownfield reference
+> provider; built-in targets are maintenance-only.
+
 ## Goal
 Provide a future-proof target architecture that scales beyond current platforms:
 - desktop apps,
@@ -99,7 +107,10 @@ This mapping is transitional and keeps current scripts working.
 - Teams can standardize contracts across mixed ecosystems.
 - Future platforms can be integrated with minimal compiler-core changes.
 
-## 7) Implementation Phases
+## 7) Historical Implementation Phases
+
+The phases below describe the superseded prototype direction and must not be
+executed before Full-Go.
 
 ### Phase A
 - Keep current `--target` flags.

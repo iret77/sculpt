@@ -1,15 +1,16 @@
 # SCULPT
 
 ## Elevator Pitch
-**Prompts tell AI what you want. SCULPT lets you program what AI is allowed to build.**
+**SCULPT is the evidence-carrying change compiler for AI-written software.**
 
-SCULPT is the convergent programming language for the AI era. Developers encode
-behavior, constraints, freedoms, and proof as versioned source code; compiler
-agents generate and refine the implementation until every required obligation
-is satisfied.
+Developers express the boundaries, invariants, freedoms, and proof required for
+a change as typed source. SCULPT lets bounded compiler agents patch an existing
+system, then refuses acceptance until every affected critical obligation has
+fresh, policy-approved evidence.
 
-It gives professional developers the speed of AI generation without
-surrendering software architecture to prose, conversation history, and luck.
+SCULPT is not a better prompt and not a general app generator. Its product
+hypothesis is a programmable assurance boundary between AI-generated change and
+production software.
 
 [Read the Convergent Programming concept](docs/SCULPT_Convergent_Programming_Concept.md).
 
@@ -21,20 +22,26 @@ surrendering software architecture to prose, conversation history, and luck.
 - Example SCULPT programs
 
 ## Why SCULPT
-In mainstream delivery, fully hand-written code is becoming the exception.
-SCULPT gives teams a better default than prompt-only workflows: faster iteration with stronger control.
+Modern coding agents already plan, edit, build, test, and repair from persistent
+repository context and structured specifications. SCULPT must add what those
+workflows do not enforce as one typed system:
 
-- code-native instead of prose-native,
-- intent-oriented instead of prompt-chaotic,
-- convergent instead of drift-prone,
-- reproducible instead of ephemeral.
+- closed-world change boundaries and decision permissions,
+- stable obligations linked to exact semantic subjects,
+- automatic evidence invalidation after relevant changes,
+- semantic impact analysis and selective regeneration,
+- patches, decisions, provenance, and evidence as one acceptance unit.
 
 ## Status
-- CLI compiler with LLM-backed build pipeline.
-- Built-in targets: `cli`, `gui`, `web`.
-  - `gui` builds:
-    - macOS: native SwiftUI app (SwiftPM)
-    - Windows/Linux: Python Tkinter desktop app (cross-platform parity path)
+- The repository contains a Rust compiler prototype, CLI/TUI, language
+  front-end, contracts, freeze/replay experiments, tests, and built-in
+  `cli`, `gui`, and `web` providers.
+- The evidence-carrying Brownfield change compiler described by the concept is
+  **not implemented yet**.
+- Existing targets and showcase benchmarks are prototype artifacts and
+  maintenance-only; they are not proof of the new thesis.
+- The project now follows a bounded existence program with immutable Full-Go
+  or archive gates.
 
 ## Start Here
 - I am curious and need a simple walkthrough:
@@ -48,6 +55,7 @@ SCULPT gives teams a better default than prompt-only workflows: faster iteration
   - [Docs Index](docs/README.md)
 - I want evidence and strategic direction:
   - [SCULPT Convergent Programming Concept](docs/SCULPT_Convergent_Programming_Concept.md)
+  - [Current Evidence Status](poc/SCULPT_Evidence_Status.md)
   - [SCULPT Case Studies Overview](poc/SCULPT_Case_Studies_Overview.md)
   - [SCULPT Roadmap](docs/SCULPT_Roadmap.md)
 

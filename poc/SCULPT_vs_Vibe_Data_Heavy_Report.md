@@ -2,7 +2,13 @@
 
 (C) 2026 byte5 GmbH
 
-Status: `completed (last re-run: 2026-03-03)`
+> **Historical report — strategically superseded.** The canonical
+> [evidence status](SCULPT_Evidence_Status.md) classifies this benchmark as
+> unresolved: this report predates later deterministic-codegen PASS artifacts,
+> while those later artifacts do not test real model synthesis. Neither result
+> supports the current SCULPT existence thesis.
+
+Status: `historical run (last report re-run: 2026-03-03)`
 
 ## Scenario
 

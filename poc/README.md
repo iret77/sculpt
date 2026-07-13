@@ -4,7 +4,15 @@
 
 This folder is intentionally curated to keep case-study evidence readable.
 
+> **Evidence reset (2026-07-12):** All earlier benchmark verdicts are
+> historical exploratory results, not current Go evidence. Read
+> [SCULPT_Evidence_Status.md](SCULPT_Evidence_Status.md) before interpreting any
+> report, metric, or gate file. Raw contradictions are retained deliberately
+> for auditability.
+
 ## Primary Documents
+- [SCULPT_Evidence_Status.md](SCULPT_Evidence_Status.md) — canonical
+  classification and corrections
 - [SCULPT_Case_Studies_Overview.md](SCULPT_Case_Studies_Overview.md)
 - [POC_Incident_Triage_Report.md](POC_Incident_Triage_Report.md)
 - [SCULPT_vs_Vibe_Incident_Triage.md](SCULPT_vs_Vibe_Incident_Triage.md)

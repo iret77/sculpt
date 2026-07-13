@@ -2,6 +2,13 @@
 
 (C) 2026 byte5 GmbH
 
+> **Current prototype behavior, not the strategic target architecture.** The
+> framework-agnostic Web App IR and adapters documented below remain
+> maintenance fixtures. The 2026-07-12
+> [strategic reset](SCULPT_Convergent_Programming_Concept.md) rejects a
+> universal app IR as the future core and authorizes one design-partner-derived
+> Brownfield provider only after the commercial gate.
+
 ## Goal
 Support modern web delivery reality without hard-wiring SCULPT to one framework.
 

@@ -2,176 +2,181 @@
 
 (C) 2026 byte5 GmbH
 
-This document consolidates open phases, packages, issues, todos, and product ideas that are still relevant for SCULPT. It is intentionally operational: roadmap documents describe the vision, this file tracks what still needs attention.
+Status: **operative register after the 2026-07-12 strategic reset**.
 
-## Status Legend
+The [Convergent Programming Concept](SCULPT_Convergent_Programming_Concept.md)
+is binding. This register contains the only authorized product path. Historical
+backlog items remain useful implementation context but do not set priority.
+
+## 1. Binary Program State
+
+Current decision: **GO for the bounded existence program; NO-GO for universal
+Greenfield generation and multi-target expansion.**
+
+The program ends if an immutable gate fails after its one allowed remediation
+cycle. Failed gates may not be rescued by changing the market, competitor,
+tasks, thresholds, or exclusions.
+
+## 2. Status Legend
 
 | Status | Meaning |
 |---|---|
-| Open | Not started or not finished enough to rely on. |
-| In Progress | Partly implemented, but not yet closed by tests, docs, and practical examples. |
-| Candidate | Conceptually accepted, needs implementation planning or validation. |
-| Watch | Keep visible; do not start before higher-priority work is stable. |
+| Active | Work is on the single critical path. |
+| Gate | Binary evidence checkpoint; downstream work is blocked until it passes. |
+| Blocked | Must not begin before a named gate passes. |
+| Maintenance | Regressions and security only; no product expansion. |
+| Retired | No longer part of the product thesis. |
 
-## 1. Open Milestones
+## 3. Existential Gates
 
-| ID | Milestone | Status | Goal | Exit Signal |
-|---|---|---|---|---|
-| M1 | Foundation Stability | In Progress | Make compiler, TUI, CLI, examples, and artifacts predictable for daily use. | No blocking regressions in examples; TUI and CLI workflows behave consistently. |
-| M2 | Deterministic Core | In Progress | Make contracts, strict symbols, ND constraints, replay, and validation dependable. | Invalid target symbols fail before LLM execution; replay works as a trusted CI path. |
-| M3 | Team-Scale Language | Open | Make large multi-file projects workable for teams. | Namespace imports, project files, scoped rules, and diagnostics work on 100+ file projects. |
-| M4 | Production Targets | In Progress | Make built-in `cli`, `gui`, and `web` targets useful beyond demos. | Practical non-demo apps pass target-specific quality gates and feel credible to users. |
-| M5 | Performance And CI At Scale | Open | Keep large projects affordable and fast. | Incremental compile, compact IR defaults, cache reuse, cost/token telemetry. |
-| M6 | Ecosystem And 1.0 | Open | Make providers and contracts extensible by others without losing quality. | Versioned provider SDK, compatibility checks, registry process, publish-ready spec. |
-
-## 2. Active Priority Packages
-
-| ID | Package | Priority | Status | Next Work |
-|---|---|---|---|---|
-| P1-A | Data-Path Safety Completion | P1 | In Progress | Keep hardening deterministic data workloads, artifact validation, and data benchmark diagnostics. |
-| P1-B | Contract And Namespace Scalability | P1 | In Progress | Finish contract compatibility checks, symbol cataloging, namespace import diagnostics, and large-project workflows. |
-| P1-C | Provider Platform Hardening | P1 | In Progress | Stabilize LLM and target provider interfaces, fallback policy, telemetry, and conformance checks. |
-| P1-D | Baseline Provider Practicality | P1 | In Progress | Expand `cli`, `gui`, and `web` provider contracts until real apps can be built without undocumented magic. |
-| P1-E | Example Showcase Quality | P1 | In Progress | Replace weak examples with polished, useful, target-relevant examples that demonstrate high-ND vs low-ND. |
-| P1-F | Benchmark Readiness | P1 | In Progress | Do not run another official SCULPT-vs-vibe benchmark until product capability makes a win likely. |
-| P2-A | Build Telemetry Expansion | P2 | In Progress | Improve run/build history, token/cost tracking, and TUI trend visibility. |
-| P2-B | Dist Retention Policy | P2 | In Progress | Finish clean retention UX and document auto-clean behavior. |
-| P2-C | CLI/TUI Regression Coverage | P2 | Open | Add focused tests for key TUI actions, modal flows, build/run parity, and per-script dist isolation. |
-| P2-D | Prompt-Drift Competitive Benchmarking | P2 | Open | Track SCULPT vs prompt-first output drift over releases. |
-
-## 3. Open Issues And Risks
-
-| ID | Area | Status | Issue | Why It Matters |
-|---|---|---|---|---|
-| I-001 | Examples | Open | Some examples are still weaker than the vision and may look like ordinary toy demos. | First-run perception decides whether developers continue exploring SCULPT. |
-| I-002 | Target Contracts | Open | Built-in contracts still expose too few useful functions for serious CLI, GUI, and Web apps. | Without practical contracts, SCULPT falls back toward vague prompting. |
-| I-003 | Magic Ambiguity | In Progress | Any apparent magic words in examples must either come from a contract or from explicit `define(...)` / `?"..."` usage. | Developers need to know what is language, provider API, variable, or ND intent. |
-| I-004 | GUI Target | In Progress | GUI output needs professional parity on macOS, Windows, and Linux. | Windows/Linux developers must be able to try credible GUI examples immediately. |
-| I-005 | Web Target | In Progress | Web output must reflect modern app reality, not only static HTML. | Real web apps are framework-backed or frontend-app based; target providers must preserve that flexibility. |
-| I-006 | TUI Polish | In Progress | The TUI still needs durable regression coverage for focus, scrolling, modals, config editing, and external interactive runs. | The TUI is part of the product experience, not only a helper. |
-| I-007 | Snake Showcase | In Progress | Snake should demonstrate portable, CLI-specific, GUI-specific, and Web-specific development styles. | It is the clearest current demo for target portability versus target specialization. |
-| I-008 | Benchmark Credibility | Open | A new business benchmark should only run after target/provider capability is materially stronger. | Running too early gives a noisy or predictably weak result. |
-| I-009 | Context Efficiency | Open | Large programs cannot be passed wholesale through the LLM forever. | SCULPT needs incremental compile slices, dependency graphs, and compact IR reuse. |
-| I-010 | Provider Ecosystem | Open | External target/LLM providers need a stable SDK, test kit, and compatibility process. | Community-maintained contracts only work if they can be validated and versioned. |
-
-## 4. Language And Semantics Todos
-
-| ID | Topic | Status | Todo |
+| ID | Gate | Required evidence | Failure action |
 |---|---|---|---|
-| L-001 | Scoped Rules | In Progress | Continue supporting rules inside flows/states so source code stays local and rename-safe. |
-| L-002 | Namespaces | In Progress | Harden namespace resolution and diagnostics for large domain structures such as `Billing.Account.Invoice`. |
-| L-003 | Project Files | In Progress | Keep single-file scripts simple while making `.sculpt.json` project files first-class for multi-file apps. |
-| L-004 | Imports | In Progress | Prefer namespace imports over file includes; avoid path-based include mechanics that fight project structure. |
-| L-005 | Target Packages | In Progress | Make `use(...)` the clear bridge from SCULPT source to provider-exported functions. |
-| L-006 | Soft Defines | In Progress | Document and validate reusable ND constraints defined in SCULPT, especially inside `nd(...)` blocks. |
-| L-007 | Inline ND Intent | Candidate | Keep `?"..."` as explicit inline natural-language intent where structured constraints are not worth defining. |
-| L-008 | Block Syntax | In Progress | Keep `:` for block openers that require `end`; keep `::` for one-line event shortcuts. |
-| L-009 | Semicolon | In Progress | Treat `;` as a newline replacement for compact one-line forms, not as decorative syntax. |
-| L-010 | Diagnostics | In Progress | Keep expanding semantic diagnostics (`S*`, `F*`, `R*`, `N*`, `B*`, `NS*`, `C*`, `M*`) with actionable messages. |
+| G0 | Commercial | Before interviews, freeze one provider compatibility corridor. At least two external organizations provide at least four real Brownfield repositories and change sequences inside it; at least one paid pilot or binding commitment within at most 20 qualified interviews. | Archive SCULPT. |
+| G1 | Language | Critical requirements use typed obligations and closed-world permissions; no critical prose or compiler-owned domain logic. | One remediation, then archive. |
+| G2 | Agentic loop | A real model repairs a real verifier failure and produces fresh evidence; no stub, replay, or hardcoded output. | One remediation, then archive. |
+| G3 | Graph | Clean/incremental equivalence, critical invalidation recall, safe rename, semantic diff, and typed refinement pass mutation tests; no unsound cache hit. | One remediation, then archive. |
+| G4 | Operations | Brownfield adoption, emergency override, tainted evidence, reconciliation, and full reverification work end to end. | One remediation, then archive. |
+| G5 | Provider | A second real repository uses the provider without compiler changes and within the fixed setup/upgrade limits; an independent developer extends it through the SDK. | One remediation, then archive. |
+| G6 | Audited Existence | The preregistered three-arm experiment provisionally passes every threshold and an independent auditor validates baseline selection, clustered analysis, cost calculation, protocol conformance, and provenance without a material finding. | Publish negative result and archive. |
 
-## 5. Contract And Provider Todos
+## 4. Single P0 Critical Path
 
-| ID | Topic | Status | Todo |
+| ID | Package | Status | Exit signal |
 |---|---|---|---|
-| C-001 | CLI Contract | In Progress | Expand practical symbols for text UI, menus, tables, forms, file/data operations, and deterministic batch tasks. |
-| C-002 | GUI Contract | In Progress | Expand window, layout, controls, validation, modal, list/table, navigation, and platform-native behavior coverage. |
-| C-003 | Web Contract | In Progress | Expand app-shell, routing, forms, tables, cards, filters, persistence hooks, API calls, and adapter profiles. |
-| C-004 | Data Namespace | In Progress | Keep deterministic data ops contract-validated across CLI, GUI, and Web where useful. |
-| C-005 | ND Constraints | Open | Provide curated but bounded reusable constraints in contracts; avoid impossible million-entry catalogs. |
-| C-006 | Contract Versioning | In Progress | Enforce compatibility between script-declared contract version and selected target provider. |
-| C-007 | Contract Docs | In Progress | Keep per-target reference docs complete enough that examples contain no unexplained calls. |
-| C-008 | Provider SDK | Open | Define external provider packaging, metadata, contract publication, test harness, and build/run interface. |
-| C-009 | Provider Registry | Open | Design curated registry process for community providers without making compiler core depend on them. |
-| C-010 | Conformance Gates | In Progress | Continue provider conformance checks for built-in and external providers. |
+| P0-001 | Historical Evidence Quarantine | Active | All pre-reset benchmark claims are marked exploratory/non-decision-grade; no contradictory verdict is presented as current. |
+| P0-002 | Commercial Discovery | Active | Frozen provider corridor; G0 passes with four compatible repositories from two organizations, sequential tasks, review access, and commercial commitment. |
+| P0-003 | Semantic Kernel Specification | Blocked by G0 | Normative minimal graph, stable IDs, typed effects/boundaries, obligations, freedom slots, ownership, and closed-world permissions. |
+| P0-004 | Evidence And Policy Specification | Blocked by G0 | Obligation and attestation schemas, evidence combinations, trust tiers, freshness, waivers, and candidate/accepted/releasable states are normative. |
+| P0-005 | Graph And Invalidation Engine | Blocked by G0 | Typed graph with interface/semantic/output hashes and edge-specific recheck/resynthesize/relower/rebuild/reverify behavior. |
+| P0-006 | Bounded Agentic Loop | Blocked by G0 | Change plan, isolated transaction, real synthesis, build/test diagnostics, repair, progress detection, budgets, and atomic acceptance pass G1-G2. |
+| P0-007 | Brownfield Ownership And Bindings | Blocked by G0 | Native, governed, and derived regions; imported contracts; opaque-boundary limits; no full-rewrite requirement. |
+| P0-008 | Decision Ledger And Refinement | Blocked by G2 | Every generated choice maps to a typed freedom slot; refinement narrows monotonically; relaxation is explicit. |
+| P0-009 | Granular Lock And Replay | Blocked by G3 | Unit, decision, provider, evidence, and artifact digests support selective regeneration and content-addressed exact replay. |
+| P0-010 | Emergency Override And Reconciliation | Blocked by G3 | Taint, time-bounded waiver, evidence invalidation, adoption/boundary/revert reconciliation, and reverification pass G4. |
+| P0-011 | First-Party Reference Provider | Blocked by G0 | Real design-partner stack; generic platform capabilities only; no benchmark or business logic in compiler/provider. |
+| P0-012 | Provider SDK And Conformance | Blocked by G2 | Independent capability extension and second-repository adoption pass G5. |
+| P0-013 | Reference Change Series | Blocked by G2 | Audit-intensive workflow with persistence, authorization, separation of duties, business rules, audit trail, external boundary, hotfix, and at least ten interacting changes. |
+| P0-014 | Three-Arm Experiment | Blocked by G1-G5 | Independent baseline bake-off plus frozen full-SCULPT, no-graph ablation, and selected best-practice native baseline under a clustered protocol. |
+| P0-015 | Independent Adversarial Audit | Blocked by completed experiment | Raw artifacts, baseline selection, cost formula, and clustered analysis pass independent audit before G6 and the Full-Go or archive decision. |
 
-## 6. Target Output Todos
+## 5. Normative Architecture Invariants
 
-| ID | Target | Status | Todo |
-|---|---|---|---|
-| T-001 | CLI | In Progress | Keep CLI output interactive, visually credible, and useful for forms, dashboards, reports, and games. |
-| T-002 | GUI | In Progress | Make generated native/desktop apps feel professional on macOS, Windows, and Linux. |
-| T-003 | Web | In Progress | Support credible modern web app output, including standard static profile plus framework adapter paths. |
-| T-004 | Web Stacks | In Progress | Continue `web_profile` support for `standard`, `next-app`, and `laravel-mvc`; document tradeoffs. |
-| T-005 | Portable Targets | Candidate | Demonstrate one SCULPT source that runs acceptably on CLI, GUI, and Web. |
-| T-006 | Specialized Targets | Candidate | Demonstrate target-specific variants that use each platform's strengths. |
-| T-007 | Future Targets | Watch | Keep architecture ready for services, embedded devices, wearables, TVs, game engines, and future runtimes. |
+The following are release-blocking, not aspirations:
 
-## 7. Example And Demo Todos
+1. Models create candidates; only the deterministic policy engine accepts.
+2. Unspecified files, decisions, effects, capabilities, tools, secrets, and
+   network access are denied.
+3. Synthesis cannot weaken obligations, tests, policy, or its own permissions
+   inside the candidate loop.
+4. An accepted build has no mandatory pending, failed, or stale obligation.
+5. Critical security, financial, and data-correctness obligations cannot rely
+   only on model or human evaluation.
+6. Evidence is bound to exact semantic subjects and becomes stale through graph
+   invalidation.
+7. Every generated artifact unit and decision is attributable to graph nodes,
+   contracts, and freedom slots.
+8. Providers cannot redefine core semantics or acceptance policy.
+9. Compiler and provider contain no application- or benchmark-specific business
+   implementation.
+10. Clean and incremental builds are semantically and evidentially equivalent.
+11. Exact replay without a model is claimed only for content-addressed frozen
+    artifacts.
+12. Native code outside declared ownership remains untouched and usable without
+    SCULPT.
 
-| ID | Example Area | Status | Todo |
-|---|---|---|---|
-| E-001 | Showcase Structure | In Progress | Keep examples organized by purpose and target; avoid loose files in root example folders. |
-| E-002 | High-ND vs Low-ND | In Progress | Provide visible pairs where high-ND is shorter and freer, low-ND is more controlled and predictable. |
-| E-003 | Snake | In Progress | Finalize portable, CLI, GUI, and Web Snake variants; keep the CLI version visually above QBasic-era baseline. |
-| E-004 | Business CLI | In Progress | Keep invoice/data examples practical and deterministic enough for benchmark relevance. |
-| E-005 | Business GUI | In Progress | Keep service-desk style examples credible as small professional apps. |
-| E-006 | Business Web | In Progress | Make the web portal example look like a simple but real operational theme. |
-| E-007 | Single Game Limit | Open | Keep one strong game family as demo; avoid making SCULPT look like a game engine project. |
-| E-008 | Comment Quality | Open | Examples should explain SCULPT concepts without drowning the code in prose. |
-| E-009 | Buildability | Open | All examples must build with the current compiler and target contracts before release-facing pushes. |
+## 6. Evidence And Benchmark Rules
 
-## 8. TUI And CLI Todos
+- No official benchmark before G1-G5 pass.
+- The decisive baseline is current spec-driven agentic development, not vibe
+  coding.
+- The no-graph ablation is mandatory; without it the language thesis is
+  untested.
+- Provider and protocol freeze precede holdout task selection.
+- Same model snapshot, repo, tools, permissions, visible tests, hidden tests,
+  budgets, and repair rights across arms.
+- At least four independent repositories from two organizations and ten
+  interacting changes per repository; repository sequences are inference
+  clusters, never forty independent samples.
+- Cluster-aware power analysis may require more repositories or sequences.
+- Independent non-holdout bake-off of at least three baseline configurations
+  with equal tuning budget before holdout selection.
+- Five clean repetitions on the preregistered reproducibility subset.
+- Fully loaded cumulative cost through change ten uses a preregistered formula,
+  fixed loaded labor rates, actual setup/maintenance cost, all failures, and
+  accepted changes only in the denominator; zero acceptance is infinite.
+- Semantic behavior and obligation outcomes define reproducibility; file hashes
+  alone do not.
+- All raw results, infra failures, fallbacks, manual interventions, and
+  exclusions remain visible.
 
-| ID | Area | Status | Todo |
-|---|---|---|---|
-| U-001 | TUI Config Editor | In Progress | Keep improving provider/model/API key editing as real form controls, not text-file editing. |
-| U-002 | TUI Focus | In Progress | Make active pane visually obvious and keep scroll indicators reliable. |
-| U-003 | TUI Logs | In Progress | Ensure external interactive runs restore the TUI cleanly after exit. |
-| U-004 | TUI Editor Launch | Candidate | Add a clean way to open selected SCULPT files in the user's configured editor. |
-| U-005 | TUI Project Files | Candidate | Show project files distinctly and offer project-aware build/run actions. |
-| U-006 | CLI Progress | In Progress | Keep progress indicators correct, premium-looking, and non-noisy. |
-| U-007 | CLI Help | In Progress | Keep help output aligned with branded CLI design and accurate options. |
-| U-008 | Version Display | In Progress | Always display current compiler version from package metadata, not hardcoded values. |
+## 7. Full-Go Thresholds
 
-## 9. Benchmark Todos
+All are required:
 
-| ID | Benchmark | Status | Todo |
-|---|---|---|---|
-| B-001 | Data-Heavy | In Progress | Keep data-heavy gate green with deterministic artifacts and reproducibility checks. |
-| B-002 | Workflow | In Progress | Keep workflow benchmark acceptance/reproducibility automated. |
-| B-003 | UI Practical | In Progress | Keep target practical quality gates tied to meaningful UI/runtime behavior. |
-| B-004 | Official Re-Run | Open | Run next serious SCULPT-vs-vibe benchmark only after readiness gates are green. |
-| B-005 | Metrics | In Progress | Track acceptance rate, reproducibility, unique hashes, token usage, duration, and fix effort. |
-| B-006 | Reporting | Open | Keep detailed reports separate from overview docs to avoid documentation drift. |
+| Dimension | Threshold |
+|---|---|
+| Functional quality | No more than five percentage points below the best baseline; zero escaped critical defects. |
+| Critical assurance | Every critical obligation has a traceable and independently correct mapping; overall mapping accuracy at least 95%; zero critical false-green. |
+| Primary economics | FLC10 across the clustered repository sequences at least 25% below the strongest baseline. |
+| Human review | Review/audit time at least 40% below baseline. |
+| Language value | Full SCULPT at least 20% better than the no-graph ablation on the primary metric. |
+| Incrementality | 100% critical invalidation recall and no unsound cache hit. |
+| Provider portability | G5 passes on a second real repository. |
+| Independent use | External team completes a non-trivial governed change. |
+| Commercial continuation | At least two contributing external organizations continue; at least one paid pilot completes. |
+| Independent audit | Baseline selection, clustered inference, FLC10 calculation, protocol conformance, and provenance have no unresolved material finding. |
 
-## 10. Documentation Todos
+No secondary metric compensates for a failed threshold.
 
-| ID | Doc Area | Status | Todo |
-|---|---|---|---|
-| D-001 | README | In Progress | Keep pitch short, current, and linked to the right deeper docs. |
-| D-002 | For Dummies | In Progress | Keep explaining SCULPT concepts in plain developer language, including ND, IR, contracts, `?`, and `define(...)`. |
-| D-003 | Handbook | In Progress | Keep compiler and language behavior complete but not academic. |
-| D-004 | Syntax Manifest | In Progress | Keep syntax rules current, especially `:`, `::`, `;`, `end`, `use`, `import`, and `?`. |
-| D-005 | Target References | In Progress | Keep CLI, GUI, and Web references synchronized with actual exported contract symbols. |
-| D-006 | Roadmap | In Progress | Keep milestone document strategic, not a granular backlog. |
-| D-007 | Backlog | In Progress | Decide whether this open work register should replace or complement the existing backlog. |
-| D-008 | Versioning | In Progress | Keep version policy visible so future agents and contributors bump versions correctly before pushes. |
+## 8. Maintenance-Only Existing Surface
 
-## 11. Product Ideas To Keep Visible
-
-| ID | Idea | Status | Rationale |
-|---|---|---|---|
-| IDEA-001 | Contract-first IDE support | Watch | IDEs should read target contracts for completion, docs, and coloring. |
-| IDEA-002 | Compact IR as LLM-native format | Open | Context-window efficiency is a core resource problem for large SCULPT apps. |
-| IDEA-003 | Incremental LLM compilation | Open | Large apps need changed-unit compilation, not full-program LLM calls. |
-| IDEA-004 | Freeze/replay as CI primitive | In Progress | Deterministic locked builds are essential for professional workflows. |
-| IDEA-005 | Provider marketplace/registry | Watch | Community contracts/providers need discoverability and trust signals. |
-| IDEA-006 | Target-specific showcase variants | In Progress | Demonstrates portability versus platform-specific strength without pretending one mode solves everything. |
-| IDEA-007 | SCULPT project templates | Candidate | Project creation should offer useful starting points by intent and target. |
-| IDEA-008 | Cost-aware compiler UX | Open | Token/cost/time should be visible and optimizable like CPU/RAM used to be. |
-| IDEA-009 | Policy engine | Watch | Enterprises will need rules for provider use, data sensitivity, audit, and allowed targets. |
-| IDEA-010 | Language server | Watch | Team-scale SCULPT requires IDE diagnostics, navigation, rename, and contract-aware completion. |
-
-## 12. Recommended Next Execution Order
-
-| Order | Work | Reason |
+| Existing area | Status | Allowed work |
 |---|---|---|
-| 1 | Make all showcase examples build and run with the current compiler. | First impressions and regression safety. |
-| 2 | Expand baseline target contracts for useful CLI, GUI, and Web apps. | Removes unexplained magic and enables serious examples. |
-| 3 | Finish Snake multi-target demonstration. | Shows portability vs target specialization clearly. |
-| 4 | Harden TUI external-run recovery and config UX. | Keeps daily workflow credible. |
-| 5 | Close contract/namespace scalability gaps. | Required before large projects and team workflows. |
-| 6 | Build provider SDK/conformance path. | Required before community providers are realistic. |
-| 7 | Add incremental compile/cache design. | Required before large apps fit context and cost constraints. |
-| 8 | Re-run business benchmark only after readiness gates pass. | Avoids measuring the wrong maturity level. |
+| Rust parser, AST, diagnostics, modules, namespaces, contracts | Maintenance | Preserve as reusable foundation; change only when required by the P0 path. |
+| CLI and TUI | Maintenance | Critical regression and minimal support for the existence program. |
+| Built-in CLI, GUI, and Web targets | Maintenance | Security/regression fixes only; no capability or visual expansion. |
+| Freeze/replay | Maintenance | Reuse or replace only as input to granular locks and replay. |
+| Existing examples and showcases | Maintenance | Keep runnable where cheap; they are not product proof. |
+| Existing benchmark automation | Maintenance | Retain as historical tooling; do not use for Go claims. |
 
+## 9. Retired Or Deferred Work
+
+| Area | Decision |
+|---|---|
+| Snake, games, themes, showcase polish | Retired from product path. |
+| Universal Target IR and compact prompt IR as architecture goals | Retired; replace with the minimal typed graph and provider lowering. |
+| Simultaneous CLI/GUI/Web production hardening | Retired from product path. |
+| Prompt-drift and vibe-coding competition | Retired as a decision baseline. |
+| Broad curated domain catalogs | Retired; application contracts are customer-owned. |
+| Provider marketplace and registry | Blocked until Full-Go and demonstrated third-party demand. |
+| Additional stacks or targets | Blocked until Full-Go. |
+| Mass-market and non-programmer positioning | Retired. |
+
+## 10. Immediate Execution Order
+
+1. Finish P0-001 and make the repository honest about historical evidence.
+2. Run P0-002; do not build the new platform without G0.
+3. Freeze a minimal normative kernel for P0-003 and P0-004.
+4. Implement one vertical slice through P0-005-P0-007 and pass G1-G2.
+5. Complete graph, refinement, lock, hotfix, and operations work; pass G3-G4.
+6. Prove provider portability through P0-011-P0-013; pass G5.
+7. Freeze and execute P0-014.
+8. Run P0-015 and apply G6 without renegotiation.
+
+No presentation, target-expansion, release-marketing, or official benchmark work
+may displace this order.
+
+## 11. Open Existential Risks
+
+These stay open until measured:
+
+- adoption cost of a new language in existing regulated systems,
+- provider and contract maintenance economics,
+- assurance value recognized by actual reviewers and auditors,
+- limits at opaque native boundaries,
+- model/data-residency constraints,
+- incumbent platforms implementing equivalent typed evidence graphs,
+- team capacity to maintain compiler, provider, and assurance integrations.
+
+They are not documentation todos. A failed market or experiment gate closes
+the project.

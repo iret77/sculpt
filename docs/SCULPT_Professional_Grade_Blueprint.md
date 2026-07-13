@@ -8,18 +8,26 @@
 > Convergent Programming concept takes precedence.
 
 ## Goal
-Define what SCULPT needs to support real-world, large-scale software projects
-(ERP, commercial games, multi-team platforms) with predictable quality.
+Define the reusable engineering requirements for SCULPT's single authorized
+product path: bounded, evidence-carrying changes to audit-intensive Brownfield
+business systems.
+
+This is no longer a plan for universal Greenfield generation, commercial games,
+or simultaneous multi-target expansion. Items below are implemented only when
+they serve the existence gates in the canonical concept.
 
 ## Extended Thesis
-At scale, fully hand-written code is no longer the expected default workflow.
-AI-assisted development is becoming standard, but pure prompting is weak in structure, reproducibility, and team governance.
+The baseline is modern spec-driven agentic development with repository context,
+tests, policies, locks, and full build-test-repair workflows. SCULPT is useful
+only if a typed semantic and evidence graph makes repeated governed changes
+safer and cheaper than that baseline.
 
-SCULPT is designed as a stronger model for developers who think in code:
-- intent-oriented,
-- AI-native,
-- convergent,
-- contract- and policy-ready for production environments.
+SCULPT is designed for professional developers maintaining existing systems:
+- brownfield-first,
+- typed and intent-oriented,
+- closed-world and bounded,
+- obligation- and evidence-carrying,
+- contract- and policy-controlled.
 
 ## 1) Language Foundations
 
@@ -51,29 +59,35 @@ SCULPT is designed as a stronger model for developers who think in code:
 - Compile must fail if required capability is missing for selected target.
 
 ### 1.5 Deterministic Core Semantics
-- Keep `on/when/emit/run/terminate` execution order deterministic.
-- Define strict conflict resolution in semantic validator.
-- Require replayable builds in CI for all release branches.
+- Keep deterministic semantics for types, effects, boundaries, graph
+  invalidation, evidence policy, acceptance, and locks.
+- Define strict conflict resolution in the semantic validator.
+- Treat models as candidate generators, never as acceptance authorities.
+- Require exact replay only when all artifacts are content-addressed and
+  frozen; otherwise require semantic and evidence equivalence.
 
 ## 2) Convergence Control (AI-First At Scale)
 
-### 2.1 ND Budgets
-- Add domain/module-level budgets:
-  - `nd_budget`, `confidence`, `max_iterations`, `fallback`.
-- Default strictness profiles by domain:
-  - `finance`: very low ND
-  - `ui`: medium ND
-  - `content`: higher ND
+### 2.1 Convergence Budgets And Permissions
+- Add per-unit budgets for time, tokens, money, iterations, and diff size.
+- Define typed freedom slots and default-deny file, effect, tool, secret, and
+  network permissions.
+- Remove success fallbacks: a stub or unrelated replay may diagnose or unblock
+  development, but can never satisfy an accepted build.
 
-### 2.2 ND Explainability
+### 2.2 Decision Explainability
 - Build output must include:
-  - what was non-deterministic,
-  - which constraints reduced solution space,
-  - why final result was accepted.
+  - which typed freedom slots were exercised,
+  - which decisions were recorded,
+  - which obligations constrained them,
+  - why exact evidence policy accepted or rejected the candidate.
 
-### 2.3 Contract-Scoped Prompt Compression
-- Precompile Sculpt + relevant contract subset into compact IR.
-- Include only used capabilities/extensions to reduce context size.
+### 2.3 Graph-Scoped Context
+- Compute the affected semantic graph slice before synthesis.
+- Include only affected declarations, boundaries, obligations, freedom slots,
+  contracts, and diagnostics.
+- Treat context reduction as a measured result of sound invalidation, not a
+  positional compact-IR goal.
 
 ## 3) Team-Scale Collaboration
 
@@ -100,14 +114,20 @@ SCULPT is designed as a stronger model for developers who think in code:
   - runtime/resource constraints.
 - Compile fails on policy violations.
 
-### 4.2 Testing As Language Feature
-- Add `spec(...)`, `scenario(...)`, `property(...)`.
-- Replay mode required in CI for deterministic verification.
+### 4.2 Obligations And Evidence As Language Features
+- Add typed obligations, scenarios, properties, verifier references, and
+  evidence policies.
+- Bind evidence to exact semantic subjects, inputs, environment, producer, and
+  toolchain.
+- Distinguish candidate, accepted, and releasable builds.
+- Make changed dependencies stale automatically.
 
 ### 4.3 Observability
 - Build and runtime telemetry standards:
-  - provider/model, token usage, latency, ND metrics, artifact hash.
-- Audit logs for regulated business domains.
+  - provider/model, token and cost, latency, candidate iterations, artifact and
+    semantic hashes, invalidation, evidence freshness, and human intervention.
+- Export evidence packages that can support an organization's audit process.
+- Never claim that SCULPT itself grants compliance or certification.
 
 ## 5) Compiler/Tooling Requirements
 
@@ -126,19 +146,36 @@ SCULPT is designed as a stronger model for developers who think in code:
 - Per-script output isolation (already done).
 - Retention policies and cleanup automation.
 
-## 6) Runtime/Target Architecture
+## 6) Brownfield And Provider Architecture
 
-### 6.1 Standard Target IR + Extensions
-- Keep standard target IR as stable baseline.
-- Allow target-specific extension fields only via declared contracts.
+### 6.1 Minimal Semantic Graph + Provider Lowering
+- The compiler owns a small graph kernel for types, effects, units, boundaries,
+  obligations, freedom slots, decisions, artifacts, and evidence.
+- Providers and packages own stack/domain schemas and native lowering.
+- There is no universal UI-oriented Target IR.
 
-### 6.2 Build Provider Responsibilities
-- Pre-LLM: publish capability/contract schema.
-- Post-LLM: validate generated target IR, build deterministic artifact, return run descriptor.
+### 6.2 Ownership Modes
+- Native regions remain conventional repository source and are never
+  overwritten implicitly.
+- Governed regions accept bounded native patches subject to SCULPT obligations.
+- Derived regions may be regenerated from SCULPT source and locked decisions.
+- Guarantees stop at declared opaque boundaries.
 
-### 6.3 Run Orchestration
-- `sculpt run` remains single interface.
-- Provider decides execution details; developer does not manage platform tooling directly.
+### 6.3 Provider Responsibilities
+- Publish versioned capabilities, effects, freedom slots, tools, validators,
+  sandbox permissions, diagnostics, and compatibility policy.
+- Produce native patches or provider-specific IR as appropriate.
+- Contain no application- or benchmark-specific business implementation.
+- Pass conformance, second-repository, independent-extension, and maintenance
+  cost gates before any ecosystem expansion.
+
+### 6.4 Hotfix Operations
+- Detect direct patches against known artifact hashes and mark affected units
+  tainted.
+- Support time-bounded emergency overrides with explicit human and executable
+  waiver policy.
+- Require reconciliation into typed source, a native boundary/provider
+  extension, or a revert before the next normal release.
 
 ## 7) Governance And Release Discipline
 - Language spec versioning (`syntax` + `semantics` + `contracts`).
@@ -147,25 +184,33 @@ SCULPT is designed as a stronger model for developers who think in code:
 
 ## 8) Recommended Delivery Phases
 
-### Phase A (now)
-- Semantic validator V1
-- Namespace/scope rules V1
-- Contract typing V1
+### Phase 0 — Commercial Gate
+- Provider compatibility corridor frozen before counted interviews.
+- Four external Brownfield repositories from two organizations and their change
+  sequences inside that corridor.
+- One paid pilot or equivalent binding commitment.
 
-### Phase B
-- ND budget controls + reporting
-- Workspace dependency graph
-- CI replay gates
+### Phase A — Minimal Kernel
+- Semantic graph and stable IDs.
+- Typed obligations, evidence, freedom slots, effects, and ownership.
+- Closed-world policy and candidate/accepted separation.
 
-### Phase C
-- Type system expansion
-- Language server
-- Policy engine
+### Phase B — Vertical Agentic Slice
+- One real model, one real failing verifier, one repair loop.
+- Native patch, decision ledger, evidence package, and atomic acceptance.
 
-### Phase D
-- Full versioned contract ecosystem
-- Enterprise compliance/audit tooling
-- Multi-target release orchestration
+### Phase C — Repeated Change And Operations
+- Incremental invalidation and granular lock.
+- Typed refinement and explicit relaxation.
+- Emergency override and reconciliation.
+
+### Phase D — Provider And Existence Proof
+- One first-party design-partner provider.
+- Second repository and independent SDK extension.
+- Frozen three-arm experiment and independent audit.
+
+Additional targets, a registry, language server expansion, and broader
+enterprise tooling are post-Full-Go only.
 
 ## Short Answer: Namespaces And Scopes?
 Yes, absolutely.

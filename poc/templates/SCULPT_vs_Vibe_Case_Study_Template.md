@@ -1,116 +1,176 @@
-# Case Study Template: SCULPT vs Vibe Coding
+# SCULPT Existence Experiment Template
 
-(C) 2026 byte5 GmbH
+Status: replaces the former SCULPT-versus-vibe template. The legacy filename is
+retained to avoid broken links.
 
-## Scenario Placeholders (Fill First)
-- Scenario ID: `SCENARIO_<YYYYMMDD>_<slug>`
-- Scenario Name: `<clear task name>`
-- Scenario Category: `<workflow | data-heavy | GUI app | API/backend | mixed>`
-- Business Context: `<one sentence>`
-- Primary User: `<who uses the result>`
-- Main Inputs: `<key input artifacts/data>`
-- Expected Outputs: `<what must be produced for users>`
-- Out of Scope: `<explicit non-goals>`
+This template may be instantiated only after gates G0-G5 in the
+[Open Work Register](../../docs/SCULPT_Open_Work_Register.md) pass.
 
-## Purpose
-Test whether SCULPT is clearly superior to prompt-first vibe coding for a real development task.
+## 1. Registration
 
-This template is intentionally strict.  
-If SCULPT does not show a strong advantage and no realistic improvement path exists, continuation should be reconsidered.
+| Field | Value |
+|---|---|
+| Protocol ID | |
+| Registration timestamp | |
+| Immutable protocol digest | |
+| Analysis-code digest | |
+| Holdout custodian | |
+| Baseline custodian | |
+| Independent reviewers | |
+| Provider compatibility corridor digest | |
+| Cluster-aware power analysis | |
+| Independent inference clusters | At least 4 repository sequences |
+| Assigned changes | At least 10 per repository, 40 total |
+| External repositories/organizations | At least 4 repositories / 2 organizations |
+| Reproducibility subset and repetitions | Five clean repetitions per arm |
+| Allowed remediation cycle | One exact rerun/reaudit after implementation fix or correctable audit finding |
 
-## 1) Experiment Scope
+Protocol, thresholds, arms, tasks, exclusions, models, providers, tool versions,
+and analysis must be frozen before holdout task selection.
 
-### Task
-- Name: `<scenario name>`
-- Description: `<what must be solved end-to-end>`
-- Functional acceptance criteria:
-  - [ ]
-  - [ ]
-  - [ ]
+## 2. Experiment Arms
 
-### Fixed Conditions
-- LLM provider/model:
-- Timebox per approach:
-- Same developer:
-- Same machine/environment:
-- Number of repeat runs per approach:
+| Arm | Required setup |
+|---|---|
+| Full SCULPT | Typed graph, closed-world permissions, obligation/evidence engine, invalidation, convergence loop |
+| No-graph ablation | Same model, structured spec, agent/test harness, and tools; no SCULPT graph or obligation engine |
+| Best-practice native baseline | Current spec-driven coding agent, persistent repo instructions, policies, tests, hooks, CI, locks |
 
-## 2) Pre-Registered Expectations (Before Starting)
-Write expected advantages of SCULPT before running the test:
+## 3. Baseline Qualification
 
-1.  
-2.  
-3.  
+Before holdout tasks exist, an independent custodian evaluates at least three
+eligible current agent/harness configurations on non-holdout calibration tasks
+inside the frozen provider corridor.
 
-## 3) Approaches
+| Candidate | Version/digest | Operator | Setup/tuning budget | Quality floor | Fully loaded cost | Result |
+|---|---|---|---:|---:|---:|---|
+| | | | | | | |
 
-### A) SCULPT
-- Script path:
-- Build/run commands:
+All candidates receive the same qualified operator, tools, time, setup, and
+tuning budget. The preregistered quality-floor, cost, and deterministic
+tie-break rule select the baseline. Candidate set, tuning changes, prompts,
+instructions, results, and selection remain in the audit package. The winner is
+frozen before any SCULPT holdout result is visible.
 
-### B) Vibe Coding (Prompt-First)
-- Prompt log path:
-- Generated code path:
-- Build/run commands:
+## 4. Equal Conditions
 
-## 4) Hard Metrics
+- exact model snapshot and inference settings;
+- clean repository baseline;
+- task statement and visible context;
+- tools, filesystem, network, secrets, and compute permissions;
+- visible tests and hidden acceptance tests;
+- time, token, money, and human-intervention budgets;
+- full plan-build-test-repair rights;
+- frozen provider before holdout tasks are known.
 
-| Metric | SCULPT | Vibe | Winner | Notes |
-|---|---:|---:|---|---|
-| Time to first working version (min) |  |  |  |  |
-| Time to accepted final version (min) |  |  |  |  |
-| Iterations until accepted |  |  |  |  |
-| Reproducibility (stable runs / 5) |  |  |  |  |
-| Regression count during changes |  |  |  |  |
-| Change Request #1 effort (min) |  |  |  |  |
-| Change Request #2 effort (min) |  |  |  |  |
-| Token/cost footprint (if available) |  |  |  |  |
+Record every deviation. No silent fallback, retry filtering, or manual patch.
 
-## 5) Developer UX Factors (Soft, But Decisive)
-Score each factor from 1 (poor) to 5 (excellent).
+## 5. Clustered Change Sequences
 
-| Factor | SCULPT | Vibe | Winner | Notes |
-|---|---:|---:|---|---|
-| Sense of control |  |  |  |  |
-| Clarity of intent |  |  |  |  |
-| Flow continuity |  |  |  |  |
-| Cognitive load |  |  |  |  |
-| Refinement comfort |  |  |  |  |
-| Trust in outputs |  |  |  |  |
-| Maintainability feel |  |  |  |  |
-| Team readability |  |  |  |  |
+| Cluster | Organization | Repository | Sequence digest | Change count | Critical obligations | Hidden tests |
+|---:|---|---|---|---:|---|---|
+| 1 | | | | 10 | | |
 
-## 6) Success Gate (Strict)
-SCULPT passes only if all are true:
+Changes inside a repository sequence are sequential, interacting, and
+statistically dependent. The repository sequence is the minimum inference
+cluster. Arms are paired from the same clean repository and sequence. The
+preregistered model uses repository/sequence blocks and cluster-aware or
+hierarchical inference. Power analysis may demand additional repositories or
+sequences; it may not count dependent changes as independent samples.
 
-- [ ] Reproducibility is clearly higher than vibe coding.
-- [ ] Change requests are implemented with fewer regressions and better stability.
-- [ ] Developer UX total score is clearly better (not marginal).
-- [ ] Final solution quality is at least equal, preferably better.
+## 6. Raw Capture
 
-If one or more fail:
-- [ ] Identify concrete improvement path (language/compiler/tooling).
-- [ ] If no credible path exists, mark as No-Go.
+For every run retain:
 
-## 7) Post-Experiment Findings
+- exact inputs and repository digest;
+- SCULPT/spec source and changes;
+- prompts, structured agent messages, tool calls, and diagnostics;
+- candidate patches, failed attempts, and final patch;
+- visible and hidden test results;
+- obligation, decision, evidence, invalidation, and lock records;
+- provider/model/tool versions and configuration;
+- tokens, cost, latency, CI/build compute, and cache behavior;
+- human interventions, review time, audit time, and approvals;
+- infra failures, fallbacks, exclusions, and reasons.
 
-### Observed Results vs Expectations
-1. Expected:
-   Observed:
-2. Expected:
-   Observed:
-3. Expected:
-   Observed:
+Confidential repositories require preregistered redaction and access rules.
+Authorized independent reviewers receive the complete raw package; public
+reporting contains the method, digests, non-confidential fixtures, aggregate
+results, and every failure/exclusion.
 
-### Why SCULPT Won / Lost
-- 
+## 7. Primary Metric
 
-### Concrete Learnings
-1.  
-2.  
-3.  
+> Fully loaded cost per policy-compliant accepted change over the sequential
+> series.
 
-### Decision
-- Outcome: `Go` / `Conditional Go` / `No-Go`
-- Rationale:
-- Next actions:
+Include modeling, provider/contract setup and amortization, model/judge/tool/CI
+cost, failed attempts, developer intervention, review, evidence assembly,
+audit, hotfix, reconciliation, upgrades, and maintenance.
+
+Freeze the exact formula before holdout selection:
+
+~~~text
+FLC10(arm) =
+  all actual arm-attributable costs through the first ten assigned changes
+  of every repository sequence
+  /
+  policy-compliant accepted changes among those assigned changes
+~~~
+
+The numerator contains all one-time setup and every failed, abandoned, or
+timed-out attempt. Shared infrastructure follows a frozen equal-allocation
+rule; arm-specific setup remains arm-specific. Freeze role-specific fully
+loaded hourly rates, currency, and valuation date. Use actual external and
+metered costs. Missing cost data invalidates the run; zero accepted changes
+makes FLC10 infinite. The gate is cumulative through change ten, not the
+marginal tenth-change cost.
+
+## 8. Secondary Metrics
+
+- functional acceptance and escaped defects;
+- critical false-green count;
+- obligation/evidence traceability coverage and mapping accuracy;
+- p50/p95 accepted-change lead time;
+- independent review and audit time;
+- invalidation recall and precision;
+- clean/incremental equivalence;
+- cache and context savings;
+- semantic reproducibility;
+- cross-model portability.
+
+LOC and file hashes are descriptive only.
+
+## 9. Immutable Full-Go Gate
+
+- [ ] Functional acceptance no more than five percentage points below the best
+      baseline.
+- [ ] No escaped critical defect.
+- [ ] Every critical obligation has a machine-traceable and independently
+      correct evidence mapping.
+- [ ] Overall independently checked evidence mapping accuracy at least 95%.
+- [ ] Zero critical false-green.
+- [ ] FLC10 across clustered repository sequences at least 25% below the
+      strongest baseline.
+- [ ] Review/audit time at least 40% below baseline.
+- [ ] Full SCULPT at least 20% better than the no-graph ablation on the primary
+      metric.
+- [ ] Critical invalidation recall 100%; no unsound cache hit.
+- [ ] Provider portability and independent-use gates pass.
+- [ ] Commercial-continuation gate passes.
+- [ ] Independent audit validates baseline selection, clustered inference,
+      FLC10 calculation, protocol conformance, and provenance without an
+      unresolved material finding.
+
+All boxes must pass. A secondary win cannot compensate for failure.
+
+## 10. Decision
+
+| Result | Action |
+|---|---|
+| Experiment thresholds provisionally pass | Independent artifact audit; no Full-Go yet |
+| Audit passes with no unresolved material finding | Full-Go |
+| First failure caused by identified implementation defect | One preregistered fix and exact rerun |
+| Any gate or reaudit still fails | Publish negative result and archive SCULPT |
+
+The competitor, thresholds, tasks, exclusions, and target market remain fixed
+during remediation.

@@ -2,6 +2,11 @@
 
 (C) 2026 byte5 GmbH
 
+> **Historical exploratory comparison.** Per the canonical
+> [evidence status](SCULPT_Evidence_Status.md), this report remains useful for
+> source-structure observations but is not an equal-paradigm benchmark and
+> provides no evidence for the current existence thesis.
+
 ## Scope
 This case study compares two implementations of the same real-world task:
 an incident triage assistant that provides first-response action plans for on-call engineers.

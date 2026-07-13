@@ -2,6 +2,12 @@
 
 (C) 2026 byte5 GmbH
 
+> **Historical exploratory case study — verdict superseded.** The canonical
+> [evidence status](SCULPT_Evidence_Status.md) withdraws the claimed clear
+> reproducibility win as an existence claim because the regeneration protocol
+> was asymmetric and the stable SCULPT path was substantially deterministic.
+> LOC and iteration observations remain descriptive only.
+
 ## 1) Experiment Scope
 
 ### Task
